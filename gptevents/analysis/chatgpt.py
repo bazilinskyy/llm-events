@@ -2,6 +2,8 @@
 import os
 import pandas as pd
 from tqdm import tqdm
+from pdf2image import convert_from_path     # lz added 4/4/2024
+import base64      # lz added 4/4/2024
 
 
 import gptevents as gpte
@@ -10,6 +12,11 @@ import gptevents as gpte
 pd.options.mode.chained_assignment = None  # default='warn'
 
 logger = gpte.CustomLogger(__name__)  # use custom logger
+
+
+def encode_image(image_path):
+    with open(image_path, "rb") as imageFile:
+        return base64.b64encode(imageFile.read()).decode('utf-8')
 
 
 class ChatGPT:
@@ -101,13 +108,23 @@ class ChatGPT:
         file = os.fsdecode(file)
         logger.info('Turning report {} into base64_image.', file)
         file = os.path.join(self.files_reports, file)
-        f = open(file, 'r')
+        # f = open(file, 'r')
         # each page is 1 base64_image
-        base64_image = []
+        base64_images = []
+
         # TODO: turn pdfs into base64 (LZ)
+        imgs = convert_from_path(file)
+        temp_jpg = "output_images_jpg"
+        if not os.path.exists(temp_jpg):
+            os.makedirs(temp_jpg)
+        for i, image in enumerate(imgs):
+            # save generated images. This can be overwritten.
+            image_path = os.path.join(temp_jpg, f"page_{i+1}.jpg")
+            image.save(image_path, 'JPEG')
+            base64_images.append(encode_image(image_path))
         # close image
-        f.close()
-        return base64_image
+        # f.close()
+        return base64_images
 
     # TODO: call for GPT4-V (PB)
     def process_gptv(self, file, pages):
