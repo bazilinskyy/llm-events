@@ -97,11 +97,13 @@ secret
 
 # Ignore all files starting with an underscore.
 **/_*
-!trust-unity/**/_*
 !__init__.py
 
 # Pickle files
 *.p
 
-# Potential fodler with reports
+# Potential folder with reports
 /[Rr]eports/
+
+# Images from PDF
+/gptevents/output_images/
