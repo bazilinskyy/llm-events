@@ -6,7 +6,8 @@ import openai
 from pdf2image import convert_from_path
 import base64
 from PIL import Image
-
+import cv2
+import numpy as np
 import gptevents as gpte
 
 # warning about partial assignment
@@ -93,6 +94,20 @@ class ChatGPT:
         # return df with data
         return df
 
+    def image_crop(self, img_path):
+        """determine minimum spanning bounding box and crop image.
+        Args:
+            img_path: .png image path
+        Returns:
+            none"""
+        img = cv2.imread(img_path)
+        img_gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        img_bw = 255*(img_gray < 128).astype(np.uint8)
+        text = cv2.findNonZero(img_bw)
+        x, y, w, h = cv2.boundingRect(text)
+        img_crop = img[y:y+h, x:x+w]
+        cv2.imwrite(img_path, img_crop)
+
     def pdf_to_base64_image(self, file, resize_image=False, resize_dimentions=(2000, 2000)):
         """Turn pages of the PDF file with the report to base64 strings.
         Args:
@@ -106,7 +121,7 @@ class ChatGPT:
         full_path = os.path.join(self.files_reports, file)
         # each page is 1 base64_image
         base64_images = []
-        imgs = convert_from_path(full_path)
+        imgs = convert_from_path(full_path, dpi=300)
         temp_png = 'output_images'
         if not os.path.exists(temp_png):
             os.makedirs(temp_png)
@@ -118,6 +133,7 @@ class ChatGPT:
                 image.thumbnail(resize_dimentions, Image.Resampling.LANCZOS)
             # save image
             image.save(image_path, 'PNG')
+            self.image_crop(image_path)
             base64_images.append(self.encode_image(image_path))
         # close image
         logger.debug('Turned report {} into base64 images.', file)
