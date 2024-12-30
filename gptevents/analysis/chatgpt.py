@@ -149,32 +149,32 @@ class ChatGPT:
         # build content with multiple images
         # first add a query to the content list
         content = [{
-                      "type": "text",
-                      "text": gpte.common.get_configs('query'),
+                    "type": "text",
+                    "text": gpte.common.get_configs('query'),
                     }
-                   ]
+                    ]
         # populate the list with base64 strings of pages in the report
         for page in pages:
             content.append({
-                      "type": "image_url",
-                      "image_url": {
-                        "url": f"data:image/png;base64,{page}",
-                        "detail": "high"
-                      },
-                    })
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/png;base64,{page}",
+                    "detail": "high"
+                    },
+                })
         # object to store response
         response = None
         # send request to GPT4-V
         try:
             response = self.gpt_client.chat.completions.create(
-              model="gpt-4o",
-              messages=[
-                {
-                  "role": "user",
-                  "content": content
-                }
-              ],
-              max_tokens=2000,
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": content
+                    }
+                    ],
+                max_tokens=2000,
             )
             logger.debug('Received response from GPT4-V: {}.', response.choices[0])
         except openai.AuthenticationError:

@@ -13,7 +13,7 @@ SAVE_CSV = True  # load csv files with data
 FILTER_DATA = True  # filter GPT4-V and heroku data
 CLEAN_DATA = True  # clean GPT4-V data
 ANALYSE_DATA = True  # analyse GPT4-V data
-SHOW_OUTPUT = True  # should figures be plotted
+SHOW_OUTPUT = False  # should figures be plotted
 
 
 if __name__ == '__main__':
