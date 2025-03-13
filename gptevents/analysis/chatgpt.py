@@ -15,6 +15,13 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 logger = gpte.CustomLogger(__name__)  # use custom logger
 
+# Third-party imports
+from openai import OpenAI
+
+# Initialize LM Studio client
+client = OpenAI(base_url="http://127.0.0.1:1234/v1", api_key="lm-studio")
+MODEL = "gemma-3-12b-it"
+
 
 class ChatGPT:
     # pandas dataframe with extracted data
@@ -41,34 +48,50 @@ class ChatGPT:
         # save data as csv file
         self.save_csv = save_csv
         # client for communicating with GPT4-V
-        self.gpt_client = openai.OpenAI(api_key=gpte.common.get_secrets('openai_api_key'))
+        # self.gpt_client = openai.OpenAI(api_key=gpte.common.get_secrets('openai_api_key'))
+        self.gpt_client = client
 
-    def read_data(self, filter_data=True, clean_data=True, analyse_data=True):
+    def read_data(self, filter_data=True, clean_data=True, analyse_data=True, save_interval=20):
         """Read data into an attribute.
 
         Args:
             filter_data (bool, optional): flag for filtering data.
             clean_data (bool, optional): clean data.
             analyse_data (bool, optional): analyse data.
+            save_interval (int, optional): save data after processing this many files.
 
         Returns:
             dataframe: updated dataframe.
         """
         # load data
         if self.load_p:
-            df = gpte.common.load_from_p(self.file_p, 'chatgpt data')
+            df = gpte.common.load_from_p(self.file_p, 'chat data')
         # get data based on the reports
         else:
             # pandas df to store data
             df = pd.DataFrame(columns=('report', 'response'))
             # df = df.transpose()
+            file_list = os.listdir(self.files_reports)
             # go over all reports
-            for file in tqdm(os.listdir(self.files_reports)):
+            for i, file in enumerate(tqdm(file_list)):
                 logger.info('Processing report {}.', file)
                 # get pages as base64_image strings
                 pages = self.pdf_to_base64_image(file, resize_image=True)
                 # feed all pages in the report to GPT-4V at once
-                df = pd.concat([df, self.ask_gptv(file, pages)], ignore_index=True)    
+                df = pd.concat([df, self.ask_gptv(file, pages)], ignore_index=True)
+                
+                # Save periodically based on the interval
+                if (i + 1) % save_interval == 0 or i == len(file_list) - 1:
+                    logger.info('Periodic save after processing {} files.', i + 1)
+                    if self.save_p:
+                        gpte.common.save_to_p(self.file_p, df, 'chat data (periodic)')
+                    if self.save_csv:
+                        periodic_csv = f"periodic_{i+1}_{self.file_data_csv}"
+                        df.to_csv(os.path.join(gpte.settings.output_dir, periodic_csv), index=False)
+                        # Also save to the main file
+                        df.to_csv(os.path.join(gpte.settings.output_dir, self.file_data_csv), index=False)
+                        logger.info('Saved periodic data to csv file {}', periodic_csv)
+                
             # clean data
             if clean_data:
                 df = self.clean_data(df)
@@ -82,19 +105,20 @@ class ChatGPT:
             df = df.reindex(sorted(df.columns), axis=1)
             # report people that attempted study
             logger.info('Processed {} reports.', df.shape[0])
-        # save to pickle
+        
+        # Final save at the end (after cleaning/filtering/analyzing)
         if self.save_p:
-            gpte.common.save_to_p(self.file_p, df, 'chatgpt data')
-        # save to csv
+            gpte.common.save_to_p(self.file_p, df, 'chat data')
         if self.save_csv:
             df.to_csv(os.path.join(gpte.settings.output_dir, self.file_data_csv), index=False)
-            logger.info('Saved data to csv file {}', self.file_data_csv + '.csv')
+            logger.info('Saved final data to csv file {}', self.file_data_csv)
+        
         # update attribute
         self.data = df
         # return df with data
         return df
 
-    def pdf_to_base64_image(self, file, resize_image=False, resize_dimentions=(2000, 2000)):
+    def pdf_to_base64_image(self, file, resize_image=False, resize_dimentions=(896, 896)):
         """Turn pages of the PDF file with the report to base64 strings.
         Args:
             file (str): Name of file of the report.
@@ -138,7 +162,7 @@ class ChatGPT:
             return base64.b64encode(imageFile.read()).decode('utf-8')
 
     def ask_gptv(self, file, pages):
-        """Receive responses from GPT4 for all pages at once.
+        """Receive responses from LLM API for all pages at once.
         Args:
             file (str): File with report.
             pages (list): List of pages as base64 strings.
@@ -167,26 +191,36 @@ class ChatGPT:
         # send request to GPT4-V
         try:
             response = self.gpt_client.chat.completions.create(
-                model="gpt-4o",
+                model=MODEL,
                 messages=[
                     {
                         "role": "user",
                         "content": content
                     }
                     ],
-                max_tokens=2000,
             )
-            logger.debug('Received response from GPT4-V: {}.', response.choices[0])
+            logger.debug('Received response from LLM: {}.', response.choices[0])
         except openai.AuthenticationError:
-            logger.error('Incorrect API key provided to OpenAI.')
+            logger.error('Incorrect API key.')
             return None
         except openai.BadRequestError as e:
-            logger.error('Bad request given to OpenAI: {}.', e)
+            logger.error('Bad request given: {}.', e)
             return None
         except openai.RateLimitError:
             logger.warning('Rate limit exceeded. Retrying after a short delay...')
             time.sleep(60)  # wait 60 seconds
             return self.ask_gptv(file, pages)
+        except Exception as e:
+            logger.error(
+                f"\nError chatting with the LM Studio server!\n\n"
+                f"Please ensure:\n"
+                f"1. LM Studio server is running at 127.0.0.1:1234 (hostname:port)\n"
+                f"2. Model '{MODEL}' is downloaded\n"
+                f"3. Model '{MODEL}' is loaded, or that just-in-time model loading is enabled\n\n"
+                f"Error details: {str(e)}\n"
+                "See https://lmstudio.ai/docs/basics/server for more information"
+            )
+            exit(1)
         # turn response into a dataframe
         data = {'report': [file], 'response': [response.choices[0].message.content]}
         df = pd.DataFrame(data)
