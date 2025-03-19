@@ -21,7 +21,7 @@ Configuration of the project needs to be defined in `llm-events/config`. Please 
 ## Analysis
 Analysis can be started by running `python llm-events/llmevents/run.py`. A number of CSV files used for data processing are saved in `llmevents/_output`. Visualisations of all data are saved in `llmevents/_output/figures/`.
 
-## Categorisation of answers in the query
+## Answers to questions in the query
 [![Histogram of Q1](figures/hist_q1_category.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q1_category.html)
 Histogram of categorisation of output for question 1.
 
