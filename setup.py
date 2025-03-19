@@ -2,7 +2,7 @@ import setuptools
 
 
 setuptools.setup(
-    name="gptevents",
+    name="llmevents",
     version="0.1",
     packages=setuptools.find_packages(),
 )

@@ -305,31 +305,6 @@ class Analysis:
         else:
             fig.show()
 
-    def map(self, df, color, save_file=True):
-        """Map of countries of participation with color based on column in
-           dataframe.
-
-        Args:
-            df (dataframe): dataframe with keypress data.
-            save_file (bool, optional): flag for saving an html file with plot.
-        """
-        logger.info('Creating visualisation of heatmap of participants by'
-                    + ' country with colour defined by {}.', color)
-        # create map
-        fig = px.choropleth(df,
-                            locations='country',
-                            color=color,
-                            hover_name='country',
-                            color_continuous_scale=px.colors.sequential.Plasma)
-        # update layout
-        fig.update_layout(template=self.template)
-        # save file
-        if save_file:
-            self.save_plotly(fig, 'map_' + color, self.folder)
-        # open it in localhost instead
-        else:
-            fig.show()
-
     def save_plotly(self, fig, name, output_subdir):
         """
         Helper function to save figure as html file.

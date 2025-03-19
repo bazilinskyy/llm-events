@@ -105,4 +105,7 @@ secret
 /[Rr]eports/
 
 # Images from PDF
-/gptevents/output_images/
+/llmevents/output_images/
+
+# ipynb for Mistral
+/llmevents/mistral.ipynb
