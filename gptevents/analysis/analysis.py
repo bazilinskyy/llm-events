@@ -8,15 +8,15 @@ import plotly.express as px
 import warnings
 import unicodedata
 import re
-import gptevents as gpte
+import llmevents as llme
 
 matplotlib.use('TkAgg')
-logger = gpte.CustomLogger(__name__)  # use custom logger
+logger = llme.CustomLogger(__name__)  # use custom logger
 
 
 class Analysis:
     # set template for plotly output
-    template = gpte.common.get_configs('plotly_template')
+    template = llme.common.get_configs('plotly_template')
     # folder for output
     fig = None
     g = None
@@ -340,7 +340,7 @@ class Analysis:
             output_subdir (str): Folder for saving file.
         """
         # build path
-        path = gpte.settings.output_dir + output_subdir
+        path = llme.settings.output_dir + output_subdir
         if not os.path.exists(path):
             os.makedirs(path)
         # limit name to 255 char
@@ -368,7 +368,7 @@ class Analysis:
         # turn name into valid file name
         file_no_path = self.slugify(file_no_path)
         # create path
-        path = gpte.settings.output_dir + output_subdir
+        path = llme.settings.output_dir + output_subdir
         if not os.path.exists(path):
             os.makedirs(path)
         # save file

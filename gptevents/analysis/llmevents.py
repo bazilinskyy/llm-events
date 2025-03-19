@@ -8,12 +8,12 @@ import base64
 from PIL import Image
 import time
 
-import gptevents as gpte
+import LLMEvents as llme
 
 # warning about partial assignment
 pd.options.mode.chained_assignment = None  # default='warn'
 
-logger = gpte.CustomLogger(__name__)  # use custom logger
+logger = llme.CustomLogger(__name__)  # use custom logger
 
 # Third-party imports
 from openai import OpenAI
@@ -23,7 +23,7 @@ client = OpenAI(base_url="http://127.0.0.1:1234/v1", api_key="lm-studio")
 MODEL = "gemma-3-12b-it"
 
 
-class ChatGPT:
+class LLMEvents:
     # pandas dataframe with extracted data
     data = pd.DataFrame()
     save_p = False  # save data as pickle file
@@ -31,8 +31,6 @@ class ChatGPT:
     save_csv = False  # save data as csv file
     # pickle file for saving data
     file_p = 'data.p'
-    # csv file for saving data
-    file_data_csv = 'data.csv'
 
     def __init__(self,
                  files_reports: list,
@@ -48,7 +46,7 @@ class ChatGPT:
         # save data as csv file
         self.save_csv = save_csv
         # client for communicating with GPT4-V
-        # self.gpt_client = openai.OpenAI(api_key=gpte.common.get_secrets('openai_api_key'))
+        # self.gpt_client = openai.OpenAI(api_key=llme.common.get_secrets('openai_api_key'))
         self.gpt_client = client
 
     def read_data(self, filter_data=True, clean_data=True, analyse_data=True, save_interval=20):
@@ -65,7 +63,7 @@ class ChatGPT:
         """
         # load data
         if self.load_p:
-            df = gpte.common.load_from_p(self.file_p, 'chat data')
+            df = llme.common.load_from_p(self.file_p, 'chat data')
         # get data based on the reports
         else:
             # pandas df to store data
@@ -84,12 +82,12 @@ class ChatGPT:
                 if (i + 1) % save_interval == 0 or i == len(file_list) - 1:
                     logger.info('Periodic save after processing {} files.', i + 1)
                     if self.save_p:
-                        gpte.common.save_to_p(self.file_p, df, 'chat data (periodic)')
+                        llme.common.save_to_p(self.file_p, df, 'chat data (periodic)')
                     if self.save_csv:
-                        periodic_csv = f"periodic_{i+1}_{self.file_data_csv}"
-                        df.to_csv(os.path.join(gpte.settings.output_dir, periodic_csv), index=False)
+                        periodic_csv = f"periodic_{i+1}_{llme.common.get_configs('data')}"
+                        df.to_csv(os.path.join(llme.settings.output_dir, periodic_csv), index=False)
                         # Also save to the main file
-                        df.to_csv(os.path.join(gpte.settings.output_dir, self.file_data_csv), index=False)
+                        df.to_csv(os.path.join(llme.settings.output_dir, llme.common.get_configs('data')), index=False)
                         logger.info('Saved periodic data to csv file {}', periodic_csv)
                 
             # clean data
@@ -108,10 +106,10 @@ class ChatGPT:
         
         # Final save at the end (after cleaning/filtering/analyzing)
         if self.save_p:
-            gpte.common.save_to_p(self.file_p, df, 'chat data')
+            llme.common.save_to_p(self.file_p, df, 'chat data')
         if self.save_csv:
-            df.to_csv(os.path.join(gpte.settings.output_dir, self.file_data_csv), index=False)
-            logger.info('Saved final data to csv file {}', self.file_data_csv)
+            df.to_csv(os.path.join(llme.settings.output_dir, llme.common.get_configs('data')), index=False)
+            logger.info('Saved final data to csv file {}', llme.common.get_configs('data'))
         
         # update attribute
         self.data = df
@@ -174,7 +172,7 @@ class ChatGPT:
         # first add a query to the content list
         content = [{
                     "type": "text",
-                    "text": gpte.common.get_configs('query'),
+                    "text": llme.common.get_configs('query'),
                     }
                     ]
         # populate the list with base64 strings of pages in the report

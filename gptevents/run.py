@@ -1,10 +1,10 @@
 # by Pavlo Bazilinskyy <pavlo.bazilinskyy@gmail.com>
 import matplotlib.pyplot as plt
 import matplotlib._pylab_helpers
-import gptevents as gpte
+import llmevevents as llme
 
-gpte.logs(show_level='info', show_color=True)
-logger = gpte.CustomLogger(__name__)  # use custom logger
+llme.logs(show_level='info', show_color=True)
+logger = llme.CustomLogger(__name__)  # use custom logger
 
 # const
 SAVE_P = True  # save pickle files with data
@@ -18,14 +18,14 @@ SHOW_OUTPUT = False  # should figures be plotted
 
 if __name__ == '__main__':
     # create object for working with heroku data
-    reports = gpte.common.get_configs('reports')
-    chatgpt = gpte.analysis.ChatGPT(files_reports=reports, save_p=SAVE_P, load_p=LOAD_P, save_csv=SAVE_CSV)
+    reports = llme.common.get_configs('reports')
+    chatgpt = llme.analysis.ChatGPT(files_reports=reports, save_p=SAVE_P, load_p=LOAD_P, save_csv=SAVE_CSV)
     # read heroku data
     data = chatgpt.read_data(filter_data=FILTER_DATA, clean_data=CLEAN_DATA, analyse_data=ANALYSE_DATA)
     logger.info('Data from {} reports included in analysis.', data.shape[0])
     if SHOW_OUTPUT:
         # Output
-        analysis = gpte.analysis.Analysis()
+        analysis = llme.analysis.Analysis()
         logger.info('Creating figures.')
         # some bar plot
         analysis.bar(data, y=['report'], pretty_text=True, save_file=True)
