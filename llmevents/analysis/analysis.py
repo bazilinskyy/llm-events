@@ -24,7 +24,7 @@ class Analysis:
     stim_id = None
     points = None
     save_frames = False
-    folder = '/figures/'
+    folder_figures = 'figures'  # subdirectory to save figures
     polygons = None
 
     def __init__(self):
@@ -300,30 +300,73 @@ class Analysis:
         if save_file:
             self.save_plotly(fig,
                              'hist_' + '-'.join(str(val) for val in x),
-                             self.folder)
+                             save_final=True)
         # open it in localhost instead
         else:
             fig.show()
 
-    def save_plotly(self, fig, name, output_subdir):
+    def save_plotly(self, fig, name, remove_margins=False, width=1320, height=680, save_eps=True, save_png=True,
+                    save_html=True, open_browser=True, save_mp4=False, save_final=False):
         """
         Helper function to save figure as html file.
 
         Args:
             fig (plotly figure): figure object.
             name (str): name of html file.
-            output_subdir (str): Folder for saving file.
+            path (str): folder for saving file.
+            remove_margins (bool, optional): remove white margins around EPS figure.
+            width (int, optional): width of figures to be saved.
+            height (int, optional): height of figures to be saved.
+            save_eps (bool, optional): save image as EPS file.
+            save_png (bool, optional): save image as PNG file.
+            save_html (bool, optional): save image as html file.
+            open_browser (bool, optional): open figure in the browse.
+            save_mp4 (bool, optional): save video as MP4 file.
+            save_final (bool, optional): whether to save the "good" final figure.
         """
         # build path
-        path = llme.settings.output_dir + output_subdir
+        path = os.path.join(llme.settings.output_dir, self.folder_figures)
         if not os.path.exists(path):
             os.makedirs(path)
-        # limit name to 255 char
-        if len(path) + len(name) > 250:
-            name = name[:255 - len(path) - 5]
-        file_plot = os.path.join(path + name + '.html')
-        # save to file
-        py.offline.plot(fig, filename=file_plot)
+        # build path for final figure
+        path_final = os.path.join(llme.settings.root_dir, self.folder_figures)
+        if save_final and not os.path.exists(path_final):
+            os.makedirs(path_final)
+        # limit name to max 200 char (for Windows)
+        if len(path) + len(name) > 195 or len(path_final) + len(name) > 195:
+            name = name[:200 - len(path) - 5]
+        # save as html
+        if save_html:
+            if open_browser:
+                # open in browser
+                py.offline.plot(fig, filename=os.path.join(path, name + '.html'))
+                # also save the final figure
+                if save_final:
+                    py.offline.plot(fig, filename=os.path.join(path_final, name + '.html'), auto_open=False)
+            else:
+                # do not open in browser
+                py.offline.plot(fig, filename=os.path.join(path, name + '.html'), auto_open=False)
+                # also save the final figure
+                if save_final:
+                    py.offline.plot(fig, filename=os.path.join(path_final, name + '.html'), auto_open=False)
+        # remove white margins
+        if remove_margins:
+            fig.update_layout(margin=dict(l=2, r=2, t=20, b=12))
+        # save as eps
+        if save_eps:
+            fig.write_image(os.path.join(path, name + '.eps'), width=width, height=height)
+            # also save the final figure
+            if save_final:
+                fig.write_image(os.path.join(path_final, name + '.eps'), width=width, height=height)
+        # save as png
+        if save_png:
+            fig.write_image(os.path.join(path, name + '.png'), width=width, height=height)
+            # also save the final figure
+            if save_final:
+                fig.write_image(os.path.join(path_final, name + '.png'), width=width, height=height)
+        # save as mp4
+        if save_mp4:
+            fig.write_image(os.path.join(path, name + '.mp4'), width=width, height=height)
 
     def save_fig(self, image, fig, output_subdir, suffix, pad_inches=0):
         """
