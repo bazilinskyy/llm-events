@@ -14,7 +14,6 @@ Configuration of the project needs to be defined in `llm-events/config`. Please 
 * `reports`: path with reports.
 * `data`: path for CSV with output.
 * `analyse`: toggle to run analysis of reports.
-* `num_q`: number of questions in the query.
 * `query`: query to path to LLM.
 * `plotly_template`: template used to make graphs in the analysis.
 

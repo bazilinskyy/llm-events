@@ -103,49 +103,78 @@ class LLMEvents:
         # return df with data
         return df
 
-    def extract_answers(self, response):
+    def extract_answers(self, response, q):
         """Extract answers to each question from response text."""
         answers = {}
-        for i in range(1, llme.common.get_configs('num_q') + 1):
-            pattern = rf"\*\*Q{i}\. .*?\*\*(.*?)\n\n"
-            match = re.search(pattern, response, re.DOTALL)
-            answers[f"q{i}"] = match.group(1).strip() if match else ""
+        pattern = rf"\*\*Q{q}\. .*?\*\*(.*?)\n\n"
+        match = re.search(pattern, response, re.DOTALL)
+        answers[f"q{q}"] = match.group(1).strip() if match else ""
         return answers
 
-    def categorise_response(self, response):
-        """Categorise responses based on key terms."""
+    def categorise(self, response, q):
+        """Categorise responses to question 1.
+        
+        Args:
+            response (str): response.
+        
+        Returns:
+            str: categorisation.
+        """
         response = response.lower()
         
-        if "yes," in response or "yes." in response:
-            return "yes"
-        elif "no," in response or "no." in response:
-            return "no"
-        elif "collision" in response or "crash" in response or "accident" in response:
-            return "collision/crash"
-        elif "pedestrian" in response or "cyclist" in response:
-            return "involving pedestrian/cyclist"
-        elif "software issue" in response or "hardware issue" in response or "sensor failure" in response:
-            return "technical failure"
-        elif "human driver" in response or "manual intervention" in response:
-            return "human intervention required"
-        elif "near miss" in response or "close call" in response:
-            return "near miss"
-        elif "no issue" in response or "normal operation" in response:
-            return "no incident"
+        if q == 1:
+            if "yes," in response or "yes." in response:
+                return "yes"
+            elif "no," in response or "no." in response:
+                return "no"
+            else:
+                return "other"
+        elif q == 2:
+            pass
+        elif q == 3:
+            pass
+        elif q == 4:
+            pass
+        elif q == 5:
+            pass
+        elif q == 6:
+            pass
+        elif q == 7:
+            pass
         else:
-            return "uncategorised"
+            return "wrong question"
 
     def process_answers(self, df):
         """Apply categorisation to each of the questions in the query."""
-        num_q = llme.common.get_configs('num_q')
-        logger.info(f'Processing output from {num_q} questions.')
+        logger.info('Processing output.')
         
-        for i in range(1, num_q + 1):
-            question_col = f"q{i}"
-            if question_col not in df.columns:
-                df[question_col] = df["response"].apply(lambda x: self.extract_answers(str(x))[question_col])
-            df[f"q{i}_category"] = df[question_col].apply(lambda x: self.categorise_response(str(x)))
-        
+        # for i in range(1, num_q + 1):
+        #     question_col = f"q{i}"
+        #     if question_col not in df.columns:
+        #         df[question_col] = df["response"].apply(lambda x: self.extract_answers(str(x))[question_col])
+        #     df[f"q{i}_category"] = df[question_col].apply(lambda x: self.categorise_response(str(x)))
+        # Q1
+        df["q1"] = df["response"].apply(lambda x: self.extract_answers(str(x), 1)["q1"])
+        df["q1_category"] = df["q1"].apply(lambda x: self.categorise(str(x), 1))
+        # Q2
+        df["q2"] = df["response"].apply(lambda x: self.extract_answers(str(x), 2)["q2"])
+        df["q2_category"] = df["q2"].apply(lambda x: self.categorise(str(x), 2))
+        # Q3
+        df["q3"] = df["response"].apply(lambda x: self.extract_answers(str(x), 3)["q3"])
+        df["q3_category"] = df["q3"].apply(lambda x: self.categorise(str(x), 3))
+        # Q4
+        df["q4"] = df["response"].apply(lambda x: self.extract_answers(str(x), 4)["q4"])
+        df["q4_category"] = df["q4"].apply(lambda x: self.categorise(str(x), 4))
+        # Q5
+        df["q5"] = df["response"].apply(lambda x: self.extract_answers(str(x), 5)["q5"])
+        df["q5_category"] = df["q5"].apply(lambda x: self.categorise(str(x), 5))
+        # Q6
+        df["q6"] = df["response"].apply(lambda x: self.extract_answers(str(x), 6)["q6"])
+        df["q6_category"] = df["q6"].apply(lambda x: self.categorise(str(x), 6))
+        # Q7
+        df["q7"] = df["response"].apply(lambda x: self.extract_answers(str(x), 7)["q7"])
+        df["q7_category"] = df["q7"].apply(lambda x: self.categorise(str(x), 7))
+
         return df
 
     def pdf_to_base64_image(self, file, resize_image=False, resize_dimentions=(896, 896)):
