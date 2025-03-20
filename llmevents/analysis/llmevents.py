@@ -120,26 +120,49 @@ class LLMEvents:
         Returns:
             str: categorisation.
         """
-        response = response.lower()
+        # response = response.lower()
         
-        if q == 1:
-            if "yes," in response or "yes." in response:
-                return "yes"
-            elif "no," in response or "no." in response:
-                return "no"
+        if q == "q1":
+            if "Yes," in response or "Yes." in response:
+                return "Yes"
+            elif "No," in response or "No." in response:
+                return "No"
             else:
-                return "other"
-        elif q == 2:
+                return "Other"
+        elif q == "q2-automated_vehicle":
+            # Extract Automated Vehicle model
+            av_match = re.search(r"(?:\*\*Automated Vehicle:\*\*|\*\*Autonomous Vehicle:\*\*|Automated Vehicle:)[^\n]*?(\d{4})?[^\n]*?Brand ([A-Za-z]+), Model ([A-Za-z0-9\s]+)", response)
+            if av_match:
+                year = av_match.group(1) if av_match.group(1) else ""
+                brand = av_match.group(2).strip()
+                model = av_match.group(3).strip()
+                # return f"{year} {brand} {model}".strip()
+                return f"{brand} {model}".strip()
+            else:
+                # Alternative format extraction
+                av_alt_match = re.search(r"(?:\*\*Automated Vehicle:\*\*|\*\*Autonomous Vehicle:\*\*)\s*(\d{4})?\s*([A-Za-z]+)\s+([A-Za-z0-9\s]+)\.", response)
+                if av_alt_match:
+                    year = av_alt_match.group(1)
+                    brand = av_alt_match.group(2).strip()
+                    model = av_alt_match.group(3).strip()
+                    # return f"{year} {brand} {model}".strip()
+                    return f"{brand} {model}".strip()
+                else:
+                    print(response)
+                    return "unknown"
+        elif q == "q2-other_road_user":  
+            # Extract Other Involved Road User
+            ru_match = re.search(r"\*\*Other Involved Road User:\*\*\s*([^\n]*)", response)
+            return ru_match.group(1).strip() if ru_match else "unknown"
+        elif q == "q3":
             pass
-        elif q == 3:
+        elif q == "q4":
             pass
-        elif q == 4:
+        elif q == "q5":
             pass
-        elif q == 5:
+        elif q == "q6":
             pass
-        elif q == 6:
-            pass
-        elif q == 7:
+        elif q == "q7":
             pass
         else:
             return "wrong question"
@@ -155,25 +178,26 @@ class LLMEvents:
         #     df[f"q{i}_category"] = df[question_col].apply(lambda x: self.categorise_response(str(x)))
         # Q1
         df["q1"] = df["response"].apply(lambda x: self.extract_answers(str(x), 1)["q1"])
-        df["q1_category"] = df["q1"].apply(lambda x: self.categorise(str(x), 1))
+        df["q1_category"] = df["q1"].apply(lambda x: self.categorise(str(x), "q1"))
         # Q2
         df["q2"] = df["response"].apply(lambda x: self.extract_answers(str(x), 2)["q2"])
-        df["q2_category"] = df["q2"].apply(lambda x: self.categorise(str(x), 2))
+        df["q2_automated_vehicle"] = df["q2"].apply(lambda x: self.categorise(str(x), "q2-automated_vehicle"))
+        df["q2_other_road_user"] = df["q2"].apply(lambda x: self.categorise(str(x), "q2-other_road_user"))
         # Q3
         df["q3"] = df["response"].apply(lambda x: self.extract_answers(str(x), 3)["q3"])
-        df["q3_category"] = df["q3"].apply(lambda x: self.categorise(str(x), 3))
+        df["q3_category"] = df["q3"].apply(lambda x: self.categorise(str(x), "q3"))
         # Q4
         df["q4"] = df["response"].apply(lambda x: self.extract_answers(str(x), 4)["q4"])
-        df["q4_category"] = df["q4"].apply(lambda x: self.categorise(str(x), 4))
+        df["q4_category"] = df["q4"].apply(lambda x: self.categorise(str(x), "q4"))
         # Q5
         df["q5"] = df["response"].apply(lambda x: self.extract_answers(str(x), 5)["q5"])
-        df["q5_category"] = df["q5"].apply(lambda x: self.categorise(str(x), 5))
+        df["q5_category"] = df["q5"].apply(lambda x: self.categorise(str(x), "q5"))
         # Q6
         df["q6"] = df["response"].apply(lambda x: self.extract_answers(str(x), 6)["q6"])
-        df["q6_category"] = df["q6"].apply(lambda x: self.categorise(str(x), 6))
+        df["q6_category"] = df["q6"].apply(lambda x: self.categorise(str(x), "q6"))
         # Q7
         df["q7"] = df["response"].apply(lambda x: self.extract_answers(str(x), 7)["q7"])
-        df["q7_category"] = df["q7"].apply(lambda x: self.categorise(str(x), 7))
+        df["q7_category"] = df["q7"].apply(lambda x: self.categorise(str(x), "q7"))
 
         return df
 

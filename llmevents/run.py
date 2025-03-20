@@ -26,8 +26,6 @@ if __name__ == '__main__':
                              clean_data=CLEAN_DATA,
                              analyse_data=ANALYSE_DATA,
                              process_answers=PROCESS_ANSWERS)
-    print(df.columns)
-    print(df.head)
     # apply categorization
     logger.info('Data from {} reports included in analysis.', df.shape[0])
     if SHOW_OUTPUT:
@@ -40,36 +38,41 @@ if __name__ == '__main__':
                       marginal=None,
                       pretty_text=True,
                       save_file=True)
-        analysis.hist(df, x=['q2_category'],
-                      yaxis_title='Q2. Involved parties(Who)',
+        analysis.hist(df, x=['q2_automated_vehicle'],
+                      yaxis_title='Q2. Involved parties(Who) - automated vehicle',
                       marginal=None,
                       pretty_text=True,
                       save_file=True)
-        analysis.hist(df, x=['q3_category'],
-                      yaxis_title='Q3. Accident location details(Where)',
+        analysis.hist(df, x=['q2_other_road_user'],
+                      yaxis_title='Q2. Involved parties(Who) - other road user',
                       marginal=None,
                       pretty_text=True,
                       save_file=True)
-        analysis.hist(df, x=['q4_category'],
-                      yaxis_title='Q4. Time and environmental conditions(When)',
-                      marginal=None,
-                      pretty_text=True,
-                      save_file=True)
-        analysis.hist(df, x=['q5_category'],
-                      yaxis_title='Q5. Accident damage and consequences(What)',
-                      marginal=None,
-                      pretty_text=True,
-                      save_file=True)
-        analysis.hist(df, x=['q6_category'],
-                      yaxis_title='Q6. Responsibility and contributing factors(Why)',
-                      marginal=None,
-                      pretty_text=True,
-                      save_file=True)
-        analysis.hist(df, x=['q7_category'],
-                      yaxis_title='Q7. Traffic and vehicle behavior(How)',
-                      marginal=None,
-                      pretty_text=True,
-                      save_file=True)
+        # analysis.hist(df, x=['q3_category'],
+        #               yaxis_title='Q3. Accident location details(Where)',
+        #               marginal=None,
+        #               pretty_text=True,
+        #               save_file=True)
+        # analysis.hist(df, x=['q4_category'],
+        #               yaxis_title='Q4. Time and environmental conditions(When)',
+        #               marginal=None,
+        #               pretty_text=True,
+        #               save_file=True)
+        # analysis.hist(df, x=['q5_category'],
+        #               yaxis_title='Q5. Accident damage and consequences(What)',
+        #               marginal=None,
+        #               pretty_text=True,
+        #               save_file=True)
+        # analysis.hist(df, x=['q6_category'],
+        #               yaxis_title='Q6. Responsibility and contributing factors(Why)',
+        #               marginal=None,
+        #               pretty_text=True,
+        #               save_file=True)
+        # analysis.hist(df, x=['q7_category'],
+        #               yaxis_title='Q7. Traffic and vehicle behavior(How)',
+        #               marginal=None,
+        #               pretty_text=True,
+        #               save_file=True)
         # some scatter plot
         # analysis.scatter(df, x='report', y='response', color='report', pretty_text=True, save_file=True)
         # # some histogram
