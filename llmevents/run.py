@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib._pylab_helpers
 import llmevents as llme
 
-llme.logs(show_level='info', show_color=True)
+llme.logs(show_level=llme.common.get_configs("logger_level"), show_color=True)
 logger = llme.CustomLogger(__name__)  # use custom logger
 
 # const
@@ -33,21 +33,26 @@ if __name__ == '__main__':
         analysis = llme.analysis.Analysis()
         logger.info('Creating figures.')
         # histograms of questions
-        analysis.hist(df, x=['q1_category'],
-                      yaxis_title='Q1. Describe the accident',
-                      marginal=None,
-                      pretty_text=True,
-                      save_file=True)
+        # analysis.hist(df, x=['q1_category'],
+        #               yaxis_title='Q1. Describe the accident',
+        #               marginal=None,
+        #               pretty_text=True,
+        #               save_file=True)
         analysis.hist(df, x=['q2_automated_vehicle'],
                       yaxis_title='Q2. Involved parties(Who) - automated vehicle',
                       marginal=None,
-                      pretty_text=True,
+                      # pretty_text=True,
                       save_file=True)
-        analysis.hist(df, x=['q2_other_road_user'],
-                      yaxis_title='Q2. Involved parties(Who) - other road user',
-                      marginal=None,
-                      pretty_text=True,
-                      save_file=True)
+        # analysis.hist(df, x=['q2_other_road_user'],
+        #               yaxis_title='Q2. Involved parties(Who) - other road user',
+        #               marginal=None,
+        #               pretty_text=True,
+        #               save_file=True)
+        # analysis.hist(df, x=['q2_other_vehicle'],
+        #               yaxis_title='Q2. Involved parties(Who) - other vehicle',
+        #               marginal=None,
+        #               pretty_text=True,
+        #               save_file=True)
         # analysis.hist(df, x=['q3_category'],
         #               yaxis_title='Q3. Accident location details(Where)',
         #               marginal=None,

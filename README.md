@@ -11,11 +11,12 @@ For analysis with GPT-V, the API key of OpenAI needs to be placed in file `llm-e
 
 ### Configuration of project
 Configuration of the project needs to be defined in `llm-events/config`. Please use the `default.config` file for the required structure of the file. If no custom config file is provided, `default.config` is used. The config file has the following parameters:
-* `reports`: path with reports.
-* `data`: path for CSV with output.
-* `analyse`: toggle to run analysis of reports.
-* `query`: query to path to LLM.
-* `plotly_template`: template used to make graphs in the analysis.
+- **`reports`**: path with reports.
+- **`data`**: path for CSV with output.
+- **`analyse`**: toggle to run analysis of reports.
+- **`query`**: query to path to LLM.
+- **`plotly_template`**: template used to make graphs in the analysis.
+- **`logger_level`**: Level of console output. Can be: debug, info, warning, error.
 
 ## Analysis
 Analysis can be started by running `python llm-events/llmevents/run.py`. A number of CSV files used for data processing are saved in `llmevents/_output`. Visualisations of all data are saved in `llmevents/_output/figures/`.
@@ -24,8 +25,14 @@ Analysis can be started by running `python llm-events/llmevents/run.py`. A numbe
 [![Histogram of Q1](figures/hist_q1_category.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q1_category.html)
 Histogram of categorisation of output for question 1.
 
-[![Histogram of Q2](figures/hist_q2_category.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_category.html)
-Histogram of categorisation of output for question 2.
+[![Histogram of Q2 - automated vehicle](figures/hist_q2_automated_vehicle.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_automated_vehicle.html)
+Histogram of categorisation of output for question 2 - automated vehicle.
+
+[![Histogram of Q2 - other road user](figures/hist_q2_other_road_user.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_other_road_user.html)
+Histogram of categorisation of output for question 2 - automated vehicle.
+
+[![Histogram of Q2 - other vehicle](figures/hist_q2_other_vehicle.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_other_vehicle.html)
+Histogram of categorisation of output for question 2 - other vehicle.
 
 [![Histogram of Q3](figures/hist_q3_category.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q3_category.html)
 Histogram of categorisation of output for question 3.

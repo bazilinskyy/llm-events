@@ -267,8 +267,7 @@ class Analysis:
         logger.info('Creating histogram for x={}.', x)
         # using colour with multiple values to plot not supported
         if color and len(x) > 1:
-            logger.error('Color property can be used only with a single' +
-                         ' variable to plot.')
+            logger.error('Color property can be used only with a single variable to plot.')
             return -1
         # prettify ticks
         if pretty_text:
