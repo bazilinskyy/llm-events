@@ -109,7 +109,8 @@ class LLMEvents:
         # pattern = rf"\*\*Q{q}\. .*?\*\*(.*?)\n\n"
         # pattern = rf"(?:\*\*Q{q}\. .+?\*\*|Q{q}\. .+?\n)(.*?)(?=\n\n|\Z)"
         # pattern = rf"(?:\*\*Q{q}\. .+?\*\*|Q{q}\. .+?\n)([\s\S]+?)(?=\n\n|\Z)"
-        pattern = rf"(?:\*\*Q{q}\. .+?\*\*|Q{q}\. .+?)([\s\S]+?)(?=\n\n|\Z)"
+        # pattern = rf"(?:\*\*Q{q}\. .+?\*\*|Q{q}\. .+?)([\s\S]+?)(?=\n\n|\Z)"
+        pattern = rf"(?:\*\*Q{q}\. .+?\*\*|Q{q}\. .+?)(?:\s*\n)?([\s\S]+?)(?=\n\n|\Z)"
         match = re.search(pattern, response, re.DOTALL)
         answers[f"q{q}"] = match.group(1).strip() if match else ""
         return answers
@@ -138,12 +139,13 @@ class LLMEvents:
             model_av = None
             year_av = None
             # Cleanup of formatting
-            response = re.sub(r"\*\*Automated Vehicle:\*\*|" + 
-                              r"\*\*Autonomous Vehicle:\*\*|" +
-                              r"Autonomous Vehicle:|" +
-                              r"\*\*Vehicle 1 \(Autonomous Vehicle\):\*\*|" +
+            response = re.sub(r"Autonomous Vehicle:|" +
+                              r"Vehicle 1 \(Autonomous Vehicle\):|" +
+                              r"Vehicle 1 \(Automated Vehicle\):|" +
                               r"The automated vehicle was a|" +
+                              r"The autonomous vehicle was a|" +
                               r"Vehicle 1:", "Automated Vehicle:", response)
+            response = re.sub(r"\*\*Automated Vehicle:\*\*", "Automated Vehicle:", response)
             response = re.sub(r"Apple Inc.", "Apple", response)
             response = re.sub(r"\(Not Specified\)", "Unknown", response)
             response = re.sub(r" \(indicated by a blank space\)", "", response)
@@ -159,14 +161,14 @@ class LLMEvents:
                 brand_av = "Zoom"
             # Year, brand, model
             # av_match_1 = re.search(r"Automated Vehicle: Year [^\n]*?(\d{4})?[^\n]*?, Brand ([A-Za-z]+), Model ([A-Za-z0-9\s]+)", response)  # noqa: E501
-            av_match_1 = re.search(r"Automated Vehicle: Year (\d{4}), Brand ([A-Za-z]+), Model ([A-Za-z0-9\s]+)\.", response)  # noqa: E501
+            av_match_1 = re.search(r"Automated Vehicle: Year (\d{4}), Brand ([A-Za-z-]+), Model ([A-Za-z0-9\s]+)", response)  # noqa: E501
             if not brand_av and av_match_1:
                 # print(1, av_match_1, av_match_1.group(2))
                 year_av = av_match_1.group(1)
                 brand_av = av_match_1.group(2).strip()
                 model_av = av_match_1.group(3).strip()
             # Year, brand_av, model
-            av_match_2 = re.search(r"Automated Vehicle: (\d{4}), Brand ([A-Za-z]+), Model ([A-Za-z0-9\s]+)\.", response)  # noqa: E501
+            av_match_2 = re.search(r"Automated Vehicle: (\d{4}), Brand ([A-Za-z-]+), Model ([A-Za-z0-9\s]+)", response)  # noqa: E501
             if not brand_av and av_match_2:
                 # print(2, av_match_2, av_match_2.group(2))
                 year_av = av_match_2.group(1) if av_match_2.group(1) else ""
