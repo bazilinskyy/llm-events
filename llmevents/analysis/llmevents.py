@@ -129,9 +129,11 @@ class LLMEvents:
                 return "No"
             else:
                 return "Other"
-        elif q == "q2-automated_vehicle":
+        elif q == "q2-av":
             # return brand
             brand_av = None
+            model_av = None
+            year_av = None
             # Cleanup of formatting of answer: replace different formats of introducing AV
             response = re.sub(r"\*\*Automated Vehicle:\*\*|" + 
                               r"\*\*Autonomous Vehicle:\*\*|" +
@@ -149,35 +151,23 @@ class LLMEvents:
             # Year, brand, model
             av_match_1 = re.search(r"Automated Vehicle: Year [^\n]*?(\d{4})?[^\n]*?, Brand ([A-Za-z]+), Model ([A-Za-z0-9\s]+)", response)  # noqa: E501
             if av_match_1:
-                # year = av_match_1.group(1) if av_match_1.group(1) else ""
+                year_av = av_match_1.group(1) if av_match_1.group(1) else ""
                 brand_av = av_match_1.group(2).strip()
-                model = av_match_1.group(3).strip()
+                model_av = av_match_1.group(3).strip()
                 # return f"{year} {brand_av} {model}".strip()
                 # return f"{brand_av}".strip()
             # Year, brand_av, model
             av_match_2 = re.search(r"Automated Vehicle: [^\n]*?(\d{4})?[^\n]*?Brand ([A-Za-z]+), Model ([A-Za-z0-9\s]+)", response)  # noqa: E501
             if av_match_2:
-                # year = av_match_2.group(1) if av_match_2.group(1) else ""
+                year_av = av_match_2.group(1) if av_match_2.group(1) else ""
                 brand_av = av_match_2.group(2).strip()
-                model = av_match_2.group(3).strip()
-                # return f"{year} {brand_av} {model}".strip()
-                # return f"{brand_av}".strip()
-            # # Year, brand
-            # av_match = re.search(r"(?:\*\*Automated Vehicle:\*\*|\*\*Autonomous Vehicle:\*\*|Automated Vehicle:)[^\n]*?(\d{4})?[^\n]*?Brand ([A-Za-z]+), Model ([A-Za-z0-9\s]+)", response)  # noqa: E501
-            # if av_match:
-            #     # year = av_match.group(1)
-            #     brand_av = av_match.group(2).strip()
-            #     model = av_match.group(3).strip()
-            #     # return f"{year} {brand_av} {model}".strip()
-            #     return f"{brand_av} {model}".strip()
+                model_av = av_match_2.group(3).strip()
             # Other
-            # av_match = re.search(r"Automated Vehicle: [^\n]*?(\d{4})?[^\n]*?([A-Za-z]+)", response)
             av_match_3 = re.search(r"Automated Vehicle:\s*(\d{4})?\s*([^.,*()]+)", response)
             if av_match_3:
-                # year = av_match_3.group(1)
+                year_av = av_match_3.group(1)
                 brand_av = av_match_3.group(2).strip()
-                # return f"{year} {brand} {model}".strip()
-            # classify as just brand
+            # Classify as just brand
             if brand_av:
                 if "waymo" in brand_av.lower() or "wayne" in brand_av.lower():
                     brand_av = "Waymo"
@@ -223,14 +213,13 @@ class LLMEvents:
                     brand_av = "Mercedes-Benz"
                 elif "Year" in brand_av:  # year fetched instead
                     brand_av = None
-                # Possible that brand_av was set to None
-                if brand_av:
-                    return f"{brand_av}".strip()
             # Brand not detected
             if not brand_av:
                 # No match found
-                logger.debug(f"q2-automated_vehicle: no match found for {response}.")
-                return "unknown"
+                logger.debug(f"q2-av: no match found for {response}.")
+                return [None, None, None]
+            else:  # Return fetched values
+                return [brand_av, model_av, year_av]
         elif q == "q2-other_road_user":
             # Cleanup of formatting of answer: replace different formats of introducing other road user
             response = re.sub(r"\*\*Other Involved Road User:\*\*|" + 
@@ -296,7 +285,10 @@ class LLMEvents:
         df["q1_category"] = df["q1"].apply(lambda x: self.categorise(str(x), "q1"))
         # Q2
         df["q2"] = df["response"].apply(lambda x: self.extract_answers(str(x), 2)["q2"])
-        df["q2_automated_vehicle"] = df["q2"].apply(lambda x: self.categorise(str(x), "q2-automated_vehicle"))
+        df[["q2_av_brand", "q2_av_model", "q2_av_year"]] = df["q2"].apply(
+            lambda x: pd.Series(self.categorise(str(x), "q2-av"))
+        )
+
         df["q2_other_road_user"] = df["q2"].apply(lambda x: self.categorise(str(x), "q2-other_road_user"))
         df["q2_other_vehicle"] = df["q2"].apply(lambda x: self.categorise(str(x), "q2-other_vehicle"))
         # Q3
