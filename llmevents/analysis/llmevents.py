@@ -106,7 +106,10 @@ class LLMEvents:
     def extract_answers(self, response, q):
         """Extract answers to each question from response text."""
         answers = {}
-        pattern = rf"\*\*Q{q}\. .*?\*\*(.*?)\n\n"
+        # pattern = rf"\*\*Q{q}\. .*?\*\*(.*?)\n\n"
+        # pattern = rf"(?:\*\*Q{q}\. .+?\*\*|Q{q}\. .+?\n)(.*?)(?=\n\n|\Z)"
+        # pattern = rf"(?:\*\*Q{q}\. .+?\*\*|Q{q}\. .+?\n)([\s\S]+?)(?=\n\n|\Z)"
+        pattern = rf"(?:\*\*Q{q}\. .+?\*\*|Q{q}\. .+?)([\s\S]+?)(?=\n\n|\Z)"
         match = re.search(pattern, response, re.DOTALL)
         answers[f"q{q}"] = match.group(1).strip() if match else ""
         return answers
@@ -134,46 +137,67 @@ class LLMEvents:
             brand_av = None
             model_av = None
             year_av = None
-            # Cleanup of formatting of answer: replace different formats of introducing AV
+            # Cleanup of formatting
             response = re.sub(r"\*\*Automated Vehicle:\*\*|" + 
                               r"\*\*Autonomous Vehicle:\*\*|" +
                               r"Autonomous Vehicle:|" +
                               r"\*\*Vehicle 1 \(Autonomous Vehicle\):\*\*|" +
                               r"The automated vehicle was a|" +
                               r"Vehicle 1:", "Automated Vehicle:", response)
+            response = re.sub(r"Apple Inc.", "Apple", response)
+            response = re.sub(r"\(Not Specified\)", "Unknown", response)
+            response = re.sub(r" \(indicated by a blank space\)", "", response)
+            response = re.sub(r"Year:", "Year", response)
+            response = re.sub(r"Brand:", "Brand", response)
+            response = re.sub(r"Model:", "Model", response)
             # Manual filtering for specific types of road users
-            if "Google AV" in response or "Google Auto LLC" in response or "Google Automated Vehicle" in response or "Google LLC" in response:
+            if "Google AV" in response or "Google Auto LLC" in response or "Google Automated Vehicle" in response or "Google LLC" in response:  # noqa: E501
                 brand_av = "Google"
-            elif "Cruise AV" in response or "Cruise Vehicle" in response or "Cruise Automated Vehicle" in response:
+            elif "Cruise AV" in response or "Cruise Vehicle" in response or "Cruise Automated Vehicle" in response or "Cruise LLC" in response:  # noqa: E501
                 brand_av = "Cruise"
             elif "Zoom AV" in response:
                 brand_av = "Zoom"
             # Year, brand, model
-            av_match_1 = re.search(r"Automated Vehicle: Year [^\n]*?(\d{4})?[^\n]*?, Brand ([A-Za-z]+), Model ([A-Za-z0-9\s]+)", response)  # noqa: E501
-            if av_match_1:
-                year_av = av_match_1.group(1) if av_match_1.group(1) else ""
+            # av_match_1 = re.search(r"Automated Vehicle: Year [^\n]*?(\d{4})?[^\n]*?, Brand ([A-Za-z]+), Model ([A-Za-z0-9\s]+)", response)  # noqa: E501
+            av_match_1 = re.search(r"Automated Vehicle: Year (\d{4}), Brand ([A-Za-z]+), Model ([A-Za-z0-9\s]+)\.", response)  # noqa: E501
+            if not brand_av and av_match_1:
+                # print(1, av_match_1, av_match_1.group(2))
+                year_av = av_match_1.group(1)
                 brand_av = av_match_1.group(2).strip()
                 model_av = av_match_1.group(3).strip()
-                # return f"{year} {brand_av} {model}".strip()
-                # return f"{brand_av}".strip()
             # Year, brand_av, model
-            av_match_2 = re.search(r"Automated Vehicle: [^\n]*?(\d{4})?[^\n]*?Brand ([A-Za-z]+), Model ([A-Za-z0-9\s]+)", response)  # noqa: E501
-            if av_match_2:
+            av_match_2 = re.search(r"Automated Vehicle: (\d{4}), Brand ([A-Za-z]+), Model ([A-Za-z0-9\s]+)\.", response)  # noqa: E501
+            if not brand_av and av_match_2:
+                # print(2, av_match_2, av_match_2.group(2))
                 year_av = av_match_2.group(1) if av_match_2.group(1) else ""
                 brand_av = av_match_2.group(2).strip()
                 model_av = av_match_2.group(3).strip()
-            # Other
-            av_match_3 = re.search(r"Automated Vehicle:\s*(\d{4})?\s*([^.,*()]+)", response)
-            if av_match_3:
-                year_av = av_match_3.group(1)
+            # Year, brand_av, model
+            av_match_3 = re.search(r"Automated Vehicle: Year (\d{4}), Brand ([A-Za-z\s]+)\.", response)  # noqa: E501
+            if not brand_av and av_match_3:
+                # print(3, av_match_3, av_match_3.group(2))
+                year_av = av_match_3.group(1) if av_match_3.group(1) else ""
                 brand_av = av_match_3.group(2).strip()
-            # Classify as just brand
+                # model_av = av_match_3.group(3).strip()
+            # Other
+            av_match_4 = re.search(r"Automated Vehicle:\s*(\d{4})?\s*([^.,*()]+)", response)
+            if not brand_av and av_match_4:
+                # print(4, av_match_4, av_match_4.group(2))
+                year_av = av_match_4.group(1)
+                brand_av = av_match_4.group(2).strip()
+            # Cleanup brand
             if brand_av:
                 if "waymo" in brand_av.lower() or "wayne" in brand_av.lower():
                     brand_av = "Waymo"
                 elif "google" in brand_av.lower():
                     brand_av = "Google"
                 elif "tesla" in brand_av.lower():
+                    if "model X" in brand_av.lower():
+                        model_av = "Model X"
+                    elif "model S" in brand_av.lower():
+                        model_av = "Model S"
+                    elif "model 3" in brand_av.lower():
+                        model_av = "Model 3"
                     brand_av = "Tesla"
                 elif "cruise" in brand_av.lower():
                     brand_av = "Cruise"
@@ -207,7 +231,7 @@ class LLMEvents:
                     brand_av = "Subaru"
                 elif "nio" in brand_av.lower():
                     brand_av = "Nio"
-                elif "mosaid" in brand_av.lower():
+                elif "mosaic" in brand_av.lower():
                     brand_av = "Mosaic"
                 elif "mercedes-benz" in brand_av.lower() or "daimler" in brand_av.lower():
                     brand_av = "Mercedes-Benz"
@@ -216,10 +240,20 @@ class LLMEvents:
             # Brand not detected
             if not brand_av:
                 # No match found
-                logger.debug(f"q2-av: no match found for {response}.")
-                return [None, None, None]
-            else:  # Return fetched values
-                return [brand_av, model_av, year_av]
+                brand_av = "Unknown"
+                logger.debug(f"q2-av: no brand found for {response}.")
+            # Model not detected
+            if not model_av:
+                # No match found
+                model_av = "Unknown"
+                # logger.debug(f"q2-av: no model found for {response}.")
+            # YeR not detected
+            if not year_av:
+                # No match found
+                year_av = "Unknown"
+                # logger.debug(f"q2-av: no model found for {response}.")
+            # Return fetched values
+            return [brand_av, model_av, year_av]
         elif q == "q2-other_road_user":
             # Cleanup of formatting of answer: replace different formats of introducing other road user
             response = re.sub(r"\*\*Other Involved Road User:\*\*|" + 
