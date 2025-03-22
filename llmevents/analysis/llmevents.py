@@ -131,7 +131,6 @@ class LLMEvents:
             else:
                 return "Other"
         elif q == "q2-av":
-            # return brand
             brand_av = None
             model_av = None
             year_av = None
@@ -356,30 +355,79 @@ class LLMEvents:
             logger.info(f"{row_index} q2-other_road_user: no match found for {response}.")
             # return "Unknown"
         elif q == "q2-other_vehicle": 
+            vehicle = None
             # Cleanup of formatting of answer: replace different formats of introducing other car
             response = re.sub(r"Vehicle 2:|" + 
-                              r"Hyundai::|" +
+                              r"Hyundai:|" +
                               r"Other Car:", "Other Vehicle:", response)
             response = re.sub(r"\*\*Other Vehicle:\*\*", "Other Vehicle:", response)
+            response = re.sub(r"Make:", "Brand", response)
+            response = re.sub(r"Model:", "Model", response)
+            response = re.sub(r"Year:", "Year", response)
+            response = re.sub(r"Brand:", "Brand", response)
+            response = re.sub(r"Model:", "Model", response)
+            response = re.sub(r"A 2023:", "2023", response)
             # Manual filtering
             if "No other vehicles were involved" in response:
                 return None
             elif "No other vehicle was involved" in response:
                 return None
-            # Alternative format extraction
-            # ov_match = re.search(r"Other Vehicle: \s*(Unknown|\d{4})?\s*([A-Za-z-\s]+)\s+([A-Za-z0-9-\s]+)\.", response)  # noqa: E501
-            ov_match = re.search(r"Other Vehicle:\s*(\d{4})?\s*([A-Za-z]+)\s*([A-Za-z0-9\s]+)", response)
-            # ov_match = re.search(r"Other Vehicle:\s*(\d{4})?\s*([A-Za-z]+)\s*([\w\s-]+)(?=\n|$)", response)
+            elif "A truck is listed as \"other vehicle\"" in response:
+                return None
+            elif "Unknown year, brand and model (only \"Truck\" is listed)" in response:
+                vehicle = "Truck" 
+            # Year, brand, model
+            ov_match = re.search(r"Other Vehicle: Year (UNK|Unknown|\d{4}), Brand ([A-Za-z-]+), Model ([A-Za-z0-9\s]+)", response)  # noqa: E501
             if ov_match:
                 # year = ov_match.group(1)
                 brand = ov_match.group(2).strip()
                 model = ov_match.group(3).strip()
-                model = re.sub(r"The autonomous vehicle.*", "", model, flags=re.DOTALL).strip()
-                return f"{brand} {model}".strip()
-            else:
-                # No match found
+                vehicle = f"{brand} {model}".strip()
+            # Extract match
+            # ov_match_2 = re.search(r"Other Vehicle:\s*(\d{4})?\s*([A-Za-z-]+)\s*([A-Za-z0-9\s]+)", response)
+            ov_match_2 = re.search(r"Other Vehicle:\s*(\d{4})?\s*([^.,*()]+)", response)
+            if not vehicle and ov_match_2:
+                # year = ov_match_2.group(1)
+                # brand = ov_match_2.group(2).strip()
+                # model = ov_match_2.group(3).strip()
+                vehicle = ov_match_2.group(2).strip()
+            # Manuel filtering
+            if vehicle == "A pickup truck":
+                vehicle = "Unknown"
+            elif vehicle == "The report indicates a second vehicle":
+                vehicle = "Unknown"
+            elif vehicle == "Not applicable":
+                vehicle = None
+            elif vehicle == "Not specified":
+                vehicle = "Unknown"
+            elif vehicle == "Year and model are unknown":
+                vehicle = "Unknown"
+            elif vehicle == "A bicycle" or vehicle == "A bicyclist":
+                vehicle = None
+            elif vehicle == "A truck is listed as":
+                vehicle = None
+            elif vehicle == "A pedestrian":
+                vehicle = None
+            elif vehicle == "":
+                vehicle = None
+            elif vehicle == "None":
+                vehicle = None
+            elif vehicle == "None listed":
+                vehicle = None
+            elif vehicle == "N/A - only one vehicle was involved":
+                vehicle = None
+            # Manual filtering
+            if vehicle:
+                vehicle = re.sub(r"The autonomous vehicle.*", "", vehicle, flags=re.DOTALL).strip()
+                vehicle = re.sub(r"The automated vehicle.*", "", vehicle, flags=re.DOTALL).strip()
+                vehicle = re.sub(r"A Toyota.*", "Toyota", vehicle, flags=re.DOTALL).strip()
+                vehicle = re.sub(r"A Nissan.*", "Nissan", vehicle, flags=re.DOTALL).strip()
+                vehicle = re.sub(r"pickup truck.*", "", vehicle, flags=re.DOTALL).strip()
+                vehicle = re.sub(r"truck.*", "", vehicle, flags=re.DOTALL).strip()
+            # No match found
+            if not vehicle:
                 logger.debug(f"q2-other_vehicle: no match found for {response}.")
-                # return "Unknown"
+            return vehicle
         elif q == "q4":
             # Extract time and environmental conditions information
             weather = None
