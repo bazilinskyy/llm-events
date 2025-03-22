@@ -110,12 +110,22 @@ class LLMEvents:
         # pattern = rf"(?:\*\*Q{q}\. .+?\*\*|Q{q}\. .+?\n)(.*?)(?=\n\n|\Z)"
         # pattern = rf"(?:\*\*Q{q}\. .+?\*\*|Q{q}\. .+?\n)([\s\S]+?)(?=\n\n|\Z)"
         # pattern = rf"(?:\*\*Q{q}\. .+?\*\*|Q{q}\. .+?)([\s\S]+?)(?=\n\n|\Z)"
-        pattern = rf"(?:\*\*Q{q}\. .+?\*\*|Q{q}\. .+?)(?:\s*\n)?([\s\S]+?)(?=\n\n|\Z)"
+        
+        # pattern = rf"\*\*(Q{q}\..*?)\s*\*\*Q{q+1}\."
+        # pattern = rf"\*\*(Q{q}\..*?)(?=\s*\*\*Q{q+1}\.|$)"
+        # pattern = rf"(?:\*\*Q{q}\. .*?\*\*|Q{q}\. .*?)(?:\n\n|\n)?([\s\S]+?)(?=\n\n|\Z)"
+        # pattern = rf"(?:\*\*Q{q}\. .*?\*\*|Q{q}\. .*?)\s*\n([\s\S]+?)(?=\n\*\*Q\d+\.|\nQ\d+\.|\Z)"
+
+        # pattern = rf"(?:\*\*Q{q}\. .+?\*\*|Q{q}\. .+?)(?:\s*\n)?([\s\S]+?)(?=\n\n|\Z)"
+
+        # pattern = rf"\*\*(Q{q}\..*?)(?=\s*\*\*Q{q+1}\.|$)"
+        pattern = rf"(Q{q}\..*?)(?=\s*Q{q+1}\.|$)"
+
         match = re.search(pattern, response, re.DOTALL)
         answers[f"q{q}"] = match.group(1).strip() if match else ""
         return answers
 
-    def categorise(self, response, q):
+    def categorise(self, response, q, row_index):
         """Categorise responses to question 1.
         
         Args:
@@ -161,21 +171,21 @@ class LLMEvents:
                 brand_av = "Zoom"
             # Year, brand, model
             # av_match_1 = re.search(r"Automated Vehicle: Year [^\n]*?(\d{4})?[^\n]*?, Brand ([A-Za-z]+), Model ([A-Za-z0-9\s]+)", response)  # noqa: E501
-            av_match_1 = re.search(r"Automated Vehicle: Year (\d{4}), Brand ([A-Za-z-]+), Model ([A-Za-z0-9\s]+)", response)  # noqa: E501
+            av_match_1 = re.search(r"Automated Vehicle: Year (Unknown|\d{4}), Brand ([A-Za-z-]+), Model ([A-Za-z0-9\s]+)", response)  # noqa: E501
             if not brand_av and av_match_1:
                 # print(1, av_match_1, av_match_1.group(2))
                 year_av = av_match_1.group(1)
                 brand_av = av_match_1.group(2).strip()
                 model_av = av_match_1.group(3).strip()
             # Year, brand_av, model
-            av_match_2 = re.search(r"Automated Vehicle: (\d{4}), Brand ([A-Za-z-]+), Model ([A-Za-z0-9\s]+)", response)  # noqa: E501
+            av_match_2 = re.search(r"Automated Vehicle: (Unknown|\d{4}), Brand ([A-Za-z-]+), Model ([A-Za-z0-9\s]+)", response)  # noqa: E501
             if not brand_av and av_match_2:
                 # print(2, av_match_2, av_match_2.group(2))
                 year_av = av_match_2.group(1) if av_match_2.group(1) else ""
                 brand_av = av_match_2.group(2).strip()
                 model_av = av_match_2.group(3).strip()
             # Year, brand_av, model
-            av_match_3 = re.search(r"Automated Vehicle: Year (\d{4}), Brand ([A-Za-z\s]+)\.", response)  # noqa: E501
+            av_match_3 = re.search(r"Automated Vehicle: Year (Unknown|\d{4}), Brand ([A-Za-z\s]+)\.", response)  # noqa: E501
             if not brand_av and av_match_3:
                 # print(3, av_match_3, av_match_3.group(2))
                 year_av = av_match_3.group(1) if av_match_3.group(1) else ""
@@ -243,7 +253,7 @@ class LLMEvents:
             if not brand_av:
                 # No match found
                 brand_av = "Unknown"
-                logger.debug(f"q2-av: no brand found for {response}.")
+                logger.debug(f"{row_index} q2-av: no brand found for {response}.")
             # Model not detected
             if not model_av:
                 # No match found
@@ -471,31 +481,37 @@ class LLMEvents:
         #         df[question_col] = df["response"].apply(lambda x: self.extract_answers(str(x))[question_col])
         #     df[f"q{i}_category"] = df[question_col].apply(lambda x: self.categorise_response(str(x)))
         # Q1
-        df["q1"] = df["response"].apply(lambda x: self.extract_answers(str(x), 1)["q1"])
-        df["q1_category"] = df["q1"].apply(lambda x: self.categorise(str(x), "q1"))
+        df["q1"] = df.apply(lambda row: self.extract_answers(str(row["response"]), 1)["q1"], axis=1)
+        df["q1_category"] = df.apply(lambda row: self.categorise(str(row["q1"]), "q1", row.name), axis=1)
+
         # Q2
-        df["q2"] = df["response"].apply(lambda x: self.extract_answers(str(x), 2)["q2"])
-        df[["q2_av_brand", "q2_av_model", "q2_av_year"]] = df["q2"].apply(
-            lambda x: pd.Series(self.categorise(str(x), "q2-av"))
+        df["q2"] = df.apply(lambda row: self.extract_answers(str(row["response"]), 2)["q2"], axis=1)
+        df[["q2_av_brand", "q2_av_model", "q2_av_year"]] = df.apply(
+            lambda row: pd.Series(self.categorise(str(row["q2"]), "q2-av", row.name)), axis=1
         )
 
-        df["q2_other_road_user"] = df["q2"].apply(lambda x: self.categorise(str(x), "q2-other_road_user"))
-        df["q2_other_vehicle"] = df["q2"].apply(lambda x: self.categorise(str(x), "q2-other_vehicle"))
+        df["q2_other_road_user"] = df.apply(lambda row: self.categorise(str(row["q2"]), "q2-other_road_user", row.name), axis=1)
+        df["q2_other_vehicle"] = df.apply(lambda row: self.categorise(str(row["q2"]), "q2-other_vehicle", row.name), axis=1)
+
         # Q3
-        df["q3"] = df["response"].apply(lambda x: self.extract_answers(str(x), 3)["q3"])
-        df["q3_category"] = df["q3"].apply(lambda x: self.categorise(str(x), "q3"))
+        df["q3"] = df.apply(lambda row: self.extract_answers(str(row["response"]), 3)["q3"], axis=1)
+        df["q3_category"] = df.apply(lambda row: self.categorise(str(row["q3"]), "q3", row.name), axis=1)
+
         # Q4
-        df["q4"] = df["response"].apply(lambda x: self.extract_answers(str(x), 4)["q4"])
-        df["q4_category"] = df["q4"].apply(lambda x: self.categorise(str(x), "q4"))
+        df["q4"] = df.apply(lambda row: self.extract_answers(str(row["response"]), 4)["q4"], axis=1)
+        df["q4_category"] = df.apply(lambda row: self.categorise(str(row["q4"]), "q4", row.name), axis=1)
+
         # Q5
-        df["q5"] = df["response"].apply(lambda x: self.extract_answers(str(x), 5)["q5"])
-        df["q5_category"] = df["q5"].apply(lambda x: self.categorise(str(x), "q5"))
+        df["q5"] = df.apply(lambda row: self.extract_answers(str(row["response"]), 5)["q5"], axis=1)
+        df["q5_category"] = df.apply(lambda row: self.categorise(str(row["q5"]), "q5", row.name), axis=1)
+
         # Q6
-        df["q6"] = df["response"].apply(lambda x: self.extract_answers(str(x), 6)["q6"])
-        df["q6_category"] = df["q6"].apply(lambda x: self.categorise(str(x), "q6"))
+        df["q6"] = df.apply(lambda row: self.extract_answers(str(row["response"]), 6)["q6"], axis=1)
+        df["q6_category"] = df.apply(lambda row: self.categorise(str(row["q6"]), "q6", row.name), axis=1)
+
         # Q7
-        df["q7"] = df["response"].apply(lambda x: self.extract_answers(str(x), 7)["q7"])
-        df["q7_category"] = df["q7"].apply(lambda x: self.categorise(str(x), "q7"))
+        df["q7"] = df.apply(lambda row: self.extract_answers(str(row["response"]), 7)["q7"], axis=1)
+        df["q7_category"] = df.apply(lambda row: self.categorise(str(row["q7"]), "q7", row.name), axis=1)
 
         return df
 
