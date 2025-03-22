@@ -104,22 +104,9 @@ class LLMEvents:
         return df
 
     def extract_answers(self, response, q):
-        """Extract answers to each question from response text."""
+        """Extract answers to each question from response text."""        
         answers = {}
-        # pattern = rf"\*\*Q{q}\. .*?\*\*(.*?)\n\n"
-        # pattern = rf"(?:\*\*Q{q}\. .+?\*\*|Q{q}\. .+?\n)(.*?)(?=\n\n|\Z)"
-        # pattern = rf"(?:\*\*Q{q}\. .+?\*\*|Q{q}\. .+?\n)([\s\S]+?)(?=\n\n|\Z)"
-        # pattern = rf"(?:\*\*Q{q}\. .+?\*\*|Q{q}\. .+?)([\s\S]+?)(?=\n\n|\Z)"
-        
-        # pattern = rf"\*\*(Q{q}\..*?)\s*\*\*Q{q+1}\."
-        # pattern = rf"\*\*(Q{q}\..*?)(?=\s*\*\*Q{q+1}\.|$)"
-        # pattern = rf"(?:\*\*Q{q}\. .*?\*\*|Q{q}\. .*?)(?:\n\n|\n)?([\s\S]+?)(?=\n\n|\Z)"
-        # pattern = rf"(?:\*\*Q{q}\. .*?\*\*|Q{q}\. .*?)\s*\n([\s\S]+?)(?=\n\*\*Q\d+\.|\nQ\d+\.|\Z)"
-
-        # pattern = rf"(?:\*\*Q{q}\. .+?\*\*|Q{q}\. .+?)(?:\s*\n)?([\s\S]+?)(?=\n\n|\Z)"
-
-        # pattern = rf"\*\*(Q{q}\..*?)(?=\s*\*\*Q{q+1}\.|$)"
-        pattern = rf"(Q{q}\..*?)(?=\s*Q{q+1}\.|$)"
+        pattern = rf"(?:\*\*|)Q{q}[^\*]*?(?:\.|:)(.*?)(?=\n(?:\*\*|)Q{q+1}|$)"
 
         match = re.search(pattern, response, re.DOTALL)
         answers[f"q{q}"] = match.group(1).strip() if match else ""
@@ -154,6 +141,7 @@ class LLMEvents:
                               r"Vehicle 1 \(Automated Vehicle\):|" +
                               r"The automated vehicle was a|" +
                               r"The autonomous vehicle was a|" +
+                              r"One vehicle was involved: a|" +
                               r"Vehicle 1:", "Automated Vehicle:", response)
             response = re.sub(r"\*\*Automated Vehicle:\*\*", "Automated Vehicle:", response)
             response = re.sub(r"Apple Inc.", "Apple", response)
@@ -162,13 +150,40 @@ class LLMEvents:
             response = re.sub(r"Year:", "Year", response)
             response = re.sub(r"Brand:", "Brand", response)
             response = re.sub(r"Model:", "Model", response)
+            response = re.sub(r"Unknown \(likely a Tesla\)", "Tesla", response)
+            response = re.sub(r"Unknown \(likely Tesla based on the form\)", "Tesla", response)
+            response = re.sub(r"Unknown \(likely Toyota based on the form\)", "Toyota", response)
+            response = re.sub(r"Unknown \(indicated by \"AV\"\)", "Unknown", response)
             # Manual filtering for specific types of road users
-            if "Google AV" in response or "Google Auto LLC" in response or "Google Automated Vehicle" in response or "Google LLC" in response:  # noqa: E501
+            if ("Google AV" in response or
+                    "Google Auto LLC" in response or
+                    "Google Automated Vehicle" in response or
+                    "Google LLC" in response or
+                    "Google Lexus RX450 (automated vehicle)" in response):
                 brand_av = "Google"
-            elif "Cruise AV" in response or "Cruise Vehicle" in response or "Cruise Automated Vehicle" in response or "Cruise LLC" in response:  # noqa: E501
+            elif ("Cruise AV" in response or
+                    "Cruise Vehicle" in response or
+                    "Cruise Automated Vehicle" in response or
+                    "Cruise LLC" in response):  # noqa: E501
                 brand_av = "Cruise"
             elif "Zoom AV" in response:
                 brand_av = "Zoom"
+            elif "Waymo" in response:
+                brand_av = "Waymo"
+            elif "2017 Volvo XC 90 (autonomous vehicle)" in response:
+                brand_av = "Volvo"
+                model_av = "XC 90"
+                year_av = "2017"
+            elif "2019 Tesla Model X (Autonomous Vehicle)" in response:
+                brand_av = "Tesla"
+                model_av = "Model X"
+                year_av = "2019"
+            elif "Year 2019, Brand Unknown (likely a Tesla)" in response:
+                brand_av = "Tesla"
+                year_av = "2019"
+            elif "2016 Nissan (make unknown)" in response:
+                brand_av = "Nissan"
+                year_av = "2016"
             # Year, brand, model
             # av_match_1 = re.search(r"Automated Vehicle: Year [^\n]*?(\d{4})?[^\n]*?, Brand ([A-Za-z]+), Model ([A-Za-z0-9\s]+)", response)  # noqa: E501
             av_match_1 = re.search(r"Automated Vehicle: Year (Unknown|\d{4}), Brand ([A-Za-z-]+), Model ([A-Za-z0-9\s]+)", response)  # noqa: E501

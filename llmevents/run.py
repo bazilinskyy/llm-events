@@ -36,7 +36,7 @@ if __name__ == '__main__':
         # analysis.hist(df, x=['q1_category'],
         #               yaxis_title='Q1. Describe the accident',
         #               marginal=None,
-        #               pretty_text=True,
+        #               pretty_text=True,XC 90
         #               save_file=True)
         analysis.hist(df, x=['q2_av_brand'],
                       yaxis_title='Q2. Involved parties(Who) - automated vehicle brand',
