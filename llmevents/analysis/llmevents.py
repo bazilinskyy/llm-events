@@ -178,21 +178,58 @@ class LLMEvents:
                     r"Automated Vehicle: (Unknown|\d{4}), Brand ([A-Za-z-]+), Model ([A-Za-z0-9\s]+)",
                     # Year, brand
                     r"Automated Vehicle: Year (Unknown|\d{4}), Brand ([A-Za-z\s]+)\.",
+                    # Improved pattern for "Year Brand Model" format with more flexible capture
+                    r"Auto(?:mated|nomous) Vehicle:(?:\s*\*\*)?\s*(\d{4})?\s*([A-Za-z][A-Za-z0-9\s\-]*?)\s+([A-Za-z0-9][A-Za-z0-9\s\-]+?)(?:\.|\,|\s+The|\s+was|\s+operating)",
+                    # Specific pattern for Cruise AV and similar formats
+                    r"Auto(?:mated|nomous) Vehicle:(?:\s*\*\*)?\s*(\d{4})?\s*([A-Za-z][A-Za-z0-9\s\-]+)\s+AV(?:\.|\,|\s+The|\s+was|\s+operating)",
+                    # Fallback pattern with broader capture
+                    r"Auto(?:mated|nomous) Vehicle:(?:\s*\*\*)?\s*(?:(\d{4})\s+)?([A-Za-z][A-Za-z0-9\s\-]+?)(?:\.|\,|\s+The|\s+was|\s+operating)",
                     # Other
-                    r"Automated Vehicle:\s*(\d{4})?\s*([^.,*()]+)"
+                    r"Automated Vehicle:\s*(\d{4})?\s*([^.,*()]+)",
+                    # More specific pattern for Cruise AV with asterisks and bullet points
+                    r"\*\s*\*\*Auto(?:mated|nomous) Vehicle:\*\*\s*(\d{4})?\s*([A-Za-z][A-Za-z0-9\s\-]+)\s+AV(?:\.|\,|\s+The|\s+was|\s+operating)",
                 ]
-                
                 for pattern in extraction_patterns:
-                    match = re.search(pattern, response)
+                    match = re.search(pattern, response, re.IGNORECASE)  # Added IGNORECASE for better matching
                     if match:
-                        if len(match.groups()) >= 2:
-                            if match.group(1):
-                                year_av = match.group(1)
-                            if match.group(2):
-                                brand_av = match.group(2).strip()
-                            if len(match.groups()) >= 3 and match.group(3):
-                                model_av = match.group(3).strip()
+                        groups = match.groups()
+                        if len(groups) >= 2:
+                            if pattern.startswith(r"Auto(?:mated|nomous) Vehicle:(?:\s*\*\*)?\s*([A-Za-z]+)\s+([A-Za-z0-9\s]+?)"):
+                                # Handle fallback pattern: Brand Model
+                                brand_av = groups[0].strip() if groups[0] else "Unknown"
+                                model_av = groups[1].strip() if groups[1] else "Unknown"
+                            else:
+                                # Handle original patterns
+                                if groups[0]:
+                                    year_av = groups[0]
+                                if groups[1]:
+                                    brand_av = groups[1].strip()
+                                if len(groups) >= 3 and groups[2]:
+                                    model_av = groups[2].strip()
                         break
+            
+            # Improved post-processing for models
+            if model_av:
+                # Remove common suffixes that might be part of the description
+                model_av = re.sub(r'(?i)\s+(?:operating in|in|the report indicates|was|with|driving|on|that|indicated|mode|autonomous mode|automated mode|conventional mode)\s+.*$', '', model_av)
+                
+                # Handle special cases for well-known models
+                if brand_av == "Cruise":
+                    model_av = "AV"
+                elif brand_av == "Tesla" and re.search(r'(?i)model\s*[3xyse]', model_av):
+                    # Extract the model letter for Tesla models
+                    model_match = re.search(r'(?i)model\s*([3xyse])', model_av)
+                    if model_match:
+                        model_letter = model_match.group(1).upper()
+                        model_av = f"Model {model_letter}"
+                
+                # Handle special cases like "AV" appended to model names
+                model_av = re.sub(r'(?i)\s+AV$', '', model_av)
+                # Clean up extra whitespace
+                model_av = re.sub(r'\s+', ' ', model_av).strip()
+                # If model contains brand name at the beginning, remove it
+                if brand_av and brand_av.lower() != "unknown" and model_av.lower().startswith(brand_av.lower()):
+                    model_av = model_av[len(brand_av):].strip()
             
             # Get brand mappings from config
             brand_mapping = mappings.get("brand_mapping", {})
@@ -209,32 +246,21 @@ class LLMEvents:
             # Handle specific model normalization
             if model_av:
                 model_lower = model_av.lower()
-                
                 for key, value in model_mapping.items():
                     if key == model_lower:
                         model_av = value
                         break
                 # If brand is Tesla and model contains "model", normalize it
                 if brand_av == "Tesla" and "model" in model_lower:
-                    if "3" in model_lower:
-                        model_av = "Model 3"
-                    elif "x" in model_lower:
-                        model_av = "Model X"
-                    elif "s" in model_lower:
-                        model_av = "Model S"
-                    elif "y" in model_lower:
-                        model_av = "Model Y"
-            
+                    if "3" in model_lower: model_av = "Model 3"
+                    elif "x" in model_lower: model_av = "Model X"
+                    elif "s" in model_lower: model_av = "Model S"
+                    elif "y" in model_lower: model_av = "Model Y"
             # Set defaults if not detected
-            if not brand_av:
-                brand_av = "Unknown"
-                logger.debug(f"{row_index} q2-av: no brand found for {response}.")
-            if not model_av:
-                model_av = "Unknown"
-                logger.debug(f"{row_index} q2-av: no model found for {response}.")
-            if not year_av:
-                year_av = "Unknown"
-                logger.debug(f"{row_index} q2-av: no year found for {response}.")
+            if not brand_av: brand_av = "Unknown"
+            if not model_av: model_av = "Unknown"
+            if not year_av: year_av = "Unknown"
+            
             # Return fetched values
             return [brand_av, model_av, year_av]
         
