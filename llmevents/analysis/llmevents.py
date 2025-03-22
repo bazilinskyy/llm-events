@@ -264,7 +264,9 @@ class LLMEvents:
                     brand_av = "Nio"
                 elif "mosaic" in brand_av.lower():
                     brand_av = "Mosaic"
-                elif "mercedes-benz" in brand_av.lower() or "daimler" in brand_av.lower() or "mercedes" in brand_av.lower():
+                elif ("mercedes-benz" in brand_av.lower() or
+                      "daimler" in brand_av.lower() or
+                      "mercedes" in brand_av.lower()):
                     brand_av = "Mercedes-Benz"
                 elif "Year" in brand_av:  # year fetched instead
                     brand_av = None

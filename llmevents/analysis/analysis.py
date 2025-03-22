@@ -247,7 +247,7 @@ class Analysis:
 
     def hist(self, df, x, nbins=None, color=None, pretty_text=False,
              marginal='rug', xaxis_title=None, yaxis_title=None,
-             save_file=True):
+             save_file=True, sort_desc=True):
         """
         Output histogram of time of participation.
 
@@ -289,6 +289,11 @@ class Analysis:
                                color=df[color])
         else:
             fig = px.histogram(df[x], nbins=nbins, marginal=marginal)
+
+        # sort bars if required
+        if sort_desc:
+            fig.update_layout(barmode='stack', xaxis={'categoryorder': 'total descending'})
+
         # ticks as numbers
         fig.update_layout(xaxis=dict(tickformat='digits'))
         # update layout
