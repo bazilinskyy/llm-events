@@ -397,39 +397,34 @@ class LLMEvents:
             logger.debug(f"q2-other_vehicle: no match found for {response}.")
             return None
         
-        elif q == "q4":
-            # Extract time and environmental conditions information
-            weather = None
-            lighting = None
-            road_surface = None
-            road_conditions = None
-            
+        
+        elif q == "q4-weather":
             # Extract weather conditions
             weather_match = re.search(r'\*\*Weather:\*\*\s*([^*\n.]+)', response)
             if weather_match:
-                weather = weather_match.group(1).strip()
-            
+                return weather_match.group(1).strip()
+            return "Unknown"
+        
+        elif q == "q4-lighting":
             # Extract lighting conditions
             lighting_match = re.search(r'\*\*Lighting Conditions:\*\*\s*([^*\n.]+)', response)
             if lighting_match:
-                lighting = lighting_match.group(1).strip()
-            
+                return lighting_match.group(1).strip()
+            return "Unknown"
+        
+        elif q == "q4-surface":
             # Extract road surface
             surface_match = re.search(r'\*\*Road Surface:\*\*\s*([^*\n.]+)', response)
             if surface_match:
-                road_surface = surface_match.group(1).strip()
-            
+                return surface_match.group(1).strip()
+            return "Unknown"
+        
+        elif q == "q4-conditions":
             # Extract road conditions
             conditions_match = re.search(r'\*\*Road Conditions:\*\*\s*([^*\n.]+)', response)
             if conditions_match:
-                road_conditions = conditions_match.group(1).strip()
-            
-            return {
-                'weather': weather,
-                'lighting_conditions': lighting,
-                'road_surface': road_surface,
-                'road_conditions': road_conditions
-            }
+                return conditions_match.group(1).strip()
+            return "Unknown"
 
         elif q == "q5":
             # Define damage and collision categories for pattern matching
@@ -590,10 +585,14 @@ class LLMEvents:
         df["q3"] = df.apply(lambda row: self.extract_answers(str(row["response"]), 3)["q3"], axis=1)
         df["q3_category"] = df.apply(lambda row: self.categorise(str(row["q3"]), "q3", row.name), axis=1)
 
-        # Q4
+        # Q4 - First extract the raw answer
         df["q4"] = df.apply(lambda row: self.extract_answers(str(row["response"]), 4)["q4"], axis=1)
-        df["q4_category"] = df.apply(lambda row: self.categorise(str(row["q4"]), "q4", row.name), axis=1)
-
+        # Then process each environmental condition
+        df["q4_weather"] = df.apply(lambda row: self.categorise(str(row["q4"]), "q4-weather", row.name), axis=1)
+        df["q4_lighting"] = df.apply(lambda row: self.categorise(str(row["q4"]), "q4-lighting", row.name), axis=1)
+        df["q4_surface"] = df.apply(lambda row: self.categorise(str(row["q4"]), "q4-surface", row.name), axis=1)
+        df["q4_conditions"] = df.apply(lambda row: self.categorise(str(row["q4"]), "q4-conditions", row.name), axis=1)
+        
         # Q5
         df["q5"] = df.apply(lambda row: self.extract_answers(str(row["response"]), 5)["q5"], axis=1)
         df["q5_category"] = df.apply(lambda row: self.categorise(str(row["q5"]), "q5", row.name), axis=1)
