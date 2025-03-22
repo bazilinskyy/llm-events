@@ -109,3 +109,6 @@ secret
 
 # ipynb for Mistral
 /llmevents/mistral.ipynb
+
+# data.csv
+data.csv

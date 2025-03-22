@@ -6,6 +6,7 @@ In the description below, it is assumed that the repo is stored in the folder `l
 Tested with Python 3.9.12. To setup the environment run these two commands in a parent folder of the downloaded repository (replace `/` with `\` and possibly add `--user` if on Windows):
 - `pip install -e llm-events` will setup the project as a package accessible in the environment.
 - `pip install -r llm-events/requirements.txt` will install required packages.
+- Windows User need specific version of kaleiod to work with Plotly `pip install kaleido==0.1.0.post1`. See [Issues](https://github.com/plotly/Kaleido/issues/134)
 
 For analysis with GPT-V, the API key of OpenAI needs to be placed in file `llm-events/secret`. The file needs to be formatted as `llm-events/secret example`.
 

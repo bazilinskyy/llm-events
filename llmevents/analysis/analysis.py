@@ -247,7 +247,8 @@ class Analysis:
 
     def hist(self, df, x, nbins=None, color=None, pretty_text=False,
              marginal='rug', xaxis_title=None, yaxis_title=None,
-             save_file=True, sort_desc=True):
+             save_file=True, sort_desc=True, save_html=True, save_eps=True, 
+             save_png=True, save_mp4=False, open_browser=False):
         """
         Output histogram of time of participation.
 
@@ -263,6 +264,12 @@ class Analysis:
             xaxis_title (str, optional): title for x axis.
             yaxis_title (str, optional): title for y axis.
             save_file (bool, optional): flag for saving an html file with plot.
+            sort_desc (bool, optional): sort bars in descending order by count.
+            save_html (bool, optional): flag for saving HTML file along with images.
+            save_eps (bool, optional): flag for saving EPS file along with images.
+            save_png (bool, optional): flag for saving PNG file along with images.
+            save_mp4 (bool, optional): flag for saving MP4 file along with images.
+            open_browser (bool, optional): flag for opening browser after saving.
         """
         logger.info('Creating histogram for x={}.', x)
         # using colour with multiple values to plot not supported
@@ -304,6 +311,11 @@ class Analysis:
         if save_file:
             self.save_plotly(fig,
                              'hist_' + '-'.join(str(val) for val in x),
+                             save_html=save_html,
+                             save_eps=save_eps,
+                             save_png=save_png,
+                             save_mp4=save_mp4,
+                             open_browser=open_browser,
                              save_final=True)
         # open it in localhost instead
         else:
@@ -341,9 +353,11 @@ class Analysis:
             name = name[:200 - len(path) - 5]
         # save as html
         if save_html:
+            print(f"Saving HTML file for {name} ....")
             if open_browser:
                 # open in browser
                 py.offline.plot(fig, filename=os.path.join(path, name + '.html'))
+                print(f"HTML file saved for {name}")
                 # also save the final figure
                 if save_final:
                     py.offline.plot(fig, filename=os.path.join(path_final, name + '.html'), auto_open=False)
@@ -358,19 +372,25 @@ class Analysis:
             fig.update_layout(margin=dict(l=2, r=2, t=20, b=12))
         # save as eps
         if save_eps:
-            fig.write_image(os.path.join(path, name + '.eps'), width=width, height=height)
+            print(f"Saving EPS file for {name} ....")
+            fig.write_image(os.path.join(path, name + '.eps'), format='eps', width=width, height=height)
+            print(f"EPS file saved for {name}")
             # also save the final figure
             if save_final:
-                fig.write_image(os.path.join(path_final, name + '.eps'), width=width, height=height)
+                fig.write_image(os.path.join(path_final, name + '.eps'), format='eps', width=width, height=height)
         # save as png
         if save_png:
-            fig.write_image(os.path.join(path, name + '.png'), width=width, height=height)
+            print(f"Saving PNG file for {name}....")
+            fig.write_image(os.path.join(path, name + '.png'), format='png', width=width, height=height)
+            print(f"PNG file saved for {name}")
             # also save the final figure
             if save_final:
-                fig.write_image(os.path.join(path_final, name + '.png'), width=width, height=height)
+                fig.write_image(os.path.join(path_final, name + '.png'), format='png', width=width, height=height)
         # save as mp4
         if save_mp4:
-            fig.write_image(os.path.join(path, name + '.mp4'), width=width, height=height)
+            print(f"Saving MP4 file for {name}")
+            fig.write_image(os.path.join(path, name + '.mp4'), format='mp4', width=width, height=height)
+            print(f"MP4 file saved for {name}")
 
     def save_fig(self, image, fig, output_subdir, suffix, pad_inches=0):
         """
