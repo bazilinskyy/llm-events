@@ -294,16 +294,170 @@ class LLMEvents:
             else:
                 # No match found
                 logger.debug(f"q2-other_vehicle: no match found for {response}.")
-        elif q == "q3":
-            pass
         elif q == "q4":
-            pass
+            # Extract time and environmental conditions information
+            weather = None
+            lighting = None
+            road_surface = None
+            road_conditions = None
+            
+            # Extract weather conditions
+            weather_match = re.search(r'\*\*Weather:\*\*\s*([^*\n.]+)', response)
+            if weather_match:
+                weather = weather_match.group(1).strip()
+            
+            # Extract lighting conditions
+            lighting_match = re.search(r'\*\*Lighting Conditions:\*\*\s*([^*\n.]+)', response)
+            if lighting_match:
+                lighting = lighting_match.group(1).strip()
+            
+            # Extract road surface
+            surface_match = re.search(r'\*\*Road Surface:\*\*\s*([^*\n.]+)', response)
+            if surface_match:
+                road_surface = surface_match.group(1).strip()
+            
+            # Extract road conditions
+            conditions_match = re.search(r'\*\*Road Conditions:\*\*\s*([^*\n.]+)', response)
+            if conditions_match:
+                road_conditions = conditions_match.group(1).strip()
+            
+            return {
+                'weather': weather,
+                'lighting_conditions': lighting,
+                'road_surface': road_surface,
+                'road_conditions': road_conditions
+            }
+
         elif q == "q5":
-            pass
+            # Define damage and collision categories for pattern matching
+            damage_categories = {
+                'minor': ['minor', 'slight', 'minimal', 'cosmetic'],
+                'moderate': ['moderate', 'considerable', 'visible', 'damaged', 'dent'],
+                'severe': ['severe', 'major', 'extensive', 'significant', 'heavy'],
+                'total': ['total', 'destroyed', 'totaled']
+            }
+            
+            # Extract collision type
+            collision_type = None
+            collision_match = re.search(r'\*\*Type of Collision:\*\*\s*([^*\n.]+)', response)
+            if collision_match:
+                collision_type = collision_match.group(1).strip()
+            
+            # Extract vehicle damage
+            av_damage = None
+            other_vehicle_damage = None
+            vehicle_damage_match = re.search(r'\*\*Vehicle Damage:\*\*\s*([^*]+)', response)
+            if vehicle_damage_match:
+                vehicle_damage = vehicle_damage_match.group(1).strip()
+                
+                # Look for autonomous vehicle damage
+                av_damage_match = re.search(r'(Tesla|AV|automated vehicle|autonomous vehicle)[^.]*(damage[^.]*)', vehicle_damage, re.IGNORECASE)
+                if av_damage_match:
+                    av_damage = av_damage_match.group(2).strip()
+                
+                # Look for other vehicle damage
+                other_damage_match = re.search(r'([^T]oyota|Honda|Ford|Chrysler|other vehicle)[^.]*(damage[^.]*)', vehicle_damage, re.IGNORECASE)
+                if other_damage_match:
+                    other_vehicle_damage = other_damage_match.group(2).strip()
+            
+            # Classify damage severity for AV
+            av_damage_category = "unknown"
+            if av_damage:
+                for category, keywords in damage_categories.items():
+                    if any(keyword in av_damage.lower() for keyword in keywords):
+                        av_damage_category = category
+                        break
+            
+            # Extract injuries information
+            injuries = None
+            injuries_match = re.search(r'\*\*Injuries/Deaths/Property Damage:\*\*\s*([^*]+)', response)
+            if injuries_match:
+                injuries_text = injuries_match.group(1).strip()
+                
+                # Determine if there were injuries
+                if re.search(r'injur(y|ies|ed)', injuries_text, re.IGNORECASE) and not re.search(r'no injur(y|ies|ed)', injuries_text, re.IGNORECASE):
+                    injuries = True
+                elif 'no injuries' in injuries_text.lower():
+                    injuries = False
+            
+            return {
+                'collision_type': collision_type,
+                'av_damage_category': av_damage_category,
+                'av_damage_description': av_damage,
+                'other_vehicle_damage': other_vehicle_damage,
+                'injuries': injuries
+            }
+
         elif q == "q6":
-            pass
+            # Extract if AV is at fault
+            av_at_fault = None
+            if re.search(r'(autonomous|automated|AV).*?\bat fault\b', response, re.IGNORECASE):
+                av_at_fault = True
+            elif re.search(r'(pedestrian|other road user|driver).*?\bat fault\b', response, re.IGNORECASE):
+                av_at_fault = False
+            
+            # Extract contributing factors
+            contributing_factors = []
+            
+            # Look for quoted factors
+            factors_match = re.search(r'Contributing Factors:.*?\"([^\"]+)\"', response)
+            if factors_match:
+                factors = factors_match.group(1).split(',')
+                contributing_factors = [factor.strip() for factor in factors]
+            else:
+                # Alternative format without quotes
+                factors_match = re.search(r'Contributing Factors:([^*]+)', response)
+                if factors_match:
+                    factors_text = factors_match.group(1).strip()
+                    # Split by common separators
+                    factors = re.split(r',|\band\b|;', factors_text)
+                    contributing_factors = [factor.strip() for factor in factors if factor.strip()]
+            
+            return {
+                'av_at_fault': av_at_fault,
+                'contributing_factors': contributing_factors
+            }
+
         elif q == "q7":
-            pass
+            # Extract traffic conditions
+            traffic_conditions = None
+            traffic_match = re.search(r'\*\*Traffic:\*\*\s*([^*\n.]+)', response)
+            if traffic_match:
+                traffic_conditions = traffic_match.group(1).strip()
+            
+            # Extract vehicle movements
+            av_movement = None
+            other_movement = None
+            same_direction = None
+            same_lane = None
+            
+            # AV movement
+            av_movement_match = re.search(r'(autonomous|automated|AV).*?(traveling|moving|driving|stopped)([^.]*)', response, re.IGNORECASE)
+            if av_movement_match:
+                av_movement = (av_movement_match.group(2) + av_movement_match.group(3)).strip()
+            
+            # Other road user movement
+            other_movement_match = re.search(r'(pedestrian|other road user|driver).*?(walking|running|crossing|stopped|traveling|moving)([^.]*)', response, re.IGNORECASE)
+            if other_movement_match:
+                other_movement = (other_movement_match.group(2) + other_movement_match.group(3)).strip()
+            
+            # Check if same direction
+            same_direction_match = re.search(r'(same|different) direction', response, re.IGNORECASE)
+            if same_direction_match:
+                same_direction = 'same' in same_direction_match.group(1).lower()
+            
+            # Check if same lane
+            same_lane_match = re.search(r'(same|different) lanes?', response, re.IGNORECASE)
+            if same_lane_match:
+                same_lane = 'same' in same_lane_match.group(1).lower()
+            
+            return {
+                'traffic_conditions': traffic_conditions,
+                'av_movement': av_movement,
+                'other_road_user_movement': other_movement,
+                'same_direction': same_direction,
+                'same_lane': same_lane
+            }
         else:
             return "wrong question"
 
