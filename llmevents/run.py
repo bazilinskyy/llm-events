@@ -53,6 +53,11 @@ if __name__ == '__main__':
                       marginal=None,
                       # pretty_text=True,
                       save_file=True)
+        analysis.hist(df, x=['q2_av_mode'],
+                      yaxis_title='Q2. Involved parties(Who) - automated vehicle mode',
+                      marginal=None,
+                      # pretty_text=True,
+                      save_file=True)
         analysis.hist(df, x=['q2_other_road_user'],
                       yaxis_title='Q2. Involved parties(Who) - other road user',
                       marginal=None,

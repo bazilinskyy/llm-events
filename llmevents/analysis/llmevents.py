@@ -174,6 +174,10 @@ class LLMEvents:
                 brand_av = "Volvo"
                 model_av = "XC 90"
                 year_av = "2017"
+            elif "2016 Model C-4 Grand Touring 4D UTV" in response:
+                brand_av = "Citroen"
+                model_av = "C-4"
+                year_av = "2016"
             elif "2019 Tesla Model X (Autonomous Vehicle)" in response:
                 brand_av = "Tesla"
                 model_av = "Model X"
@@ -264,6 +268,8 @@ class LLMEvents:
                     brand_av = "Mercedes-Benz"
                 elif "Year" in brand_av:  # year fetched instead
                     brand_av = None
+                elif "Zero-Emission Vehicle" in brand_av:  # year fetched instead
+                    brand_av = None
             # Brand not detected
             if not brand_av:
                 # No match found
@@ -281,6 +287,9 @@ class LLMEvents:
                 logger.debug(f"{row_index} q2-av: no year found for {response}.")
             # Return fetched values
             return [brand_av, model_av, year_av]
+        elif q == "q2-av_mode":
+            # todo: implement
+            pass
         elif q == "q2-other_road_user":
             # Cleanup of formatting of answer: replace different formats of introducing other road user
             response = re.sub(r"Other Involved Road User:|" + 
@@ -532,7 +541,7 @@ class LLMEvents:
         df[["q2_av_brand", "q2_av_model", "q2_av_year"]] = df.apply(
             lambda row: pd.Series(self.categorise(str(row["q2"]), "q2-av", row.name)), axis=1
         )
-
+        df["q2_av_mode"] = df.apply(lambda row: self.categorise(str(row["q2"]), "q2-av_mode", row.name), axis=1)  # noqa: E501
         df["q2_other_road_user"] = df.apply(lambda row: self.categorise(str(row["q2"]), "q2-other_road_user", row.name), axis=1)  # noqa: E501
         df["q2_other_vehicle"] = df.apply(lambda row: self.categorise(str(row["q2"]), "q2-other_vehicle", row.name), axis=1)  # noqa: E501
 

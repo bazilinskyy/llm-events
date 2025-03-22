@@ -31,8 +31,11 @@ Histogram of categorisation of output for question 2 - automated vehicle brand.
 [![Histogram of Q2 - automated vehicle model](figures/hist_q2_av_model.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_av_model.html)
 Histogram of categorisation of output for question 2 - automated vehicle model.
 
-[![Histogram of Q2 - automated vehicle model year](figures/hist_q2_av_year.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_av_year.html)
-Histogram of categorisation of output for question 2 - automated vehicle model year.
+[![Histogram of Q2 - automated vehicle year](figures/hist_q2_av_year.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_av_year.html)
+Histogram of categorisation of output for question 2 - automated vehicle year.
+
+[![Histogram of Q2 - automated vehicle mode](figures/hist_q2_av_mode.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_av_mode.html)
+Histogram of categorisation of output for question 2 - automated vehicle model mode.
 
 [![Histogram of Q2 - other road user](figures/hist_q2_other_road_user.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_other_road_user.html)
 Histogram of categorisation of output for question 2 - automated vehicle.
