@@ -25,8 +25,14 @@ Analysis can be started by running `python llm-events/llmevents/run.py`. A numbe
 [![Histogram of Q1](figures/hist_q1_category.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q1_category.html)
 Histogram of categorisation of output for question 1.
 
-[![Histogram of Q2 - automated vehicle](figures/hist_q2_automated_vehicle.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_automated_vehicle.html)
-Histogram of categorisation of output for question 2 - automated vehicle.
+[![Histogram of Q2 - automated vehicle brand](figures/hist_q2_av_brand.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_av_brand.html)
+Histogram of categorisation of output for question 2 - automated vehicle brand.
+
+[![Histogram of Q2 - automated vehicle model](figures/hist_q2_av_model.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_av_model.html)
+Histogram of categorisation of output for question 2 - automated vehicle model.
+
+[![Histogram of Q2 - automated vehicle model year](figures/hist_q2_av_year.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_av_year.html)
+Histogram of categorisation of output for question 2 - automated vehicle model year.
 
 [![Histogram of Q2 - other road user](figures/hist_q2_other_road_user.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_other_road_user.html)
 Histogram of categorisation of output for question 2 - automated vehicle.
