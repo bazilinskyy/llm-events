@@ -270,6 +270,17 @@ class LLMEvents:
                     brand_av = None
                 elif "Zero-Emission Vehicle" in brand_av:  # year fetched instead
                     brand_av = None
+            if model_av:
+                if "not specified" in model_av.lower():
+                    model_av = "Unknown"
+                elif model_av.lower() == "av":
+                    model_av = "Unknown"
+                elif model_av.lower() == "3":
+                    model_av = "Model 3"
+                elif model_av.lower() == "x":
+                    model_av = "Model X"
+                elif model_av.lower() == "s":
+                    model_av = "Model S"
             # Brand not detected
             if not brand_av:
                 # No match found
@@ -280,7 +291,7 @@ class LLMEvents:
                 # No match found
                 model_av = "Unknown"
                 logger.debug(f"{row_index} q2-av: no model found for {response}.")
-            # YeR not detected
+            # Year not detected
             if not year_av:
                 # No match found
                 year_av = "Unknown"
