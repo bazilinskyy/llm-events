@@ -117,12 +117,12 @@ class LLMEvents:
         
         Args:
             response (str): response.
+            q (str): question number.
+            row_index (int): index of row for logging.
         
         Returns:
             str: categorisation.
-        """
-        # response = response.lower()
-        
+        """        
         if q == "q1":
             if "Yes," in response or "Yes." in response:
                 return "Yes"
@@ -273,41 +273,69 @@ class LLMEvents:
             if not model_av:
                 # No match found
                 model_av = "Unknown"
-                # logger.debug(f"q2-av: no model found for {response}.")
+                logger.debug(f"{row_index} q2-av: no model found for {response}.")
             # YeR not detected
             if not year_av:
                 # No match found
                 year_av = "Unknown"
-                # logger.debug(f"q2-av: no model found for {response}.")
+                logger.debug(f"{row_index} q2-av: no year found for {response}.")
             # Return fetched values
             return [brand_av, model_av, year_av]
         elif q == "q2-other_road_user":
             # Cleanup of formatting of answer: replace different formats of introducing other road user
-            response = re.sub(r"\*\*Other Involved Road User:\*\*|" + 
-                              r"\*\*Pedestrian:\*\*|" +
-                              r"Other Involved Party:|", "Other Road User:", response)
+            response = re.sub(r"Other Involved Road User:|" + 
+                              r"The other involved party was a|" +
+                              r"The other involved road user was the|" +
+                              r"other party was a|" +
+                              r"road user was a|" +
+                              r"Other Involved Party:", "Other Road User:", response)
+            response = re.sub(r"\*\*Other Road User:\*\*", "Other Road User:", response)
             # Extract Other Involved Road User
-            ru_match = re.search(r"Other Road User: \s*([^\n]*)", response)  # noqa: E501
-            # Manual filtering for specific types of road users
-            if ru_match and ("pedestrian" in ru_match.group(1).lower() or "walking" in ru_match.group(1).lower() or "male" in ru_match.group(1).lower() or "female" in ru_match.group(1).lower()):  # noqa: E501
+            ru_match = re.search(r"Other Road User: \s*([^\n]*)", response)
+            # ru_match = re.search(r"Other Road User:\s*(.*?)(?=\.|\n|$)", response)
+            # Manual cases
+            if ("a pedestrian was also involved" in response or
+                    "Pedestrian:" in response):
                 return "Pedestrian"
-            elif ru_match and ("bicyclist" in ru_match.group(1).lower() or "cyclist" in ru_match.group(1).lower()):
+            elif "2013 Honda Civic" in response:
+                return "Driver in vehicle"
+            # Manual filtering for specific types of road users
+            if ru_match and ("pedestrian" in ru_match.group(1).lower() or
+                             "walking" in ru_match.group(1).lower() or
+                             "male" in ru_match.group(1).lower() or
+                             "female" in ru_match.group(1).lower()):
+                return "Pedestrian"
+            elif ru_match and ("bicyclist" in ru_match.group(1).lower() or
+                               "bicycle" in ru_match.group(1).lower() or
+                               "cyclist" in ru_match.group(1).lower()):
                 return "Cyclist"
-            elif ru_match and ("scooter" in ru_match.group(1).lower() or "moped" in ru_match.group(1).lower()):
+            elif ru_match and ("scooter" in ru_match.group(1).lower() or
+                               "moped" in ru_match.group(1).lower()):
                 return "Scooter"
-            elif ru_match and ("fixed object" in ru_match.group(1).lower() or "stationary" in ru_match.group(1).lower()):  # noqa: E501
+            elif ru_match and ("fixed object" in ru_match.group(1).lower() or
+                               "parked car" in ru_match.group(1).lower() or
+                               "parked vehicle" in ru_match.group(1).lower() or
+                               "stationary" in ru_match.group(1).lower()):
                 return "Fixed object"
             elif ru_match and "driver" in ru_match.group(1).lower():
                 return "Driver in vehicle"
             if ru_match:
                 return ru_match.group(1).strip()
+            # Also process other vehicle as type of other road user
+            response = re.sub(r"Vehicle 2:|" + 
+                              r"Other Car:", "Other Vehicle:", response)
+            response = re.sub(r"\*\*Other Vehicle:\*\*", "Other Vehicle:", response)
+            if "Other Vehicle:" in response:
+                return "Driver in vehicle"
             # No match found
-            logger.debug(f"q2-other_road_user: no match found for {response}.")
-            return "unknown"
+            logger.info(f"{row_index} q2-other_road_user: no match found for {response}.")
+            return "Unknown"
         elif q == "q2-other_vehicle":  
             # Cleanup of formatting of answer: replace different formats of introducing other car
-            response = re.sub(r"\*\*Vehicle 2:\*\*|" + 
-                              r"\*\*Other Car:\*\*", "Other Vehicle:", response)
+            response = re.sub(r"Vehicle 2:|" + 
+                              r"Hyundai::|" +
+                              r"Other Car:", "Other Vehicle:", response)
+            response = re.sub(r"\*\*Other Vehicle:\*\*", "Other Vehicle:", response)
             # Alternative format extraction
             ov_match = re.search(r"Other Vehicle: \s*(\d{4})?\s*([A-Za-z]+)\s+([A-Za-z0-9\s]+)\.", response)  # noqa: E501
             if ov_match:
@@ -376,12 +404,12 @@ class LLMEvents:
                 vehicle_damage = vehicle_damage_match.group(1).strip()
                 
                 # Look for autonomous vehicle damage
-                av_damage_match = re.search(r'(Tesla|AV|automated vehicle|autonomous vehicle)[^.]*(damage[^.]*)', vehicle_damage, re.IGNORECASE)
+                av_damage_match = re.search(r'(Tesla|AV|automated vehicle|autonomous vehicle)[^.]*(damage[^.]*)', vehicle_damage, re.IGNORECASE)  # noqa: E501
                 if av_damage_match:
                     av_damage = av_damage_match.group(2).strip()
                 
                 # Look for other vehicle damage
-                other_damage_match = re.search(r'([^T]oyota|Honda|Ford|Chrysler|other vehicle)[^.]*(damage[^.]*)', vehicle_damage, re.IGNORECASE)
+                other_damage_match = re.search(r'([^T]oyota|Honda|Ford|Chrysler|other vehicle)[^.]*(damage[^.]*)', vehicle_damage, re.IGNORECASE)  # noqa: E501
                 if other_damage_match:
                     other_vehicle_damage = other_damage_match.group(2).strip()
             
@@ -400,7 +428,7 @@ class LLMEvents:
                 injuries_text = injuries_match.group(1).strip()
                 
                 # Determine if there were injuries
-                if re.search(r'injur(y|ies|ed)', injuries_text, re.IGNORECASE) and not re.search(r'no injur(y|ies|ed)', injuries_text, re.IGNORECASE):
+                if re.search(r'injur(y|ies|ed)', injuries_text, re.IGNORECASE) and not re.search(r'no injur(y|ies|ed)', injuries_text, re.IGNORECASE):  # noqa: E501
                     injuries = True
                 elif 'no injuries' in injuries_text.lower():
                     injuries = False
@@ -457,12 +485,12 @@ class LLMEvents:
             same_lane = None
             
             # AV movement
-            av_movement_match = re.search(r'(autonomous|automated|AV).*?(traveling|moving|driving|stopped)([^.]*)', response, re.IGNORECASE)
+            av_movement_match = re.search(r'(autonomous|automated|AV).*?(traveling|moving|driving|stopped)([^.]*)', response, re.IGNORECASE)  # noqa: E501
             if av_movement_match:
                 av_movement = (av_movement_match.group(2) + av_movement_match.group(3)).strip()
             
             # Other road user movement
-            other_movement_match = re.search(r'(pedestrian|other road user|driver).*?(walking|running|crossing|stopped|traveling|moving)([^.]*)', response, re.IGNORECASE)
+            other_movement_match = re.search(r'(pedestrian|other road user|driver).*?(walking|running|crossing|stopped|traveling|moving)([^.]*)', response, re.IGNORECASE)  # noqa: E501
             if other_movement_match:
                 other_movement = (other_movement_match.group(2) + other_movement_match.group(3)).strip()
             
@@ -505,8 +533,8 @@ class LLMEvents:
             lambda row: pd.Series(self.categorise(str(row["q2"]), "q2-av", row.name)), axis=1
         )
 
-        df["q2_other_road_user"] = df.apply(lambda row: self.categorise(str(row["q2"]), "q2-other_road_user", row.name), axis=1)
-        df["q2_other_vehicle"] = df.apply(lambda row: self.categorise(str(row["q2"]), "q2-other_vehicle", row.name), axis=1)
+        df["q2_other_road_user"] = df.apply(lambda row: self.categorise(str(row["q2"]), "q2-other_road_user", row.name), axis=1)  # noqa: E501
+        df["q2_other_vehicle"] = df.apply(lambda row: self.categorise(str(row["q2"]), "q2-other_vehicle", row.name), axis=1)  # noqa: E501
 
         # Q3
         df["q3"] = df.apply(lambda row: self.extract_answers(str(row["response"]), 3)["q3"], axis=1)
