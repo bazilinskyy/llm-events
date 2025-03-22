@@ -9,6 +9,7 @@ from PIL import Image
 import time
 from openai import OpenAI
 import re
+import json
 
 import llmevents as llme
 
@@ -277,131 +278,125 @@ class LLMEvents:
                 return "Unknown"
             
         elif q == "q2-other_road_user":
-            # Cleanup of formatting of answer: replace different formats of introducing other road user
-            response = re.sub(r"Other Involved Road User:|" + 
-                              r"The other involved party was a|" +
-                              r"The other involved road user was the|" +
-                              r"other party was a|" +
-                              r"road user was a|" +
-                              r"Other Involved Party:", "Other Road User:", response)
+            # Standardize format by replacing different variants with a consistent format
+            response = re.sub(
+                r"Other Involved Road User:|The other involved party was a|The other involved road user was the|" +
+                r"other party was a|road user was a|Other Involved Party:", 
+                "Other Road User:", 
+                response
+            )
             response = re.sub(r"\*\*Other Road User:\*\*", "Other Road User:", response)
-            # Extract Other Involved Road User
-            ru_match = re.search(r"Other Road User: \s*([^\n]*)", response)
-            # ru_match = re.search(r"Other Road User:\s*(.*?)(?=\.|\n|$)", response)
-            # Manual cases
-            if ("a pedestrian was also involved" in response or
-                    "Pedestrian:" in response):
+            
+            # Check for specific manual cases first
+            if "a pedestrian was also involved" in response or "Pedestrian:" in response:
                 return "Pedestrian"
             elif "2013 Honda Civic" in response:
                 return "Driver in vehicle"
-            # Manual filtering for specific types of road users
-            if ru_match and ("pedestrian" in ru_match.group(1).lower() or
-                             "walking" in ru_match.group(1).lower() or
-                             "male" in ru_match.group(1).lower() or
-                             "female" in ru_match.group(1).lower()):
-                return "Pedestrian"
-            elif ru_match and ("bicyclist" in ru_match.group(1).lower() or
-                               "bicycle" in ru_match.group(1).lower() or
-                               "cyclist" in ru_match.group(1).lower()):
-                return "Cyclist"
-            elif ru_match and ("scooter" in ru_match.group(1).lower() or
-                               "moped" in ru_match.group(1).lower()):
-                return "Scooter"
-            elif ru_match and ("motorcycle" in ru_match.group(1).lower() or
-                               "motorbike" in ru_match.group(1).lower()):
-                return "Motorcycle"
-            elif ru_match and ("fixed object" in ru_match.group(1).lower() or
-                               "parked car" in ru_match.group(1).lower() or
-                               "parked vehicle" in ru_match.group(1).lower() or
-                               "stationary" in ru_match.group(1).lower()):
-                return "Fixed object"
-            elif ru_match and "driver" in ru_match.group(1).lower():
-                return "Driver in vehicle"
+                
+            # Define road user categories and their associated keywords
+            road_user_types = {
+                "Pedestrian": ["pedestrian", "walking", "male", "female"],
+                "Cyclist": ["bicyclist", "bicycle", "cyclist"],
+                "Scooter": ["scooter", "moped"],
+                "Motorcycle": ["motorcycle", "motorbike"],
+                "Fixed object": ["fixed object", "parked car", "parked vehicle", "stationary"],
+                "Driver in vehicle": ["driver"]
+            }
+            
+            # Extract the road user description
+            ru_match = re.search(r"Other Road User: \s*([^\n]*)", response)
+            
+            # Check if the description matches any of the defined categories
             if ru_match:
-                return ru_match.group(1).strip()
-            # Also process other vehicle as type of other road user
-            response = re.sub(r"Vehicle 2:|" + 
-                              r"Other Car:", "Other Vehicle:", response)
-            response = re.sub(r"\*\*Other Vehicle:\*\*", "Other Vehicle:", response)
+                description = ru_match.group(1).lower()
+                for user_type, keywords in road_user_types.items():
+                    if any(keyword in description for keyword in keywords):
+                        return user_type
+                return ru_match.group(1).strip()  # Return exact match if no category matched
+            
+            # Check for alternative formats mentioning vehicles
+            response = re.sub(r"Vehicle 2:|Other Car:", "Other Vehicle:", response)
             if "Other Vehicle:" in response:
                 return "Driver in vehicle"
+                
             # No match found
             logger.debug(f"{row_index} q2-other_road_user: no match found for {response}.")
             return "Unknown"
-        elif q == "q2-other_vehicle": 
-            vehicle = None
-            # Cleanup of formatting of answer: replace different formats of introducing other car
-            response = re.sub(r"Vehicle 2:|" + 
-                              r"Hyundai:|" +
-                              r"Other Car:", "Other Vehicle:", response)
+        
+        elif q == "q2-other_vehicle":
+            # Load brand data from JSON
+            json_path = os.path.join(os.path.dirname(__file__), 'av_brands.json')
+            with open(json_path, 'r') as f:
+                brand_data = json.load(f)
+            
+            # Get mappings from JSON
+            brand_mapping = brand_data.get('brand_mapping', {})
+            model_mapping = brand_data.get('model_mapping', {})
+            specific_patterns = brand_data.get('specific_vehicle_patterns', {})
+            
+            # Define AV companies to exclude from "other vehicle" classification
+            av_companies = ["Waymo", "Cruise", "Zoox", "Argo AI", "Aurora", "Mobileye", "Baidu", "Pony.ai", "Motional", "Apple", "Mosaic"]
+            # Clean up response text
+            response = re.sub(r"Vehicle 2:|Hyundai:|Other Car:", "Other Vehicle:", response)
             response = re.sub(r"\*\*Other Vehicle:\*\*", "Other Vehicle:", response)
-            response = re.sub(r"Make:", "Brand", response)
-            response = re.sub(r"Model:", "Model", response)
-            response = re.sub(r"Year:", "Year", response)
-            response = re.sub(r"Brand:", "Brand", response)
-            response = re.sub(r"Model:", "Model", response)
+            response = re.sub(r"(Make|Brand|Model|Year):", r"\1", response)
             response = re.sub(r"A 2023:", "2023", response)
-            # Manual filtering
-            if "No other vehicles were involved" in response:
-                return None
-            elif "No other vehicle was involved" in response:
-                return None
-            elif "A truck is listed as \"other vehicle\"" in response:
-                return None
-            elif "Unknown year, brand and model (only \"Truck\" is listed)" in response:
-                vehicle = "Truck" 
-            # Year, brand, model
-            ov_match = re.search(r"Other Vehicle: Year (UNK|Unknown|\d{4}), Brand ([A-Za-z-]+), Model ([A-Za-z0-9\s]+)", response)  # noqa: E501
+            
+            # Check for no vehicle phrases
+            if any(phrase in response for phrase in [
+                "No other vehicles were involved", "No other vehicle was involved", 
+                "A truck is listed", "Not applicable", "A pedestrian", "A bicycle", 
+                "A bicyclist", "None", "None listed", "N/A - only one vehicle"
+            ]):return None
+                
+            # Check specific vehicle patterns
+            for pattern, info in specific_patterns.items():
+                if re.search(pattern, response, re.IGNORECASE):
+                    brand = info["brand"]
+                    # Skip if this is an AV company (not appropriate as "other vehicle")
+                    if brand in av_companies:
+                        continue
+                    parts = [p for p in [info["year"], brand, info["model"]] if p]
+                    return " ".join(parts)
+            
+            # Try standard pattern: Year, brand, model
+            ov_match = re.search(r"Other Vehicle: Year (UNK|Unknown|\d{4}), Brand ([A-Za-z-]+), Model ([A-Za-z0-9\s]+)", response)
             if ov_match:
-                # year = ov_match.group(1)
-                brand = ov_match.group(2).strip()
-                model = ov_match.group(3).strip()
-                vehicle = f"{brand} {model}".strip()
-            # Extract match
-            # ov_match_2 = re.search(r"Other Vehicle:\s*(\d{4})?\s*([A-Za-z-]+)\s*([A-Za-z0-9\s]+)", response)
+                brand = brand_mapping.get(ov_match.group(2).strip().lower(), ov_match.group(2).capitalize())
+                # Skip if this is an AV company
+                if brand in av_companies:
+                    return "Unknown"
+                model = model_mapping.get(ov_match.group(3).strip().lower(), ov_match.group(3))
+                return f"{brand} {model}".strip()
+                
+            # Try simpler pattern
             ov_match_2 = re.search(r"Other Vehicle:\s*(\d{4})?\s*([^.,*()]+)", response)
-            if not vehicle and ov_match_2:
-                # year = ov_match_2.group(1)
-                # brand = ov_match_2.group(2).strip()
-                # model = ov_match_2.group(3).strip()
+            if ov_match_2:
                 vehicle = ov_match_2.group(2).strip()
-            # Manuel filtering
-            if vehicle == "A pickup truck":
-                vehicle = "Unknown"
-            elif vehicle == "The report indicates a second vehicle":
-                vehicle = "Unknown"
-            elif vehicle == "Not applicable":
-                vehicle = None
-            elif vehicle == "Not specified":
-                vehicle = "Unknown"
-            elif vehicle == "Year and model are unknown":
-                vehicle = "Unknown"
-            elif vehicle == "A bicycle" or vehicle == "A bicyclist":
-                vehicle = None
-            elif vehicle == "A truck is listed as":
-                vehicle = None
-            elif vehicle == "A pedestrian":
-                vehicle = None
-            elif vehicle == "":
-                vehicle = None
-            elif vehicle == "None":
-                vehicle = None
-            elif vehicle == "None listed":
-                vehicle = None
-            elif vehicle == "N/A - only one vehicle was involved":
-                vehicle = None
-            # Manual filtering
-            if vehicle:
-                vehicle = re.sub(r"The autonomous vehicle.*", "", vehicle, flags=re.DOTALL).strip()
-                vehicle = re.sub(r"The automated vehicle.*", "", vehicle, flags=re.DOTALL).strip()
-                vehicle = re.sub(r"A Toyota.*", "Toyota", vehicle, flags=re.DOTALL).strip()
-                vehicle = re.sub(r"A Nissan.*", "Nissan", vehicle, flags=re.DOTALL).strip()
-                vehicle = re.sub(r"pickup truck.*", "", vehicle, flags=re.DOTALL).strip()
-                vehicle = re.sub(r"truck.*", "", vehicle, flags=re.DOTALL).strip()
+                # Check if the vehicle contains any AV company name
+                if any(av_company.lower() in vehicle.lower() for av_company in av_companies):
+                    return "Unknown"
+                
+                # Normalize brand names using mapping
+                vehicle_lower = vehicle.lower()
+                for brand_key, brand_value in brand_mapping.items():
+                    # Skip AV companies in brand mapping
+                    if brand_value in av_companies:
+                        continue
+                    if brand_key in vehicle_lower:
+                        vehicle = re.compile(re.escape(brand_key), re.IGNORECASE).sub(brand_value, vehicle)
+                        break
+                # Clean up extracted text
+                if vehicle in ["Unknown", "A pickup truck", "Year and model are unknown", ""]:
+                    return "Unknown"
+                # Manual filtering for specific vehicle types
+                vehicle = re.sub(r"The (autonomous|automated) vehicle.*|A (Toyota|Nissan).*|pickup truck.*|truck.*", r"\2", vehicle, flags=re.DOTALL).strip()
+                return vehicle
+                
             # No match found
-            if not vehicle:
-                logger.debug(f"q2-other_vehicle: no match found for {response}.")
-            return vehicle
+            logger.debug(f"q2-other_vehicle: no match found for {response}.")
+            return None
+        
         elif q == "q4":
             # Extract time and environmental conditions information
             weather = None
