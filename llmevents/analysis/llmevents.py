@@ -334,6 +334,9 @@ class LLMEvents:
             elif ru_match and ("scooter" in ru_match.group(1).lower() or
                                "moped" in ru_match.group(1).lower()):
                 return "Scooter"
+            elif ru_match and ("motorcycle" in ru_match.group(1).lower() or
+                               "motorbike" in ru_match.group(1).lower()):
+                return "Motorcycle"
             elif ru_match and ("fixed object" in ru_match.group(1).lower() or
                                "parked car" in ru_match.group(1).lower() or
                                "parked vehicle" in ru_match.group(1).lower() or
@@ -351,24 +354,32 @@ class LLMEvents:
                 return "Driver in vehicle"
             # No match found
             logger.info(f"{row_index} q2-other_road_user: no match found for {response}.")
-            return "Unknown"
-        elif q == "q2-other_vehicle":  
+            # return "Unknown"
+        elif q == "q2-other_vehicle": 
             # Cleanup of formatting of answer: replace different formats of introducing other car
             response = re.sub(r"Vehicle 2:|" + 
                               r"Hyundai::|" +
                               r"Other Car:", "Other Vehicle:", response)
             response = re.sub(r"\*\*Other Vehicle:\*\*", "Other Vehicle:", response)
+            # Manual filtering
+            if "No other vehicles were involved" in response:
+                return None
+            elif "No other vehicle was involved" in response:
+                return None
             # Alternative format extraction
-            ov_match = re.search(r"Other Vehicle: \s*(\d{4})?\s*([A-Za-z]+)\s+([A-Za-z0-9\s]+)\.", response)  # noqa: E501
+            # ov_match = re.search(r"Other Vehicle: \s*(Unknown|\d{4})?\s*([A-Za-z-\s]+)\s+([A-Za-z0-9-\s]+)\.", response)  # noqa: E501
+            ov_match = re.search(r"Other Vehicle:\s*(\d{4})?\s*([A-Za-z]+)\s*([A-Za-z0-9\s]+)", response)
+            # ov_match = re.search(r"Other Vehicle:\s*(\d{4})?\s*([A-Za-z]+)\s*([\w\s-]+)(?=\n|$)", response)
             if ov_match:
                 # year = ov_match.group(1)
                 brand = ov_match.group(2).strip()
                 model = ov_match.group(3).strip()
-                # return f"{year} {brand} {model}".strip()
+                model = re.sub(r"The autonomous vehicle.*", "", model, flags=re.DOTALL).strip()
                 return f"{brand} {model}".strip()
             else:
                 # No match found
                 logger.debug(f"q2-other_vehicle: no match found for {response}.")
+                # return "Unknown"
         elif q == "q4":
             # Extract time and environmental conditions information
             weather = None
