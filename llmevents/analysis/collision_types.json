@@ -1,0 +1,118 @@
+{
+  "collision_types": [
+    "Rear-end", 
+    "Head-on", 
+    "Side-impact", 
+    "Sideswipe", 
+    "Angle", 
+    "Backing", 
+    "Pedestrian", 
+    "Cyclist", 
+    "Rollover", 
+    "Fixed object",
+    "Single vehicle", 
+    "No collision", 
+    "Lane change",
+    "Other collision"
+  ],
+  
+  "pcf_codes": {
+    "a": "Unsafe speed",
+    "b": "Right-of-way violation",
+    "c": "Traffic signals",
+    "d": "Improper passing",
+    "e": "Unsafe lane change",
+    "f": "Improper turn",
+    "g": "Wrong side of road",
+    "h": "Following too close",
+    "i": "Driving under influence",
+    "j": "Other improper driving",
+    "k": "Pedestrian violation",
+    "l": "Other than driver",
+    "m": "Other hazardous violation",
+    "n": "Unsafe starting or backing",
+    "o": "Other equipment",
+    "p": "Other",
+    "q": "Unknown"
+  },
+  
+  "collision_mapping": {
+    "rear": "Rear-end",
+    "rear end": "Rear-end",
+    "rear-end": "Rear-end",
+    "from behind": "Rear-end",
+    "struck from behind": "Rear-end",
+    
+    "head": "Head-on",
+    "head on": "Head-on",
+    "head-on": "Head-on",
+    "frontal": "Head-on",
+    "wrong side of road": "Head-on",
+    
+    "side": "Side-impact",
+    "side impact": "Side-impact",
+    "side-impact": "Side-impact",
+    "t-bone": "Side-impact",
+    "t bone": "Side-impact",
+    "broadside": "Side-impact",
+    "broad side": "Side-impact",
+    "right angle": "Side-impact",
+    
+    "sideswipe": "Sideswipe",
+    "side swipe": "Sideswipe",
+    "sideswiped": "Sideswipe",
+    "scraped": "Sideswipe",
+    
+    "angle": "Angle",
+    "angled": "Angle",
+    
+    "backing": "Backing",
+    "back-up": "Backing",
+    "backing up": "Backing",
+    "reverse": "Backing",
+    
+    "pedestrian": "Pedestrian",
+    "hit pedestrian": "Pedestrian",
+    "struck pedestrian": "Pedestrian",
+    
+    "bicycle": "Cyclist",
+    "cyclist": "Cyclist",
+    "bike": "Cyclist",
+    "bicyclist": "Cyclist",
+    
+    "rollover": "Rollover",
+    "roll over": "Rollover",
+    "overturned": "Rollover",
+    
+    "fixed object": "Fixed object",
+    "stationary object": "Fixed object",
+    "pole": "Fixed object",
+    "tree": "Fixed object",
+    "barrier": "Fixed object",
+    "hit object": "Fixed object",
+    
+    "single vehicle": "Single vehicle",
+    "run-off-road": "Single vehicle",
+    "run off road": "Single vehicle",
+    
+    "no collision": "No collision",
+    "none": "No collision",
+    
+    "lane change": "Lane change",
+    "changing lanes": "Lane change",
+    "merged": "Lane change",
+    "merging": "Lane change"
+  },
+  
+  "pcf_to_collision_mapping": {
+    "a": "Single vehicle",
+    "b": "Angle",
+    "c": "Angle",
+    "d": "Sideswipe",
+    "e": "Lane change",
+    "f": "Angle",
+    "g": "Head-on",
+    "h": "Rear-end",
+    "n": "Backing"
+  }
+} 

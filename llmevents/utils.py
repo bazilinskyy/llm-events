@@ -27,3 +27,9 @@ def load_av_brand_mappings():
             "model_mapping": {},
             "specific_vehicle_patterns": {}
         } 
+
+def load_collision_type_mappings():
+    """Load collision type mappings from JSON file."""
+    json_path = os.path.join(os.path.dirname(__file__), 'analysis', 'collision_types.json')
+    with open(json_path, 'r') as f:
+        return json.load(f) 
