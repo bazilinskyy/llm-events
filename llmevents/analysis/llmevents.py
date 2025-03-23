@@ -426,8 +426,75 @@ class LLMEvents:
                 return conditions_match.group(1).strip()
             return "Unknown"
 
-        elif q == "q5":
-            # Define damage and collision categories for pattern matching
+        elif q == "q5-collision_type":
+            # Extract collision type directly from the formatted response
+            collision_match = re.search(r'\*\*Type of Collision:\*\*\s*([^*\n.]+)', response)
+            if not collision_match:
+                # Try alternate format
+                collision_match = re.search(r'Type of Collision:\s*([^*\n.]+)', response)
+            if not collision_match:
+                return "Unknown"
+            # Get the raw collision text and clean it
+            collision_text = collision_match.group(1).strip()
+            # Remove quotation marks and other artifacts
+            collision_text = re.sub(r'["""\'()]', '', collision_text)
+            # If it's a single letter code, consider it unknown
+            if re.match(r'^[A-Za-z0-9]$', collision_text):
+                return "Unknown"
+            
+            # Priority order for collision types - check if these key terms appear
+            priority_types = {
+                "pedestrian": "Pedestrian",
+                "cyclist": "Cyclist", 
+                "bicycle": "Cyclist",
+                "bicyclist": "Cyclist",
+                "fixed object": "Fixed object",
+                "rear-end": "Rear-end",
+                "rear end": "Rear-end",
+                "head-on": "Head-on", 
+                "head on": "Head-on"
+            }
+            collision_lower = collision_text.lower()
+            # Check for priority collision types first
+            for key, value in priority_types.items():
+                if key in collision_lower:
+                    return value
+            
+            # For collision patterns with letter codes followed by descriptions (e.g., "A - Unsafe speed")
+            pcf_match = re.match(r'^[A-Za-z0-9]\s*[-:]\s*(.+)', collision_text)
+            if pcf_match:
+                # Extract the description part
+                collision_text = pcf_match.group(1).strip()
+                # Check again for priority types in the description part
+                collision_lower = collision_text.lower()
+                for key, value in priority_types.items():
+                    if key in collision_lower:
+                        return value
+            # If it's a very short description with known invalid values, return Unknown
+            if collision_text.lower() in ["unknown", "none", "not applicable", "n/a"]:
+                return "Unknown"
+            # Check if this is a long description (e.g., describing vehicle movements)
+            # Long descriptions typically have more than a few words and contain verbs like "was" or "traveling"
+            if len(collision_text.split()) > 5 or re.search(r'\b(was|traveling|moving|making|turning|driving)\b', collision_text, re.IGNORECASE):
+                return "Unknown"
+                
+            # Otherwise, simply return the text with proper capitalization for short, direct responses
+            return collision_text.strip().title()
+        
+        elif q == "q5-av_damage":
+            # Extract vehicle damage
+            vehicle_damage_match = re.search(r'\*\*Vehicle Damage:\*\*\s*([^*]+)', response)
+            if vehicle_damage_match:
+                vehicle_damage = vehicle_damage_match.group(1).strip()
+                
+                # Look for autonomous vehicle damage
+                av_damage_match = re.search(r'(Tesla|AV|automated vehicle|autonomous vehicle)[^.]*(damage[^.]*)', vehicle_damage, re.IGNORECASE)
+                if av_damage_match:
+                    return av_damage_match.group(2).strip()
+            return "Unknown"
+        
+        elif q == "q5-av_damage_category":
+            # Define damage categories for pattern matching
             damage_categories = {
                 'minor': ['minor', 'slight', 'minimal', 'cosmetic'],
                 'moderate': ['moderate', 'considerable', 'visible', 'damaged', 'dent'],
@@ -435,56 +502,46 @@ class LLMEvents:
                 'total': ['total', 'destroyed', 'totaled']
             }
             
-            # Extract collision type
-            collision_type = None
-            collision_match = re.search(r'\*\*Type of Collision:\*\*\s*([^*\n.]+)', response)
-            if collision_match:
-                collision_type = collision_match.group(1).strip()
-            
-            # Extract vehicle damage
-            av_damage = None
-            other_vehicle_damage = None
+            # First get the AV damage description
             vehicle_damage_match = re.search(r'\*\*Vehicle Damage:\*\*\s*([^*]+)', response)
             if vehicle_damage_match:
                 vehicle_damage = vehicle_damage_match.group(1).strip()
                 
                 # Look for autonomous vehicle damage
-                av_damage_match = re.search(r'(Tesla|AV|automated vehicle|autonomous vehicle)[^.]*(damage[^.]*)', vehicle_damage, re.IGNORECASE)  # noqa: E501
+                av_damage_match = re.search(r'(Tesla|AV|automated vehicle|autonomous vehicle)[^.]*(damage[^.]*)', vehicle_damage, re.IGNORECASE)
                 if av_damage_match:
                     av_damage = av_damage_match.group(2).strip()
+                    
+                    # Classify damage severity for AV
+                    for category, keywords in damage_categories.items():
+                        if any(keyword in av_damage.lower() for keyword in keywords):
+                            return category
+            return "unknown"
+        
+        elif q == "q5-other_vehicle_damage":
+            # Extract vehicle damage
+            vehicle_damage_match = re.search(r'\*\*Vehicle Damage:\*\*\s*([^*]+)', response)
+            if vehicle_damage_match:
+                vehicle_damage = vehicle_damage_match.group(1).strip()
                 
                 # Look for other vehicle damage
-                other_damage_match = re.search(r'([^T]oyota|Honda|Ford|Chrysler|other vehicle)[^.]*(damage[^.]*)', vehicle_damage, re.IGNORECASE)  # noqa: E501
+                other_damage_match = re.search(r'([^T]oyota|Honda|Ford|Chrysler|other vehicle)[^.]*(damage[^.]*)', vehicle_damage, re.IGNORECASE)
                 if other_damage_match:
-                    other_vehicle_damage = other_damage_match.group(2).strip()
-            
-            # Classify damage severity for AV
-            av_damage_category = "unknown"
-            if av_damage:
-                for category, keywords in damage_categories.items():
-                    if any(keyword in av_damage.lower() for keyword in keywords):
-                        av_damage_category = category
-                        break
-            
+                    return other_damage_match.group(2).strip()
+            return "Unknown"
+        
+        elif q == "q5-injuries":
             # Extract injuries information
-            injuries = None
             injuries_match = re.search(r'\*\*Injuries/Deaths/Property Damage:\*\*\s*([^*]+)', response)
             if injuries_match:
                 injuries_text = injuries_match.group(1).strip()
                 
                 # Determine if there were injuries
-                if re.search(r'injur(y|ies|ed)', injuries_text, re.IGNORECASE) and not re.search(r'no injur(y|ies|ed)', injuries_text, re.IGNORECASE):  # noqa: E501
-                    injuries = True
+                if re.search(r'injur(y|ies|ed)', injuries_text, re.IGNORECASE) and not re.search(r'no injur(y|ies|ed)', injuries_text, re.IGNORECASE):
+                    return "Yes"
                 elif 'no injuries' in injuries_text.lower():
-                    injuries = False
-            
-            return {
-                'collision_type': collision_type,
-                'av_damage_category': av_damage_category,
-                'av_damage_description': av_damage,
-                'other_vehicle_damage': other_vehicle_damage,
-                'injuries': injuries
-            }
+                    return "No"
+            return "Unknown"
 
         elif q == "q6":
             # Extract if AV is at fault
@@ -595,7 +652,11 @@ class LLMEvents:
         
         # Q5
         df["q5"] = df.apply(lambda row: self.extract_answers(str(row["response"]), 5)["q5"], axis=1)
-        df["q5_category"] = df.apply(lambda row: self.categorise(str(row["q5"]), "q5", row.name), axis=1)
+        df["q5_collision_type"] = df.apply(lambda row: self.categorise(str(row["q5"]), "q5-collision_type", row.name), axis=1)
+        df["q5_av_damage"] = df.apply(lambda row: self.categorise(str(row["q5"]), "q5-av_damage", row.name), axis=1)
+        df["q5_av_damage_category"] = df.apply(lambda row: self.categorise(str(row["q5"]), "q5-av_damage_category", row.name), axis=1)
+        df["q5_other_vehicle_damage"] = df.apply(lambda row: self.categorise(str(row["q5"]), "q5-other_vehicle_damage", row.name), axis=1)
+        df["q5_injuries"] = df.apply(lambda row: self.categorise(str(row["q5"]), "q5-injuries", row.name), axis=1)
 
         # Q6
         df["q6"] = df.apply(lambda row: self.extract_answers(str(row["response"]), 6)["q6"], axis=1)
