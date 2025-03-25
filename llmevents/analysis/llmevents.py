@@ -397,6 +397,49 @@ class LLMEvents:
             logger.debug(f"q2-other_vehicle: no match found for {response}.")
             return None
         
+        elif q == "q3-address":
+            # Extract specific address information
+            address_match = re.search(r'\*\*Address:\*\*\s*([^*\n.]+)', response)
+            if address_match:
+                return address_match.group(1).strip()
+            return "Unknown"
+            
+        elif q == "q3-street_type":
+            # Extract street type information
+            street_match = re.search(r'\*\*Street Type:\*\*\s*([^*\n.]+)', response)
+            if street_match:
+                return street_match.group(1).strip()
+            return "Unknown"
+            
+        elif q == "q3-lanes":
+            # Extract lanes and width information
+            lanes_match = re.search(r'\*\*Lanes & Width:\*\*\s*([^*\n.]+)', response)
+            if lanes_match:
+                return lanes_match.group(1).strip()
+            return "Unknown"
+            
+        elif q == "q3-area_type":
+            # Extract urban/rural information
+            area_match = re.search(r'\*\*Urban/Rural:\*\*\s*([^*\n.]+)', response)
+            if area_match:
+                area_text = area_match.group(1).strip().lower()
+                if "urban" in area_text:
+                    return "Urban"
+                elif "rural" in area_text:
+                    return "Rural"
+                else:
+                    return area_match.group(1).strip()
+            return "Unknown"
+            
+        elif q == "q3-coordinates":
+            # Extract GPS coordinates if available
+            coords_match = re.search(r'\*\*Google Maps Coordinates:\*\*\s*([^*\n.]+)', response)
+            if coords_match:
+                coords = coords_match.group(1).strip()
+                if any(term in coords.lower() for term in ["not provided", "unknown", "n/a", "none"]):
+                    return "Unknown"
+                return coords
+            return "Unknown"
         
         elif q == "q4-weather":
             # Extract weather conditions
@@ -633,7 +676,11 @@ class LLMEvents:
 
         # Q3
         df["q3"] = df.apply(lambda row: self.extract_answers(str(row["response"]), 3)["q3"], axis=1)
-        df["q3_category"] = df.apply(lambda row: self.categorise(str(row["q3"]), "q3", row.name), axis=1)
+        df["q3_address"] = df.apply(lambda row: self.categorise(str(row["q3"]), "q3-address", row.name), axis=1)
+        df["q3_street_type"] = df.apply(lambda row: self.categorise(str(row["q3"]), "q3-street_type", row.name), axis=1)
+        df["q3_lanes"] = df.apply(lambda row: self.categorise(str(row["q3"]), "q3-lanes", row.name), axis=1)
+        df["q3_area_type"] = df.apply(lambda row: self.categorise(str(row["q3"]), "q3-area_type", row.name), axis=1)
+        df["q3_coordinates"] = df.apply(lambda row: self.categorise(str(row["q3"]), "q3-coordinates", row.name), axis=1)
 
         # Q4 - First extract the raw answer
         df["q4"] = df.apply(lambda row: self.extract_answers(str(row["response"]), 4)["q4"], axis=1)
