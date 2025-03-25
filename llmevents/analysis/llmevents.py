@@ -543,14 +543,16 @@ class LLMEvents:
                     return "No"
             return "Unknown"
 
-        elif q == "q6":
+        elif q == "q6-av_at_fault":
             # Extract if AV is at fault
-            av_at_fault = None
             if re.search(r'(autonomous|automated|AV).*?\bat fault\b', response, re.IGNORECASE):
-                av_at_fault = True
+                return True
             elif re.search(r'(pedestrian|other road user|driver).*?\bat fault\b', response, re.IGNORECASE):
-                av_at_fault = False
+                return False
+            else:
+                return None
             
+        elif q == "q6-contributing_factors":
             # Extract contributing factors
             contributing_factors = []
             
@@ -568,51 +570,42 @@ class LLMEvents:
                     factors = re.split(r',|\band\b|;', factors_text)
                     contributing_factors = [factor.strip() for factor in factors if factor.strip()]
             
-            return {
-                'av_at_fault': av_at_fault,
-                'contributing_factors': contributing_factors
-            }
+            return contributing_factors if contributing_factors else None
 
-        elif q == "q7":
+        elif q == "q7-traffic_conditions":
             # Extract traffic conditions
-            traffic_conditions = None
             traffic_match = re.search(r'\*\*Traffic:\*\*\s*([^*\n.]+)', response)
             if traffic_match:
-                traffic_conditions = traffic_match.group(1).strip()
+                return traffic_match.group(1).strip()
+            return None
             
-            # Extract vehicle movements
-            av_movement = None
-            other_movement = None
-            same_direction = None
-            same_lane = None
-            
-            # AV movement
-            av_movement_match = re.search(r'(autonomous|automated|AV).*?(traveling|moving|driving|stopped)([^.]*)', response, re.IGNORECASE)  # noqa: E501
+        elif q == "q7-av_movement":
+            # Extract AV movement
+            av_movement_match = re.search(r'(autonomous|automated|AV).*?(traveling|moving|driving|stopped)([^.]*)', response, re.IGNORECASE)
             if av_movement_match:
-                av_movement = (av_movement_match.group(2) + av_movement_match.group(3)).strip()
+                return (av_movement_match.group(2) + av_movement_match.group(3)).strip()
+            return None
             
-            # Other road user movement
-            other_movement_match = re.search(r'(pedestrian|other road user|driver).*?(walking|running|crossing|stopped|traveling|moving)([^.]*)', response, re.IGNORECASE)  # noqa: E501
+        elif q == "q7-other_road_user_movement":
+            # Extract other road user movement
+            other_movement_match = re.search(r'(pedestrian|other road user|driver).*?(walking|running|crossing|stopped|traveling|moving)([^.]*)', response, re.IGNORECASE)
             if other_movement_match:
-                other_movement = (other_movement_match.group(2) + other_movement_match.group(3)).strip()
+                return (other_movement_match.group(2) + other_movement_match.group(3)).strip()
+            return None
             
+        elif q == "q7-same_direction":
             # Check if same direction
             same_direction_match = re.search(r'(same|different) direction', response, re.IGNORECASE)
             if same_direction_match:
-                same_direction = 'same' in same_direction_match.group(1).lower()
+                return 'same' in same_direction_match.group(1).lower()
+            return None
             
+        elif q == "q7-same_lane":
             # Check if same lane
             same_lane_match = re.search(r'(same|different) lanes?', response, re.IGNORECASE)
             if same_lane_match:
-                same_lane = 'same' in same_lane_match.group(1).lower()
-            
-            return {
-                'traffic_conditions': traffic_conditions,
-                'av_movement': av_movement,
-                'other_road_user_movement': other_movement,
-                'same_direction': same_direction,
-                'same_lane': same_lane
-            }
+                return 'same' in same_lane_match.group(1).lower()
+            return None
         else:
             return "wrong question"
 
@@ -660,11 +653,16 @@ class LLMEvents:
 
         # Q6
         df["q6"] = df.apply(lambda row: self.extract_answers(str(row["response"]), 6)["q6"], axis=1)
-        df["q6_category"] = df.apply(lambda row: self.categorise(str(row["q6"]), "q6", row.name), axis=1)
+        df["q6_av_at_fault"] = df.apply(lambda row: self.categorise(str(row["q6"]), "q6-av_at_fault", row.name), axis=1)
+        df["q6_contributing_factors"] = df.apply(lambda row: self.categorise(str(row["q6"]), "q6-contributing_factors", row.name), axis=1)
 
         # Q7
         df["q7"] = df.apply(lambda row: self.extract_answers(str(row["response"]), 7)["q7"], axis=1)
-        df["q7_category"] = df.apply(lambda row: self.categorise(str(row["q7"]), "q7", row.name), axis=1)
+        df["q7_traffic_conditions"] = df.apply(lambda row: self.categorise(str(row["q7"]), "q7-traffic_conditions", row.name), axis=1)
+        df["q7_av_movement"] = df.apply(lambda row: self.categorise(str(row["q7"]), "q7-av_movement", row.name), axis=1)
+        df["q7_other_road_user_movement"] = df.apply(lambda row: self.categorise(str(row["q7"]), "q7-other_road_user_movement", row.name), axis=1)
+        df["q7_same_direction"] = df.apply(lambda row: self.categorise(str(row["q7"]), "q7-same_direction", row.name), axis=1)
+        df["q7_same_lane"] = df.apply(lambda row: self.categorise(str(row["q7"]), "q7-same_lane", row.name), axis=1)
 
         return df
 
