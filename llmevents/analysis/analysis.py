@@ -353,11 +353,9 @@ class Analysis:
             name = name[:200 - len(path) - 5]
         # save as html
         if save_html:
-            print(f"Saving HTML file for {name} ....")
             if open_browser:
                 # open in browser
                 py.offline.plot(fig, filename=os.path.join(path, name + '.html'))
-                print(f"HTML file saved for {name}")
                 # also save the final figure
                 if save_final:
                     py.offline.plot(fig, filename=os.path.join(path_final, name + '.html'), auto_open=False)
@@ -372,25 +370,19 @@ class Analysis:
             fig.update_layout(margin=dict(l=2, r=2, t=20, b=12))
         # save as eps
         if save_eps:
-            print(f"Saving EPS file for {name} ....")
             fig.write_image(os.path.join(path, name + '.eps'), format='eps', width=width, height=height)
-            print(f"EPS file saved for {name}")
             # also save the final figure
             if save_final:
                 fig.write_image(os.path.join(path_final, name + '.eps'), format='eps', width=width, height=height)
         # save as png
         if save_png:
-            print(f"Saving PNG file for {name}....")
             fig.write_image(os.path.join(path, name + '.png'), format='png', width=width, height=height)
-            print(f"PNG file saved for {name}")
             # also save the final figure
             if save_final:
                 fig.write_image(os.path.join(path_final, name + '.png'), format='png', width=width, height=height)
         # save as mp4
         if save_mp4:
-            print(f"Saving MP4 file for {name}")
             fig.write_image(os.path.join(path, name + '.mp4'), format='mp4', width=width, height=height)
-            print(f"MP4 file saved for {name}")
 
     def save_fig(self, image, fig, output_subdir, suffix, pad_inches=0):
         """
