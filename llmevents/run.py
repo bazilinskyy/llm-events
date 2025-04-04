@@ -98,11 +98,11 @@ if __name__ == '__main__':
                       save_png=True,
                       save_mp4=False,
                       open_browser=True)
-        analysis.hist(df, x=['q3_category'],
-                      yaxis_title='Q3. Accident location details(Where)',
-                      marginal=None,
-                      pretty_text=True,
-                      save_file=True)
+        # analysis.hist(df, x=['q3_category'],
+        #               yaxis_title='Q3. Accident location details(Where)',
+        #               marginal=None,
+        #               pretty_text=True,
+        #               save_file=True)
         analysis.hist(df, x=['q4_weather'],
                       yaxis_title='Q4. Time and environmental conditions(When): Weather',
                       marginal=None,
@@ -112,6 +112,18 @@ if __name__ == '__main__':
                       save_eps=False,
                       save_png=True,
                       save_mp4=False,
+                      open_browser=True)
+        analysis.hist(df, x=['q4_lighting'],
+                      yaxis_title='Q4. Time and environmental conditions(When): Lighting',
+                      marginal=None,
+                      pretty_text=True,
+                      save_file=True,
+                      open_browser=True)
+        analysis.hist(df, x=['q4_surface'],
+                      yaxis_title='Q4. Time and environmental conditions(When): Surface',
+                      marginal=None,
+                      pretty_text=True,
+                      save_file=True,
                       open_browser=True)
         analysis.hist(df, x=['q5_av_damage'],
                       yaxis_title='Q5. Accident damage and consequences(What): AV damage',
@@ -125,11 +137,11 @@ if __name__ == '__main__':
                       pretty_text=True,
                       save_file=True,
                       open_browser=True)
-        analysis.hist(df, x=['q7_category'],
-                      yaxis_title='Q7. Traffic and vehicle behavior(How)',
-                      marginal=None,
-                      pretty_text=True,
-                      save_file=True)
+        # analysis.hist(df, x=['q7_category'],
+        #               yaxis_title='Q7. Traffic and vehicle behavior(How)',
+        #               marginal=None,
+        #               pretty_text=True,
+        #               save_file=True)
         # some scatter plot
         # analysis.scatter(df, x='report', y='response', color='report', pretty_text=True, save_file=True)
         # # some histogram

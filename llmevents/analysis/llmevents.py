@@ -442,31 +442,94 @@ class LLMEvents:
             return "Unknown"
         
         elif q == "q4-weather":
-            # Extract weather conditions
-            weather_match = re.search(r'\*\*Weather:\*\*\s*([^*\n.]+)', response)
+            # Clean formatting first
+            clean_response = re.sub(r'[\*•\-\[\]]', '', response)
+            
+            # Simple extraction with clean text
+            weather_match = re.search(r'Weather:?\s*([^,;\n.]+)', clean_response, re.IGNORECASE)
+            
             if weather_match:
-                return weather_match.group(1).strip()
+                weather_text = weather_match.group(1).strip().lower()
+                
+                # Map to standard weather categories
+                if any(term in weather_text for term in ['clear', 'sunny', 'fair']):
+                    return "CLEAR"
+                elif any(term in weather_text for term in ['cloud', 'overcast', 'partly']):
+                    return "CLOUDY"
+                elif any(term in weather_text for term in ['rain', 'shower', 'drizzle', 'precipitation']):
+                    return "RAINING"
+                elif any(term in weather_text for term in ['snow', 'sleet', 'hail', 'freezing']):
+                    return "SNOWING"
+                elif any(term in weather_text for term in ['fog', 'mist', 'haze', 'visibility']):
+                    return "FOG/VISIBILITY"
+                elif any(term in weather_text for term in ['wind', 'gust', 'storm']):
+                    return "WIND"
+                else:
+                    return "OTHER"
             return "Unknown"
         
         elif q == "q4-lighting":
-            # Extract lighting conditions
-            lighting_match = re.search(r'\*\*Lighting Conditions:\*\*\s*([^*\n.]+)', response)
+            # Clean formatting first
+            clean_response = re.sub(r'[\*•\-\[\]]', '', response)
+            
+            # Simple extraction with clean text
+            lighting_match = re.search(r'Lighting Conditions?:?\s*([^,;\n.]+)', clean_response, re.IGNORECASE)
+            
             if lighting_match:
-                return lighting_match.group(1).strip()
+                lighting_text = lighting_match.group(1).strip().lower()
+                
+                # Map to standard lighting categories
+                if any(term in lighting_text for term in ['daylight', 'day light', 'daytime']):
+                    return "DAYLIGHT"
+                elif any(term in lighting_text for term in ['dusk', 'twilight', 'dawn']):
+                    return "DUSK"
+                elif 'dark' in lighting_text or 'night' in lighting_text:
+                    if 'not functioning' in lighting_text or 'non-functioning' in lighting_text:
+                        return "DARK-STREE LIGHTS NOT FUNCTIONING"
+                    elif 'no street' in lighting_text or 'no light' in lighting_text or 'unlit' in lighting_text:
+                        return "DARK-NO STREE LIGHTS"
+                    elif 'street light' in lighting_text or 'streetlight' in lighting_text or 'lit' in lighting_text:
+                        return "DARK-STREET LIGHTS"
+                    else:
+                        # Default to street lights if just "dark" is mentioned
+                        return "DARK-STREET LIGHTS"
+                else:
+                    return lighting_text.upper()
             return "Unknown"
         
         elif q == "q4-surface":
-            # Extract road surface
-            surface_match = re.search(r'\*\*Road Surface:\*\*\s*([^*\n.]+)', response)
+            # Clean formatting first
+            clean_response = re.sub(r'[\*•\-\[\]]', '', response)
+            
+            # Simple extraction with clean text
+            surface_match = re.search(r'Road Surface:?\s*([^,;\n.]+)', clean_response, re.IGNORECASE)
+            
             if surface_match:
-                return surface_match.group(1).strip()
+                surface_text = surface_match.group(1).strip().lower()
+                
+                # Map to standard surface categories
+                if any(term in surface_text for term in ['dry', 'normal']):
+                    return "DRY"
+                elif any(term in surface_text for term in ['wet', 'damp', 'moist']):
+                    return "WET"
+                elif any(term in surface_text for term in ['snow', 'ice', 'icy', 'sleet', 'frost']):
+                    return "SNOWY -ICY"
+                elif any(term in surface_text for term in ['slippery', 'slick', 'greasy']):
+                    return "SLIPPERY"
+                else:
+                    return surface_text.upper()
             return "Unknown"
         
         elif q == "q4-conditions":
-            # Extract road conditions
-            conditions_match = re.search(r'\*\*Road Conditions:\*\*\s*([^*\n.]+)', response)
+            # Clean formatting first
+            clean_response = re.sub(r'[\*•\-\[\]]', '', response)
+            
+            # Simple extraction with clean text
+            conditions_match = re.search(r'Road Conditions?:?\s*([^,;\n.]+)', clean_response, re.IGNORECASE)
+            
             if conditions_match:
-                return conditions_match.group(1).strip()
+                conditions_text = conditions_match.group(1).strip()
+                return conditions_text
             return "Unknown"
 
         elif q == "q5-collision_type":
