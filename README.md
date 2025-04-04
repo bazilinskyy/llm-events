@@ -44,20 +44,75 @@ Histogram of categorisation of output for question 2 - automated vehicle.
 [![Histogram of Q2 - other vehicle](figures/hist_q2_other_vehicle.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_other_vehicle.html)
 Histogram of categorisation of output for question 2 - other vehicle.
 
-[![Histogram of Q3](figures/hist_q3_category.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q3_category.html)
-Histogram of categorisation of output for question 3.
+[![Histogram of Q2 - AV mode](figures/hist_q2_av_mode.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/q2_av_mode.html)
+Histogram of categorisation of output for question 2 - AV mode.
 
-[![Histogram of Q4](figures/hist_q4_category.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q4_category.html)
-Histogram of categorisation of output for question 4.
+[![Histogram of Q3 - address](figures/hist_q3_address.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q3_address.html)
+Histogram of categorisation of output for question 3 - address.
 
-[![Histogram of Q5](figures/hist_q5_category.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q5_category.html)
-Histogram of categorisation of output for question 5.
+[![Histogram of Q3 - street type](figures/hist_q3_street_type.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q3_street_type.html)
+Histogram of categorisation of output for question 3 - street type.
 
-[![Histogram of Q6](figures/hist_q6_category.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q6_category.html)
-Histogram of categorisation of output for question 6.
+[![Histogram of Q3 - lanes](figures/hist_q3_lanes.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q3_lanes.html)
+Histogram of categorisation of output for question 3 - lanes.
 
-[![Histogram of Q7](figures/hist_q7_category.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q7_category.html)
-Histogram of categorisation of output for question 7.
+[![Histogram of Q3 - area type](figures/hist_q3_area_type.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q3_area_type.html)
+Histogram of categorisation of output for question 3 - area type.
+
+[![Histogram of Q4 - weather](figures/hist_q4_weather.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q4_weather.html)
+Histogram of categorisation of output for question 4 - weather.
+
+[![Histogram of Q4 - surface](figures/hist_q4_surface.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q4_surface.html)
+Histogram of categorisation of output for question 4 - surface.
+
+[![Histogram of Q4 - conditions](figures/hist_q4_conditions.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q4_conditions.html)
+Histogram of categorisation of output for question 4 - conditions.
+
+[![Histogram of Q4 - lightning](figures/hist_q4_lightning.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q4_lightning.html)
+Histogram of categorisation of output for question 4 - lightning.
+
+[![Histogram of Q5 - collision type](figures/hist_q5_collision_type.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q5_collision_type.html)
+Histogram of categorisation of output for question 5 - collision type.
+
+[![Histogram of Q5 - AV damage](figures/hist_q5_av_damage.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q5_av_damage.html)
+Histogram of categorisation of output for question 5 - AV damage.
+
+[![Histogram of Q5 - AV damage category](figures/hist_q5_av_damage_category.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q5_av_damage_category.html)
+Histogram of categorisation of output for question 5 - AV damage category.
+
+[![Histogram of Q5 - Other vehicle damage](figures/hist_q5_other_vehicle_damage.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q5_other_vehicle_damage.html)
+Histogram of categorisation of output for question 5 - Other vehicle damage.
+
+[![Histogram of Q5 - Injuries](figures/hist_q5_other_vehicle_damage.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q5_other_vehicle_damage.html)
+Histogram of categorisation of output for question 5 - Injuries.
+
+[![Histogram of Q6 - AV at fault](figures/hist_q6_av_at_fault.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q6_av_at_fault.html)
+Histogram of categorisation of output for question 6 - AV at fault.
+
+[![Histogram of Q7 - traffic conditions](figures/hist_q7_traffic_conditions.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q7_traffic_conditions.html)
+Histogram of categorisation of output for question 7 - traffic conditions.
+
+[![Histogram of Q7 - AV movement](figures/hist_q7_av_movement.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q7_av_movement.html)
+Histogram of categorisation of output for question 7 - AV movement.
+
+[![Histogram of Q7 - Other road user movement](figures/hist_q7_other_road_user_movement.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q7_other_road_user_movement.html)
+Histogram of categorisation of output for question 7 - Other road user movement.
+
+[![Histogram of Q7 - Same direction](figures/hist_q7_same_direction.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q7_same_direction.html)
+Histogram of categorisation of output for question 7 - Same direction.
+
+[![Histogram of Q7 - Same lane](figures/hist_q7_same_lane.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q7_same_lane.html)
+Histogram of categorisation of output for question 7 - Same lane.
+
+## Contextual analysis
+[![Sunburst](figures/sunburst.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/sunburst.html)
+Sunburst graph.
+
+[![Node graph](figures/node_graph.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/node_graph.html)
+Node graph.
+
+[![Sankey](figures/sankey.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/sankey.html)
+Sankey plot.
 
 ## Troubleshooting
 ### Troubleshooting setup
