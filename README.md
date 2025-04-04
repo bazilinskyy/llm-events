@@ -104,6 +104,16 @@ Histogram of categorisation of output for question 7 - Same direction.
 [![Histogram of Q7 - Same lane](figures/hist_q7_same_lane.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q7_same_lane.html)
 Histogram of categorisation of output for question 7 - Same lane.
 
+## Contextual analysis
+[![Sunburst](figures/sunburst.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/sunburst.html)
+Sunburst graph.
+
+[![Node graph](figures/node_graph.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/node_graph.html)
+Node graph.
+
+[![Sankey](figures/sankey.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/sankey.html)
+Sankey plot.
+
 ## Troubleshooting
 ### Troubleshooting setup
 #### ERROR: llm-events is not a valid editable requirement

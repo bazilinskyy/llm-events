@@ -9,6 +9,7 @@ import warnings
 import unicodedata
 import re
 import llmevents as llme
+import random
 
 matplotlib.use('TkAgg')
 logger = llme.CustomLogger(__name__)  # use custom logger
@@ -130,8 +131,7 @@ class Analysis:
             file_name = 'bar_' + '-'.join(str(val) for val in y) + '_' + \
                         '-'.join(str(val) for val in x)
             self.save_plotly(fig,
-                             file_name,
-                             self.folder)
+                             file_name)
         # open it in localhost instead
         else:
             fig.show()
@@ -239,8 +239,7 @@ class Analysis:
         # save file
         if save_file:
             self.save_plotly(fig,
-                             'scatter_' + x + '-' + y,
-                             self.folder)
+                             'scatter_' + x + '-' + y)
         # open it in localhost instead
         else:
             fig.show()
@@ -481,7 +480,7 @@ class Analysis:
 
     def slugify(self, value, allow_unicode=False):
         """
-        Taken from https://github.com/django/django/blob/master/django/utils/text.py  # noqa: E501
+        Taken from https://github.com/django/django/blob/master/django/utils/text.py
         Convert to ASCII if 'allow_unicode' is False. Convert spaces or repeated
         dashes to single dashes. Remove characters that aren't alphanumerics,
         underscores, or hyphens. Convert to lowercase. Also strip leading and
@@ -491,7 +490,115 @@ class Analysis:
         if allow_unicode:
             value = unicodedata.normalize('NFKC', value)
         else:
-            value = unicodedata.normalize('NFKD', value).encode('ascii',
-                                                                'ignore').decode('ascii')  # noqa: E501
+            value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
         value = re.sub(r'[^\w\s-]', '', value.lower())
         return re.sub(r'[-\s]+', '-', value).strip('-_')
+
+    def sunburst(self, df, save_file=True):
+        fig = px.sunburst(
+            df,
+            # path=["q1_category", "q2_av_brand", "q6_av_at_fault", "q7_traffic_conditions"],
+            path=["q1_category", "q2_av_brand", "q2_av_model", "q2_av_year", "q2_av_mode"],
+            # color="q1_category",
+            # color_discrete_map={"yes": "red", "no": "green"}
+        )
+        # save file
+        if save_file:
+            self.save_plotly(fig,
+                             'sunburst')
+        # open it in localhost instead
+        else:
+            fig.show()
+    
+    def node_graph(self, df, save_file=True):
+        edges = []
+        nodes = set()
+        for _, row in df.iterrows():
+            nodes.update([
+                row["q1_category"], row["q2_av_brand"], row["q3_area_type"], row["q4_weather"],
+                row["q5_collision_type"], row["q6_av_at_fault"], row["q7_traffic_conditions"]
+            ])
+            edges.extend([
+                (row["q1_category"], row["q2_av_brand"]),
+                (row["q2_av_brand"], row["q3_area_type"]),
+                (row["q3_area_type"], row["q4_weather"]),
+                (row["q4_weather"], row["q5_collision_type"]),
+                (row["q5_collision_type"], row["q6_av_at_fault"]),
+                (row["q6_av_at_fault"], row["q7_traffic_conditions"])
+            ])
+        
+        node_positions = {node: (random.uniform(0, 1), random.uniform(0, 1)) for node in nodes}
+        edge_traces = []
+        for edge in edges:
+            x0, y0 = node_positions[edge[0]]
+            x1, y1 = node_positions[edge[1]]
+            edge_traces.append(go.Scatter(
+                x=[x0, x1, None], y=[y0, y1, None],
+                mode='lines', line=dict(width=1, color='black'),
+                hoverinfo='none'
+            ))
+        
+        node_trace = go.Scatter(
+            x=[node_positions[node][0] for node in nodes],
+            y=[node_positions[node][1] for node in nodes],
+            mode='markers+text',
+            text=list(nodes),
+            textposition="top center",
+            marker=dict(size=10, color='blue')
+        )
+        
+        fig = go.Figure(data=edge_traces + [node_trace])
+        fig.update_layout(showlegend=False)
+        # save file
+        if save_file:
+            self.save_plotly(fig,
+                             'node_graph')
+        # open it in localhost instead
+        else:
+            fig.show()
+    
+    def sankey(self, df, save_file=True):
+        edges = []
+        nodes = set()
+        for _, row in df.iterrows():
+            nodes.update([
+                row["q1_category"], row["q2_av_brand"], row["q3_area_type"], row["q4_weather"],
+                row["q5_collision_type"], row["q6_av_at_fault"], row["q7_traffic_conditions"]
+            ])
+            edges.extend([
+                (row["q1_category"], row["q2_av_brand"]),
+                (row["q2_av_brand"], row["q3_area_type"]),
+                (row["q3_area_type"], row["q4_weather"]),
+                (row["q4_weather"], row["q5_collision_type"]),
+                (row["q5_collision_type"], row["q6_av_at_fault"]),
+                (row["q6_av_at_fault"], row["q7_traffic_conditions"])
+            ])
+        
+        labels = list(nodes)
+        label_to_index = {label: i for i, label in enumerate(labels)}
+        source = []
+        target = []
+        for edge in edges:
+            source.append(label_to_index[edge[0]])
+            target.append(label_to_index[edge[1]])
+        
+        fig = go.Figure(go.Sankey(
+            node=dict(
+                pad=15,
+                thickness=20,
+                line=dict(color='black', width=0.5),
+                label=labels
+            ),
+            link=dict(
+                source=source,
+                target=target,
+                value=[1] * len(source)  # assuming each link has equal weight
+            )
+        ))
+        # save file
+        if save_file:
+            self.save_plotly(fig,
+                             'sankey')
+        # open it in localhost instead
+        else:
+            fig.show()

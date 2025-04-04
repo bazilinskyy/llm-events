@@ -32,6 +32,10 @@ if __name__ == '__main__':
         # Output
         analysis = llme.analysis.Analysis()
         logger.info('Creating figures.')
+        # contextual analysis
+        analysis.sunburst(df)
+        analysis.node_graph(df)
+        analysis.sankey(df)
         # histograms of questions
         analysis.hist(df, x=['q1_category'],
                       yaxis_title='Q1. Describe the accident',
