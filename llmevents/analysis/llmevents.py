@@ -445,54 +445,66 @@ class LLMEvents:
             # Define keyword mappings for different weather conditions
             weather_keywords = {
                 "CLEAR": ["clear", "sunny", "fair", "good", "fine"],
-                "CLOUDY": ["cloud", "overcast", "partly"],
-                "RAINING": ["rain", "shower", "drizzle", "precipitation", "wet"],
-                "SNOWING": ["snow", "sleet", "hail", "freezing", "icy", "ice"],
-                "FOG/VISIBILITY": ["fog", "foggy", "mist", "misty", "haze", "hazy", "visibility", "poor visibility", "limited visibility"],
+                "CLOUDY": ["cloud", "cloudy", "overcast", "partly"],
+                "RAINING": ["rain", "raining", "rainy", "shower", "showers", "drizzle", "drizzling", "precipitation", "wet"],
+                "SNOWING": ["snow", "snowing", "snowy", "sleet", "sleeting", "hail", "hailing", "freezing", "icy", "ice"],
+                "FOG/VISIBILITY": ["fog", "foggy", "mist", "misty", "haze", "hazy", "reduced visibility", "limited visibility", "poor visibility", "visibility"],
                 "WIND": ["wind", "windy", "gust", "gusty", "storm", "stormy", "hurricane", "tornado"]
             }
             
-            # Not specified terms
-            not_specified = ['not specified', 'unknown', 'n/a', 'none', 'unspecified', 'blank', 'empty', 'not provided']
-            
-            # Clean formatting from entire response - remove special characters
+            # Clean response text
             clean_response = re.sub(r'[\*•\-\[\]()]', '', response).lower()
             
-            # Try to extract weather section between "Weather:" and the next section
-            weather_section_match = re.search(r'weather:?\s*(.*?)(?=lighting|road|q\d|$)', clean_response, re.DOTALL | re.IGNORECASE)
-            
-            if weather_section_match:
-                # Remove code prefixes like "A - " or "A: "
-                weather_text = re.sub(r'^[a-z]\s*[-:]\s*', '', weather_section_match.group(1).strip())
+            # Create a function to check for weather keywords in text
+            def check_weather(text):
+                # Special priority for fog detection
+                if "foggy" in text or "fog" in text:
+                    return "FOG/VISIBILITY"
                 
-                # Skip single letter responses
-                if len(weather_text) <= 1:
-                    pass
-                # Check for "not specified" cases
-                elif any(term in weather_text for term in not_specified):
+                # Not specified cases
+                not_specified = ['not specified', 'unknown', 'n/a', 'none', 'unspecified', 'blank', 'empty', 'not provided']
+                if any(term in text for term in not_specified):
                     return "Unknown"
-                # Check for weather keywords
-                else:
-                    for category, keywords in weather_keywords.items():
-                        for keyword in keywords:
-                            # Use simple 'in' check rather than regex for better matching
-                            if keyword in weather_text:
-                                return category
-                    # If we have text but no keyword matched
-                    return "OTHER"
+                
+                # Check all weather categories
+                for category, keywords in weather_keywords.items():
+                    for keyword in keywords:
+                        if keyword in text:
+                            return category
+                
+                # If text has content but no match
+                return "OTHER" if len(text) > 1 else None
             
-            # Fallback: check the Q4 section for weather keywords
-            q4_section = re.search(r'q4.+?(?=q5|$)', clean_response, re.DOTALL | re.IGNORECASE)
-            search_text = q4_section.group(0) if q4_section else clean_response
+            # Detection priority order:
+            # 1. Direct weather statement pattern
+            weather_match = re.search(r'weather:?\s*([^,;\n.]+)', clean_response)
+            if weather_match:
+                weather_text = re.sub(r'^[a-z]\s*[-:]\s*', '', weather_match.group(1).strip())
+                result = check_weather(weather_text)
+                if result:
+                    return result
             
-            # Look for weather keywords in the search text
-            for category, keywords in weather_keywords.items():
-                for keyword in keywords:
-                    # Use simple 'in' check instead of word boundaries for more matches
-                    if keyword in search_text:
-                        return category
+            # 2. Weather section between Weather: and next section
+            section_match = re.search(r'weather:?\s*(.*?)(?=lighting|road|q\d|$)', clean_response, re.DOTALL)
+            if section_match:
+                weather_text = re.sub(r'^[a-z]\s*[-:]\s*', '', section_match.group(1).strip())
+                result = check_weather(weather_text)
+                if result:
+                    return result
             
-            # If nothing found
+            # 3. Q4 section
+            q4_match = re.search(r'q4.+?(?=q5|$)', clean_response, re.DOTALL)
+            q4_text = q4_match.group(0) if q4_match else clean_response
+            result = check_weather(q4_text)
+            if result:
+                return result
+            
+            # 4. Entire response as last resort
+            result = check_weather(clean_response)
+            if result:
+                return result
+            
+            # Nothing found
             return "Unknown"
         
         elif q == "q4-lighting":
