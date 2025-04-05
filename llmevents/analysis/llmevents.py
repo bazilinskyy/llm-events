@@ -442,71 +442,159 @@ class LLMEvents:
             return "Unknown"
         
         elif q == "q4-weather":
-            # Clean formatting first
-            clean_response = re.sub(r'[\*•\-\[\]]', '', response)
+            # Define keyword mappings for different weather conditions
+            weather_keywords = {
+                "CLEAR": ["clear", "sunny", "fair", "good", "fine"],
+                "CLOUDY": ["cloud", "overcast", "partly"],
+                "RAINING": ["rain", "shower", "drizzle", "precipitation", "wet"],
+                "SNOWING": ["snow", "sleet", "hail", "freezing", "icy", "ice"],
+                "FOG/VISIBILITY": ["fog", "foggy", "mist", "misty", "haze", "hazy", "visibility", "poor visibility", "limited visibility"],
+                "WIND": ["wind", "windy", "gust", "gusty", "storm", "stormy", "hurricane", "tornado"]
+            }
             
-            # Simple extraction with clean text
-            weather_match = re.search(r'Weather:?\s*([^,;\n.]+)', clean_response, re.IGNORECASE)
+            # Not specified terms
+            not_specified = ['not specified', 'unknown', 'n/a', 'none', 'unspecified', 'blank', 'empty', 'not provided']
             
-            if weather_match:
-                weather_text = weather_match.group(1).strip().lower()
+            # Clean formatting from entire response - remove special characters
+            clean_response = re.sub(r'[\*•\-\[\]()]', '', response).lower()
+            
+            # Try to extract weather section between "Weather:" and the next section
+            weather_section_match = re.search(r'weather:?\s*(.*?)(?=lighting|road|q\d|$)', clean_response, re.DOTALL | re.IGNORECASE)
+            
+            if weather_section_match:
+                # Remove code prefixes like "A - " or "A: "
+                weather_text = re.sub(r'^[a-z]\s*[-:]\s*', '', weather_section_match.group(1).strip())
                 
-                # Map to standard weather categories
-                if any(term in weather_text for term in ['clear', 'sunny', 'fair']):
-                    return "CLEAR"
-                elif any(term in weather_text for term in ['cloud', 'overcast', 'partly']):
-                    return "CLOUDY"
-                elif any(term in weather_text for term in ['rain', 'shower', 'drizzle', 'precipitation']):
-                    return "RAINING"
-                elif any(term in weather_text for term in ['snow', 'sleet', 'hail', 'freezing']):
-                    return "SNOWING"
-                elif any(term in weather_text for term in ['fog', 'mist', 'haze', 'visibility']):
-                    return "FOG/VISIBILITY"
-                elif any(term in weather_text for term in ['wind', 'gust', 'storm']):
-                    return "WIND"
+                # Skip single letter responses
+                if len(weather_text) <= 1:
+                    pass
+                # Check for "not specified" cases
+                elif any(term in weather_text for term in not_specified):
+                    return "Unknown"
+                # Check for weather keywords
                 else:
+                    for category, keywords in weather_keywords.items():
+                        for keyword in keywords:
+                            # Use simple 'in' check rather than regex for better matching
+                            if keyword in weather_text:
+                                return category
+                    # If we have text but no keyword matched
                     return "OTHER"
+            
+            # Fallback: check the Q4 section for weather keywords
+            q4_section = re.search(r'q4.+?(?=q5|$)', clean_response, re.DOTALL | re.IGNORECASE)
+            search_text = q4_section.group(0) if q4_section else clean_response
+            
+            # Look for weather keywords in the search text
+            for category, keywords in weather_keywords.items():
+                for keyword in keywords:
+                    # Use simple 'in' check instead of word boundaries for more matches
+                    if keyword in search_text:
+                        return category
+            
+            # If nothing found
             return "Unknown"
         
         elif q == "q4-lighting":
-            # Clean formatting first
+            # Define patterns and category mappings
+            lighting_patterns = [
+                # First try exact markdown format
+                r'\*\s*\*\*Lighting\s*Conditions?\*\*:?\s*([^,;\n.]+)',
+                # Then try the clean format
+                r'Lighting\s*Conditions?:?\s*([^,;\n.]+)',
+                # Then try other variations
+                r'lighting(?:\s+(?:was|were|is|are))?\s*[:-]?\s*([^,.;\n]+)'
+            ]
+            
+            lighting_categories = {
+                # Dark - Street Lights Not Functioning patterns
+                r'dark\s*-?\s*street\s*lights?\s*not\s*function|not\s*function|non[\s-]function': "DARK-STREE LIGHTS NOT FUNCTIONING",
+                # Dark - No Street Lights patterns
+                r'dark\s*-?\s*no\s*street\s*lights?|no street|no light|unlit': "DARK-NO STREE LIGHTS",
+                # Dark - Street Lights patterns
+                r'dark\s*-?\s*street\s*lights?|street light|streetlight|lit': "DARK-STREET LIGHTS",
+                # Daylight patterns
+                r'daylight|day light|daytime|day|sunny|sunlight|bright|clear day': "DAYLIGHT",
+                # Dusk patterns
+                r'dusk|twilight|dawn': "DUSK",
+                # Dark (default to street lights)
+                r'dark|night': "DARK-STREET LIGHTS"
+            }
+            
+            # Special cases for not specified
+            not_specified = ['not specified', 'unknown', 'n/a', 'none', 'unspecified', 'blank', 'empty', 'not provided']
+            
+            # Clean formatting and get Q4 section
             clean_response = re.sub(r'[\*•\-\[\]]', '', response)
+            q4_section_match = re.search(r'Q4\.?\s+Time and environmental conditions.*?(?=Q5|$)', clean_response, re.DOTALL | re.IGNORECASE)
+            q4_section = q4_section_match.group(0) if q4_section_match else clean_response
             
-            # Simple extraction with clean text
-            lighting_match = re.search(r'Lighting Conditions?:?\s*([^,;\n.]+)', clean_response, re.IGNORECASE)
+            # Handle "s, road surface" issue
+            combined_pattern = re.search(r'Lighting\s*Conditions?:?\s*([^,;\n.]*)\s*,\s*Road\s*Surface', q4_section, re.IGNORECASE)
+            if combined_pattern and combined_pattern.group(1).strip().lower() in ['s', '']:
+                # Skip this and let the pattern matching handle it
+                pass
             
-            if lighting_match:
-                lighting_text = lighting_match.group(1).strip().lower()
-                
-                # Map to standard lighting categories
-                if any(term in lighting_text for term in ['daylight', 'day light', 'daytime']):
-                    return "DAYLIGHT"
-                elif any(term in lighting_text for term in ['dusk', 'twilight', 'dawn']):
-                    return "DUSK"
-                elif 'dark' in lighting_text or 'night' in lighting_text:
-                    if 'not functioning' in lighting_text or 'non-functioning' in lighting_text:
-                        return "DARK-STREE LIGHTS NOT FUNCTIONING"
-                    elif 'no street' in lighting_text or 'no light' in lighting_text or 'unlit' in lighting_text:
-                        return "DARK-NO STREE LIGHTS"
-                    elif 'street light' in lighting_text or 'streetlight' in lighting_text or 'lit' in lighting_text:
-                        return "DARK-STREET LIGHTS"
-                    else:
-                        # Default to street lights if just "dark" is mentioned
-                        return "DARK-STREET LIGHTS"
-                else:
-                    return lighting_text.upper()
+            # Try to extract lighting text using the patterns
+            lighting_text = None
+            
+            # First try in original response (especially for markdown)
+            for pattern in lighting_patterns:
+                lighting_match = re.search(pattern, response, re.IGNORECASE)
+                if lighting_match:
+                    candidate = lighting_match.group(1).strip().lower()
+                    if candidate != 's':  # Skip the problematic 's' value
+                        lighting_text = candidate
+                        break
+            
+            # If not found, try in q4_section
+            if not lighting_text:
+                for pattern in lighting_patterns:
+                    lighting_match = re.search(pattern, q4_section, re.IGNORECASE)
+                    if lighting_match:
+                        candidate = lighting_match.group(1).strip().lower()
+                        if candidate != 's':  # Skip the problematic 's' value
+                            lighting_text = candidate
+                            break
+            
+            # Categorize the lighting text if found
+            if lighting_text:
+                # Check for "not specified" cases
+                if any(term in lighting_text for term in not_specified):
+                    return "Unknown" 
+                # Check against category patterns
+                for pattern, category in lighting_categories.items():
+                    if re.search(pattern, lighting_text, re.IGNORECASE):
+                        return category
+                # If it's a single letter, return Unknown
+                if re.match(r'^[a-zA-Z]$', lighting_text):
+                    return "Unknown"
+            # Fallback to keyword search in the whole section
+            for pattern, category in lighting_categories.items():
+                if re.search(pattern, q4_section, re.IGNORECASE):
+                    return category
+            # If all else fails, return Unknown
             return "Unknown"
         
         elif q == "q4-surface":
-            # Clean formatting first
+            # First clean formatting from response
             clean_response = re.sub(r'[\*•\-\[\]]', '', response)
             
-            # Simple extraction with clean text
-            surface_match = re.search(r'Road Surface:?\s*([^,;\n.]+)', clean_response, re.IGNORECASE)
+            # Try to find the Q4 section for more targeted extraction
+            q4_section_match = re.search(r'Q4\.?\s+Time and environmental conditions.*?(?=Q5|$)', clean_response, re.DOTALL | re.IGNORECASE)
+            if q4_section_match:
+                q4_section = q4_section_match.group(0)
+            else:
+                q4_section = clean_response
+            
+            # Extract road surface using more precise pattern within Q4 section
+            surface_match = re.search(r'Road\s*Surface:?\s*([^,;\n.]+)', q4_section, re.IGNORECASE)
             
             if surface_match:
                 surface_text = surface_match.group(1).strip().lower()
-                
+                # Check for "not specified" or missing values
+                if any(term in surface_text for term in ['not specified', 'unknown', 'n/a', 'none', 'unspecified', 'blank', 'empty', 'not provided']):
+                    return "Unknown" 
                 # Map to standard surface categories
                 if any(term in surface_text for term in ['dry', 'normal']):
                     return "DRY"
@@ -517,18 +605,30 @@ class LLMEvents:
                 elif any(term in surface_text for term in ['slippery', 'slick', 'greasy']):
                     return "SLIPPERY"
                 else:
-                    return surface_text.upper()
+                    return "Unknown"
             return "Unknown"
         
         elif q == "q4-conditions":
-            # Clean formatting first
+            # First clean formatting from response
             clean_response = re.sub(r'[\*•\-\[\]]', '', response)
             
-            # Simple extraction with clean text
-            conditions_match = re.search(r'Road Conditions?:?\s*([^,;\n.]+)', clean_response, re.IGNORECASE)
+            # Try to find the Q4 section for more targeted extraction
+            q4_section_match = re.search(r'Q4\.?\s+Time and environmental conditions.*?(?=Q5|$)', clean_response, re.DOTALL | re.IGNORECASE)
+            if q4_section_match:
+                q4_section = q4_section_match.group(0)
+            else:
+                q4_section = clean_response
+            
+            # Extract road conditions using more precise pattern within Q4 section
+            conditions_match = re.search(r'Road\s*Conditions?:?\s*([^,;\n.]+)', q4_section, re.IGNORECASE)
             
             if conditions_match:
                 conditions_text = conditions_match.group(1).strip()
+                
+                # Check for "not specified" or missing values
+                if any(term in conditions_text.lower() for term in ['not specified', 'unknown', 'n/a', 'none', 'unspecified', 'blank', 'empty', 'not provided']):
+                    return "Unknown"
+                
                 return conditions_text
             return "Unknown"
 
