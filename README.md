@@ -84,7 +84,7 @@ Histogram of categorisation of output for question 4 - surface.
 [![Histogram of Q4 - conditions](figures/hist_q4_conditions.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q4_conditions.html)
 Histogram of categorisation of output for question 4 - conditions.
 
-[![Histogram of Q4 - lightning](figures/hist_q4_lightning.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q4_lightning.html)
+[![Histogram of Q4 - lightning](figures/hist_q4_lighting.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q4_lightning.html)
 Histogram of categorisation of output for question 4 - lightning.
 
 [![Histogram of Q5 - collision type](figures/hist_q5_collision_type.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q5_collision_type.html)
