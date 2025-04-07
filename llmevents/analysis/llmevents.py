@@ -40,10 +40,9 @@ def check_nltk_resources():
             "Please install them using one of these methods:\n\n"
             "1. Using Python code:\n"
             "   import nltk\n"
-            "   nltk.download('punkt')\n"
-            "   nltk.download('stopwords')\n\n"
+            "   nltk.download('all')\n"
             "2. Using command line:\n"
-            "   python -m nltk.downloader punkt stopwords\n\n"
+            "   python -m nltk.downloader all\n\n"
             "3. Or run the download_nltk.ipynb notebook in this project\n\n"
             "For more information, visit: https://www.nltk.org/data.html"
         )
