@@ -25,8 +25,6 @@ nltk.download('stopwords')
 python -m nltk.downloader punkt stopwords
 ```
 
-For analysis with GPT-V, the API key of OpenAI needs to be placed in file `llm-events/secret`. The file needs to be formatted as `llm-events/secret example`.
-
 ### Configuration of project
 Configuration of the project needs to be defined in `llm-events/config`. Please use the `default.config` file for the required structure of the file. If no custom config file is provided, `default.config` is used. The config file has the following parameters:
 - **`reports`**: path with reports.
@@ -35,6 +33,8 @@ Configuration of the project needs to be defined in `llm-events/config`. Please 
 - **`query`**: query to path to LLM.
 - **`plotly_template`**: template used to make graphs in the analysis.
 - **`logger_level`**: Level of console output. Can be: debug, info, warning, error.
+
+For analysis with GPT-V, the API key of OpenAI needs to be placed in file `llm-events/secret`. The file needs to be formatted as `llm-events/secret example`.
 
 ## Analysis
 Analysis can be started by running `python llm-events/llmevents/run.py`. A number of CSV files used for data processing are saved in `llmevents/_output`. Visualisations of all data are saved in `llmevents/_output/figures/`.
