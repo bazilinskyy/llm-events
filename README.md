@@ -16,13 +16,12 @@ The project also requires NLTK data for text processing. You can install the req
 2. Using Python code:
 ```python
 import nltk
-nltk.download('punkt')
-nltk.download('stopwords')
+nltk.download('all')
 ```
 
 3. Using command line:
 ```bash
-python -m nltk.downloader punkt stopwords
+python -m nltk.downloader all
 ```
 
 ### Configuration of project

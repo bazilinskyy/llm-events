@@ -16,7 +16,7 @@ PROCESS_ANSWERS = True  # process answers in output
 ANALYSE_DATA = True  # analyse output data
 SHOW_OUTPUT = True  # should figures be plotted
 SHOW_OUTPUT_CONTEXT = True  # should figures with keypress data be plotted-
-SHOW_OUTPUT_HIST = False  # should figures with stimulus data to be plotted
+SHOW_OUTPUT_HIST = True  # should figures with stimulus data to be plotted
 
 
 if __name__ == '__main__':
@@ -107,11 +107,6 @@ if __name__ == '__main__':
                           pretty_text=True,
                           save_file=True,
                           open_browser=True)
-            analysis.hist(df, x=['q3_category'],
-                          yaxis_title='Q3. Accident location details(Where)',
-                          marginal=None,
-                          pretty_text=True,
-                          save_file=True)
             analysis.hist(df, x=['q3_area_type'],
                           yaxis_title='Q3. Area type',
                           marginal=None,
