@@ -8,6 +8,23 @@ Tested with Python 3.9.12. To setup the environment run these two commands in a 
 - `pip install -r llm-events/requirements.txt` will install required packages.
 - Windows User need specific version of kaleiod to work with Plotly `pip install kaleido==0.1.0.post1`. See [Issues](https://github.com/plotly/Kaleido/issues/134)
 
+### NLTK Installation
+The project also requires NLTK data for text processing. You can install the required NLTK resources using one of these methods:
+
+1. Run the `download_nltk.ipynb` notebook in this project
+
+2. Using Python code:
+```python
+import nltk
+nltk.download('punkt')
+nltk.download('stopwords')
+```
+
+3. Using command line:
+```bash
+python -m nltk.downloader punkt stopwords
+```
+
 For analysis with GPT-V, the API key of OpenAI needs to be placed in file `llm-events/secret`. The file needs to be formatted as `llm-events/secret example`.
 
 ### Configuration of project

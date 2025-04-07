@@ -1,4 +1,4 @@
-# by Pavlo Bazilinskyy <pavlo.bazilinskyy@gmail.com>
+# by Pavlo Bazilinskyy <pavlo.bazilinskyy@gmail.com>, Weihang You <weihangyou@gmail.com>
 import matplotlib.pyplot as plt
 import matplotlib._pylab_helpers
 import llmevents as llme

@@ -22,13 +22,36 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 logger = llme.CustomLogger(__name__)  # use custom logger
 
-# Download necessary NLTK resources
-try:
-    nltk.data.find('tokenizers/punkt')
-    nltk.data.find('corpora/stopwords')
-except LookupError:
-    nltk.download('punkt')
-    nltk.download('stopwords')
+# Check for required NLTK resources
+def check_nltk_resources():
+    """Check if required NLTK resources are available and provide instructions if not."""
+    required_resources = ['punkt', 'stopwords']
+    missing_resources = []
+    
+    for resource in required_resources:
+        try:
+            nltk.data.find(f'tokenizers/{resource}' if resource == 'punkt' else f'corpora/{resource}')
+        except LookupError:
+            missing_resources.append(resource)
+    
+    if missing_resources:
+        error_message = (
+            "\nMissing required NLTK resources: " + ", ".join(missing_resources) + "\n"
+            "Please install them using one of these methods:\n\n"
+            "1. Using Python code:\n"
+            "   import nltk\n"
+            "   nltk.download('punkt')\n"
+            "   nltk.download('stopwords')\n\n"
+            "2. Using command line:\n"
+            "   python -m nltk.downloader punkt stopwords\n\n"
+            "3. Or run the download_nltk.ipynb notebook in this project\n\n"
+            "For more information, visit: https://www.nltk.org/data.html"
+        )
+        logger.error(error_message)
+        raise RuntimeError("Missing required NLTK resources. See error message above for installation instructions.")
+
+# Check for NLTK resources before proceeding
+check_nltk_resources()
 
 # Initialize LM Studio client
 client = OpenAI(base_url="http://127.0.0.1:1234/v1", api_key="lm-studio")
