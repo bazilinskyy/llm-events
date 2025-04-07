@@ -36,9 +36,9 @@ if __name__ == '__main__':
         logger.info('Creating figures.')
         # contextual analysis
         if SHOW_OUTPUT_CONTEXT:
-            analysis.sunburst(df, save_file=True, open_browser=True)
-            analysis.node_graph(df, save_file=True, open_browser=True)
-            analysis.sankey(df, save_file=True, open_browser=True)
+            analysis.sunburst(df, save_file=True)
+            analysis.node_graph(df, save_file=True)
+            analysis.sankey(df, save_file=True)
         # histograms of questions
         if SHOW_OUTPUT_HIST:
             analysis.hist(df, x=['q1_category'],
