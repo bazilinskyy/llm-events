@@ -350,6 +350,11 @@ class Analysis:
         # limit name to max 200 char (for Windows)
         if len(path) + len(name) > 195 or len(path_final) + len(name) > 195:
             name = name[:200 - len(path) - 5]
+        
+        # remove white margins
+        if remove_margins:
+            fig.update_layout(margin=dict(l=2, r=2, t=20, b=12))
+            
         # save as html
         if save_html:
             if open_browser:
@@ -364,24 +369,33 @@ class Analysis:
                 # also save the final figure
                 if save_final:
                     py.offline.plot(fig, filename=os.path.join(path_final, name + '.html'), auto_open=False)
-        # remove white margins
-        if remove_margins:
-            fig.update_layout(margin=dict(l=2, r=2, t=20, b=12))
+        
         # save as eps
         if save_eps:
-            fig.write_image(os.path.join(path, name + '.eps'), format='eps', width=width, height=height)
-            # also save the final figure
-            if save_final:
-                fig.write_image(os.path.join(path_final, name + '.eps'), format='eps', width=width, height=height)
+            try:
+                fig.write_image(os.path.join(path, name + '.eps'), format='eps', width=width, height=height)
+                # also save the final figure
+                if save_final:
+                    fig.write_image(os.path.join(path_final, name + '.eps'), format='eps', width=width, height=height)
+            except Exception as e:
+                logger.warning('Failed to save EPS file: {}', str(e))
+        
         # save as png
         if save_png:
-            fig.write_image(os.path.join(path, name + '.png'), format='png', width=width, height=height)
-            # also save the final figure
-            if save_final:
-                fig.write_image(os.path.join(path_final, name + '.png'), format='png', width=width, height=height)
+            try:
+                fig.write_image(os.path.join(path, name + '.png'), format='png', width=width, height=height)
+                # also save the final figure
+                if save_final:
+                    fig.write_image(os.path.join(path_final, name + '.png'), format='png', width=width, height=height)
+            except Exception as e:
+                logger.warning('Failed to save PNG file: {}', str(e))
+        
         # save as mp4
         if save_mp4:
-            fig.write_image(os.path.join(path, name + '.mp4'), format='mp4', width=width, height=height)
+            try:
+                fig.write_image(os.path.join(path, name + '.mp4'), format='mp4', width=width, height=height)
+            except Exception as e:
+                logger.warning('Failed to save MP4 file: {}', str(e))
 
     def save_fig(self, image, fig, output_subdir, suffix, pad_inches=0):
         """
@@ -505,7 +519,11 @@ class Analysis:
         # save file
         if save_file:
             self.save_plotly(fig,
-                             'sunburst')
+                             'sunburst',
+                             save_html=True,
+                             save_eps=True,
+                             save_png=True,
+                             save_final=True)
         # open it in localhost instead
         else:
             fig.show()
@@ -552,7 +570,11 @@ class Analysis:
         # save file
         if save_file:
             self.save_plotly(fig,
-                             'node_graph')
+                             'node_graph',
+                             save_html=True,
+                             save_eps=True,
+                             save_png=True,
+                             save_final=True)
         # open it in localhost instead
         else:
             fig.show()
@@ -598,7 +620,11 @@ class Analysis:
         # save file
         if save_file:
             self.save_plotly(fig,
-                             'sankey')
+                             'sankey',
+                             save_html=True,
+                             save_eps=True,
+                             save_png=True,
+                             save_final=True)
         # open it in localhost instead
         else:
             fig.show()
