@@ -781,13 +781,15 @@ class LLMEvents:
             if factors_info != "Unknown":
                 # Split by common separators
                 factors = re.split(r',|\band\b|;', factors_info)
-                return [factor.strip() for factor in factors if factor.strip()]
+                # Join factors with a separator instead of returning a list
+                return " | ".join(factor.strip() for factor in factors if factor.strip())
             
             # Look for quoted factors as fallback
             factors_match = re.search(r'Contributing Factors:.*?\"([^\"]+)\"', q6_section)
             if factors_match:
                 factors = factors_match.group(1).split(',')
-                return [factor.strip() for factor in factors]
+                # Join factors with a separator instead of returning a list
+                return " | ".join(factor.strip() for factor in factors)
                 
             return None
         
