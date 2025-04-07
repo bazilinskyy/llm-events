@@ -93,14 +93,14 @@ Histogram of categorisation of output for question 5 - collision type.
 [![Histogram of Q5 - AV damage](figures/hist_q5_av_damage.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q5_av_damage.html)
 Histogram of categorisation of output for question 5 - AV damage.
 
-[![Histogram of Q5 - AV damage category](figures/hist_q5_av_damage_category.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q5_av_damage_category.html)
+<!-- [![Histogram of Q5 - AV damage category](figures/hist_q5_av_damage_category.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q5_av_damage_category.html)
 Histogram of categorisation of output for question 5 - AV damage category.
 
 [![Histogram of Q5 - Other vehicle damage](figures/hist_q5_other_vehicle_damage.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q5_other_vehicle_damage.html)
 Histogram of categorisation of output for question 5 - Other vehicle damage.
 
 [![Histogram of Q5 - Injuries](figures/hist_q5_other_vehicle_damage.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q5_other_vehicle_damage.html)
-Histogram of categorisation of output for question 5 - Injuries.
+Histogram of categorisation of output for question 5 - Injuries. -->
 
 [![Histogram of Q6 - AV at fault](figures/hist_q6_av_at_fault.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q6_av_at_fault.html)
 Histogram of categorisation of output for question 6 - AV at fault.

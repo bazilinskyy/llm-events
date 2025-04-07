@@ -16,7 +16,7 @@ PROCESS_ANSWERS = True  # process answers in output
 ANALYSE_DATA = True  # analyse output data
 SHOW_OUTPUT = True  # should figures be plotted
 SHOW_OUTPUT_CONTEXT = True  # should figures with keypress data be plotted-
-SHOW_OUTPUT_HIST = False  # should figures with stimulus data to be plotted
+SHOW_OUTPUT_HIST = True  # should figures with stimulus data to be plotted
 
 
 if __name__ == '__main__':
