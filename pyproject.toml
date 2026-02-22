@@ -1,0 +1,17 @@
+[project]
+name = "llm-events"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "coloredlogs>=15.0.1",
+    "frontend>=0.0.3",
+    "nltk>=3.9.2",
+    "ollama>=0.6.1",
+    "pandas>=2.3.3",
+    "plotly>=6.5.2",
+    "pymupdf>=1.27.1",
+    "requests>=2.32.5",
+    "tqdm>=4.67.1",
+]

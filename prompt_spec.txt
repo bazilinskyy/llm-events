@@ -1,0 +1,260 @@
+Please answer the following questions about accidents involving an automated vehicle (referred 
+as VEHICLE 1 in the PDF) and another road user (OTHER PARTY or VEHICLE2 in the PDF) 
+based on the provided PDF. The PDF has five useful sections: [SECTION 1 – 
+MANUFACTURER’S INFORMATION], [SECTION 2– ACCIDENT INFORMATION/VEHICLE 1], 
+[SECTION 3 – OTHER PARTY’S INFORMATION/VEHICLE 2], [SECTION 4 – INJURY/DEATH, 
+PROPERTY DAMAGE], [SECTION 5 – ACCIDENT DETAILS - DESCRIPTION]. When 
+answering Q1, please go through all given sections. To answer all the rest queries, please 
+answer based on the given section name in the prompts UNLESS REQUIRED OTHERWISE. 
+Please entirely ignore other information in the PDF.  
+
+For all answers, the following rules apply: 1. Do not add any symbols around the answer. 2. Add 
+nothing else except for what is asked. 3. Use only one of the provided answers, unless specified 
+otherwise.You must answer based ONLY on the provided PDF (Q1), and ONLY in the specified 
+section (ALL REST QUERIES EXCEPT FOR Q1 or request to SEARCH xx ONLINE). You 
+should always locate the section in the PDF first. Section names and specific variable names 
+are specified with [] in the prompts.  
+
+Do not use any external knowledge or assumptions unless explicitly required in the prompt. If 
+you are not certain about the answer to any of the questions below, you must answer the 
+question with NA.  
+
+
+
+============================First, give the entire 
+PDF=============================== 
+Q1. Please answer this question after carefully analyzing information of the entire report. Was 
+the automated vehicle guilty (True)? Always give an answer as: Q1. AV_guity=True/False.  
+
+On a new line, explain your answer. Always provide an explanation as: Q1. Explanation=bla. 
+—----------------------------------------------------------------------------------------------------------------------------
+--------- 
+
+
+
+
+Then feed separate pages and corresponding queries. 
+
+======================================page1==============================
+======= 
+Q1. Search [SECTION 1 – MANUFACTURER’S INFORMATION] for [MANUFACTURER’S 
+NAME] to answer AV_Manufacturer; search [SECTION 2 – ACCIDENT 
+INFORMATION/VEHICLE] 1 for [MAKE], [VEHICLE YEAR], [MODEL], and [Vehicle Was] of 
+VEHICLE 1 to answer av_make, av_year, and av_model. For [Vehicle Was], you can find two 
+checkboxes - [Moving] and [Stopped in Traffic] right next to (on the right of) [Vehicle Was], the 
+
+box that has been checked is the answer to vehicle_was. Always give an answer: Q2. 
+av_manufacturer=bla, av_make=bla, av_year=bla, av_model=bla, vehicle_was=moving/stopped 
+in Traffic.    
+
+Q2. Search [SECTION 2 – ACCIDENT INFORMATION/VEHICLE 1] for [DATE OF ACCIDENT], 
+and [TIME OF ACCIDENT] and [AM] and [PM],  give an answer: Q2. accident_year=bla, 
+accident_month=bla, accident_day=bla, time=bla (answer in 12 hour format, specifically in 
+HH:MM AM/PM).    
+
+Q3. Search [SECTION 2 – ACCIDENT INFORMATION/VEHICLE 1] to answer where did the 
+accident take place? Specifically, search for [ZIP CODE], [COUNTY], [CITY], and 
+[ADDRESS/LOCATION OF ACCIDENT] to give an answer as: Q3. zipcode=bla, county=bla, 
+city=bla, address=bla.  
+
+Q4. Then SEARCH THIS ADDRESS (Q3) ONLINE, and answer as: Q4. Lane number=bla (this 
+answer must be an integer), Street type=One-way/two-way.  
+In a new line, give the source(s) of this information. If you cannot find any reliable sources, 
+answer as: Q4. Lane number=NA, Street type=NA.  
+
+Q5. Then SEARCH THIS ADDRESS (Q3) ONLINE, answer what is the speed limit of the street 
+where the accident happened. Always give an answer: Q5. Speed=bla. The answer should 
+always be a positive number with the unit of mph. 
+In a new line, give the source(s) of this information. If you cannot find any reliable sources, 
+answer as: Q5. Speed=NA.  
+
+Q6. Then SEARCH THIS ADDRESS (Q3) AND TIME (Q2) ONLINE to answer Q6. How busy 
+was the street: Was the street busy (road traffic throughput above average) or not (road traffic 
+throughput below average) at this time? Always give an answer as: Q6. street_busy=True/False. 
+In a new line, give the source(s) of this information. If you cannot find any reliable sources, 
+answer as: Q6. street_busy=NA. 
+
+Q7. Search [SECTION 2 – ACCIDENT INFORMATION/VEHICLE 1] for [UNK], [NONE], 
+[MINOR], [MOD], and [MAJOR]. None or one of the boxes in the front of those is checked. If one 
+box was checked, answer Q7 as: Q7. Damage=UNK/NONE/MINOR/MOD/MAJOR. If none of 
+the boxes was checked, answer as: Q7. Damage=None.  
+
+Q8. Search [SECTION 2 – ACCIDENT INFORMATION/VEHICLE 1] for [Shade in Damaged 
+Area]. Underneath the text [Shade in Damaged Area], you can find 8 columns of boxes (3, 4, 4, 
+4, 4, 4, 4, 3 boxes in each aligned column). Let me know which box(es) are checked by giving 
+their location - [row, col] in the box matrix. For example, if the top leftmost box is checked, I will 
+answer Q8=[0, 0]. If multiple boxes are checked, separate their [row, col] pairs with commas, 
+like Q8=[0, 0], [0, 1], [2, 3]. Always give an answer as: Q8. Damaged_area=[row, col].    
+
+=========================================page2===========================
+======= 
+Q9. Search [SECTION 3 – OTHER PARTY’S INFORMATION/VEHICLE 2] for [VEHICLE 
+YEAR], [MODEL], and [STATE VEHICLE IS REGISTERED IN] to answer v2_year, v2_model, 
+and v2_state. If YOU CANNOT FIND THE INFORMATION IN THIS SECTION (i.e., blanks), 
+answer with NA. Then at the same section, search for [Vehicle Was], you can find two 
+checkboxes - [Moving] and [Stopped in Traffic] right next to (on the right of) [Vehicle Was:]. If 
+one of the boxes is checked ([Moving]/[Stopped in Traffic]) and [NUMBER OF VEHICLES 
+INVOLVED] is 2, use the box that has been checked to assign v2_mov=Moving/Stopping. 
+Eventually, you give an answer to this question as: Q9. v2_id=vehicle, v2_year=bla, 
+v2_model=bla, v2_state=bla, v2_mov=Moving/Stopping.  
+If v2_id==vehicle, skip Q10, jump to Q11 directly.  
+
+Q10. Search [SECTION 3 – OTHER PARTY’S INFORMATION/VEHICLE 2] for [Moving] and 
+[Stopped in Traffic] right next to (on the right of) [Vehicle Was:]. If none of the boxes in the front 
+of them ([Moving]/[Stopped in Traffic]) is checked and [NUMBER OF VEHICLES INVOLVED] is 
+1, search [SECTION 3 – OTHER PARTY’S INFORMATION/VEHICLE 2] for [Involved in the 
+Accident:]. There are three checkboxes - [Pedestrian], [Bicyclist] and [Other]. If one of the 
+checkboxes in the front of [Pedestrian] or [Bicyclist] was checked, you give an answer as: Q10. 
+v2_id=pedestrian/bicyclist. Then move to Q11. Or, if the checkbox in the front of [Other] is 
+checked, read and answer Q10 with the filled in information on the right of [Other] and give an 
+answer as: Q10. v2_id=bla. Then move to Q11.  
+
+Q11. Search [SECTION 4 – INJURY/DEATH, PROPERTY DAMAGE] for [CHECK ALL THAT 
+APPLY] and another [CHECK ALL THAT APPLY]. On the RIGHT of the FIRST [CHECK ALL 
+THAT APPLY], you can find six check boxes in the front of [Injured], [Deceased], [Driver], 
+[Passenger], [Bicyclist], [Property]. Check if each of these six boxes are checked and give an 
+answer as: Q11. v1_injury=Injured/Deceased/ Driver/Passenger/Bicyclist/Property.  
+To be aware, if none of the boxes are checked, v1_injury=None.    
+
+Q12. Search [SECTION 4 – INJURY/DEATH, PROPERTY DAMAGE] for [CHECK ALL THAT 
+APPLY] and another [CHECK ALL THAT APPLY]. On the RIGHT of the SECOND [CHECK ALL 
+THAT APPLY], you can find six check boxes in the front of [Injured], [Deceased], [Driver], 
+[Passenger], [Bicyclist], [Property]. Check if each of these six boxes are checked and answer as 
+Q12: v2_injury=Injured/Deceased/ Driver/Passenger/Bicyclist/Property.  
+To be aware, if none of the boxes are checked, v2_injury=None.    
+
+Q13. Search [SECTION 5 – ACCIDENT DETAILS - DESCRIPTION] for [Autonomous Mode] 
+and [Conventional Mode]. If the checkbox in the front of [Autonomous Mode] is checked, answer 
+this question as: Q13. v1_AV=True. Then move to Q14. Or, If the checkbox in the front of 
+[Conventional Mode] is checked, answer as: Q13. v1_AV=False. Then move to Q14.  
+
+Q14. Search [SECTION 5 – ACCIDENT DETAILS - DESCRIPTION] for information about the 
+autonomous vehicle (v1). Specifically, the v1_lane=leftmost/left/middle/right/rightmost if exists, if 
+not, v1_lane=NA; v1_intersection=True/False (True if the autonomous vehicle is heading into a 
+[INTERACTION]); v1_move=straight/turn/stop indicates if the autonomous vehicle was turning 
+or proceeding straight or stopped; v1_speed (integer) indicates the speed of the autonomous 
+vehicle. Always given an answer as: Q14. v1_lane=bla, v1_intersection=bla, v1_move=bla, 
+v1_speed. Always answer with NA if you cannot find answers in this section.  
+
+Q15. Search [SECTION 5 – ACCIDENT DETAILS - DESCRIPTION] for information about the 
+other vehicle (v1)/pedestrian/bicyclist/other. Specifically, the 
+v2_lane=leftmost/left/middle/right/rightmost if exists, if not, v2_lane=NA; 
+v2_intersection=True/False (True if the autonomous vehicle is heading into a [INTERACTION]); 
+v2_move=straight/turn/stop indicates if the other vehicle was turning or proceeding straight or 
+stopped; v2_speed indicates the speed of v2 before collision. Always given an answer as: Q15. 
+v2_lane=bla, v2_intersection=bla, v2_move=bla, v2_speed. Always answer with NA if you 
+cannot find answers in this section.  
+
+Q16. Search [SECTION 5 – ACCIDENT DETAILS - DESCRIPTION], answer when the accident 
+happened, were both involved parties, and if there are two parties, moving towards the same 
+direction? Always give an answer of Yes or No: Q16. Direction=Yes/No. If there is only one party 
+involved, Direction=NA  
+
+Q17. Search [SECTION 5 – ACCIDENT DETAILS - DESCRIPTION], and answer v1_demage, 
+and v2_demage if there are descriptions of damages/injuries to each vehicle, driver, or other 
+related parties. Always answer as: Q17. v1_demage=bla, v2_demage=bla. If no such 
+information, answer with NA.  
+
+========================================page3============================
+======= 
+In this page, you can find seven sections – [WEATHER], [LIGHTING], [ROADWAY SURFACE], 
+[ROADWAY CONDITIONS], [MOVEMENT PRECEDING COLLISION], [TYPE OF COLLISION], 
+[OTHER ASSOCIATED FACTOR(s)]. Answer the following questions based on the specified 
+section. All answers to the questions are marked by [X] on the page.  
+
+For [WEATHER], [LIGHTING], [ROADWAY SURFACE], [ROADWAY CONDITIONS], 
+[MOVEMENT PRECEDING COLLISION], [TYPE OF COLLISION]. In each section, you can 
+always find at most two [X], one [X] indicates vehicle 1 related information, the other [X] 
+indicates vehicle 2 related information. For [OTHER ASSOCIATED FACTOR(s)], there is only 
+one checkbox on the right of each option. Multiple checkboxes can be checked with [X].  
+
+Q18. Search for [WEATHER]. You can find seven AND ONLY seven options - [A. CLEAR], [B. 
+CLOUDY], [C. RAINING], [D. SNOWING], [E. FOG/VISIBILITY], [F. OTHER], [G. WIND]. On the 
+right of each option, you can find a pair of checkboxes. Check if each box is filled with [X]. If the 
+box on the left is filled, it indicates weather_v1, and if the box on the right is filled, it indicates 
+weather_v2. Values of weather_v1 and weather_v2 can only be 
+clear/cloudy/raining/snowing/fog/other/wind, each corresponding to one of the seven options in 
+the same order as listed above. For example, for the two boxes on the right of [A. CLEAR], if the 
+box on the left is filled in with [X], then weather_v1=clear; if the box on the right is filled in with 
+[X], then weather_v2=clear. weather_v1 and weather_v2 can be different. Always give an 
+answer as: Q18: weather_v1=bla, weather_v2=bla.  
+
+Q19. Search for [LIGHTING]. Under the [LIGHTING], you can find five AND ONLY five options - 
+[A. DAYLIGHT], [B. DUSK – DAWN], [C. DARK – STREET LIGHTS], [D. DARK – NO STREET 
+LIGHTS], [E. DARK – STREET LIGHTS NOT FUNCTIONING*]. On the right of each option, you 
+can find a pair of checkboxes. Check if each box is filled with [X]. If the box on the left is filled, it 
+indicates light_v1, and if the box on the right is filled in with [X], then light_v2. The values of light_v1 
+and light_v2 can only be daylight/dawn/streetlight/no_streetlight/not_function, corresponding to 
+the five options. For example, for the two boxes on the right of [A. DAYLIGHT], if the box on the 
+left is filled in with [X], then light_v1=daylight, if the box on the right is filled in with [X], then 
+light_v2=daylight. light_v1 and light_v2 can be different. Always give an answer as: Q19: 
+light_v1=bla, light_v2=bla.  
+
+Q20. Search for [ROADWAY SURFACE]. Under [ROADWAY SURFACE], there are four and 
+only four options - [A. DRY], [B. WET], [C. SNOWY – ICY], [D. SLIPPERY (MUDDY, OILY, 
+ETC.)]. On the right of each option, you can find a pair of checkboxes. Check if each box is filled 
+with [X]. If the box on the left is filled, it indicates surface_v1, and if the box on the right is filled, 
+it indicates surface_v2. The values of surface_v1 and surface_v2 can only be 
+dry/wet/icy/slippery, corresponding to the four options. For example, for the two boxes on the 
+right of [A. DRY], if the box on the left is filled in with [X], then surface_v1=dry, if the box on the 
+right is filled in with [X], then surface_v2=dry. surface_v1 and surface_v2 can be different. 
+Always give an answer as: Q20: surface_v1=bla, surface_v2=bla.  
+
+Q21. Search for [ROADWAY CONDITIONS]. Under [ROADWAY CONDITIONS], there are eight 
+and ONLY eight options – [A. HOLES, DEEP RUT*], [B. LOOSE MATERIAL ON ROADWAY], 
+[C. OBSTRUCTION ON ROADWAY*], [D. CONSTRUCTION – REPAIR ZONE], [E. REDUCED 
+ROADWAY WIDTH], [F. FLOODED*], [G. OTHER*], [H. NO UNUSUAL CONDITIONS]. On the 
+right of each option, you can find a pair of checkboxes. Check if each box is filled with [X]. If the 
+box on the left is filled, it indicates condition_v1, and if the box on the right is filled, it indicates 
+condition_v2. The values of condition_v1 and condition_v2 can only be 
+holes/loose/obs/repair/reduced_width/flooded/other/no, corresponding to each of the eight 
+options in the listed order. For example, for the two boxes on the right of [A. HOLES, DEEP 
+RUT*], if the box on the left is filled in with [X], then condition_v1=holes, if the box on the right is 
+filled in with [X], then condition_v2=holes. condition_v1 and condition_v2 can be different. 
+Always give an answer as: Q21: condition_v1=bla, condition_v2=bla.  
+
+Q22. Search for [MOVEMENT PRECEDING COLLISION]. Under [MOVEMENT PRECEDING 
+COLLISION], there are eighteen and ONLY eighteen options – [A. STOPPED], [B. 
+PROCEEDING STRAIGHT], [C. RAN OFF ROAD], [D. MAKING RIGHT TURN], [E. MAKING 
+LEFT TURN], [F. MAKING U TURN], [G. BACKING], [H. SLOWING/STOPPING], [I. PASSING 
+OTHER VEHICLE], [J. CHANGING LANES], [K. PARKING MANEUVER], [L. ENTERING 
+TRAFFIC], [M. OTHER UNSAFE TURNING], [N. XING INTO OPPOSING LANE], [O. PARKED], 
+[P. MERGING], [Q. TRAVELING WRONG WAY], [R. OTHER*]. On the right of each option, you 
+can find a pair of checkboxes. Check if each box is filled with [X]. If the box on the left is filled, it 
+indicates move_v1, and if the box on the right is filled, it indicates move_v2. The values of 
+move_v1 and move_v2 can only be 
+stop/straight/off_road/turn_right/turn_left/turn_u/backing/stopping/passing/change_lane/parking/
+entering_traffic/turn_other/xing_opposing/parked/merging/wrong_way/other, corresponding to 
+each of the eighteen options in the listed order. For example, for the two boxes on the right of 
+[A. STOPPED], if the box on the left is filled in with [X], then move_v1=stop. For the two boxes 
+on the right of [G. BACKING], ]if the box on the right is filled in with [X], then move_v2=backing. 
+Always give an answer as: Q22: move_v1=bla, move_v2=bla.  
+
+Q23.Search for [TYPE OF COLLISION]. Under [TYPE OF COLLISION], there are eight and 
+ONLY eight options – [A. HEAD-ON], [B. SIDE SWIPE], [C. REAR END], [D. BROADSIDE], [E. 
+HIT OBJECT], [F. OVERTURNED], [G. VEHIVLE/PEDESTRIAN], [H. OTHER*]. On the right of 
+each option, you can find a pair of checkboxes. Check if each box is filled with [X]. If the box on 
+the left is filled, it indicates collision_v1, and if the box on the right is filled, it indicates 
+collision_v2. The values of collision_v1 and collision_v2 can only be 
+head/side/rear/broad/object/overturn/pedestrian/other, corresponding to each of the eight 
+options in the listed order. For example, for the two boxes on the right of [E. HIT OBJECT], if the 
+box on the left is filled in with [X], then collision_v1=object, if the box on the right is filled in with 
+[X], then collision_v2=object. collision_v1 and collision_v2 can be different. Always give an 
+answer as: Q23: collision_v1=bla, collision_v2=bla.  
+
+Q24. Search for [OTHER ASSOCIATED FACTOR(s)]. Under [OTHER ASSOCIATED 
+FACTOR(s)], there are twelve and ONLY twelve options – [A. CVC SECTIONS VIOLATED], [B. 
+VISION OBSCUREMENT], [C. INATTENTION*], [D. STOP & GO TRAFFIC], [E. 
+ENTERING/LEAVING RAMP], [F. PREVIOUS COLLISION], [G. UNFAMILIAR WITH ROAD], [H. 
+DEFECTIVE WEH EQUIP], [I. UNINVOLVED VEHICLE], [J. OTHER*], [K. NONE APPARENT], 
+[L. RUNAWAY VEHICLE]. Inspect the checkboxes to find values to other_factor. The values of 
+other_factor can be one or more of the list of values: [cvc, obscure, inattention, stop_go, ramp, 
+pre_collision, unfamiliar, defective, uninvolved, other, none, runaway], each corresponds to one 
+of the listed options in the same order. Explicitly, for [A. CVC SECTIONS VIOLATED], there are 
+two checkboxes underneath; one on the left of [YES], one on the left of [NO]. If the box on the 
+left is filled with [X], other_factor=CVC; If, for [H. DEFECTIVE WEH EQUIP], there are two 
+checkboxes underneath; one on the left of [YES], one on the left of [NO]. If the box on the left is 
+also filled with [X], other_factor=[CVC, defective]; if, the box on the right of [B. VISION 
+OBSCUREMENT] is also checked, other_factor=[CVC, obscure, defective]. Check all options 
+and their associated checkboxes. If none of the boxes are checked, other_factor=NA. Always 
+give an answer as: Q24: other_factor=bla.
