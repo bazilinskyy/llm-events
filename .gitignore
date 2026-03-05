@@ -113,4 +113,6 @@ secret
 # data.csv
 data.csv
 output
+\reports
+LLM_query.json
 # figures
