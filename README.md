@@ -1,136 +1,135 @@
-# Analysing reports of events involving automated vehicles with LLM
+# LLM events refactor
 
-In the description below, it is assumed that the repo is stored in the folder `llm-events`. Terminal commands lower assume macOS.
+## Citation and usage of code
+If you use this work for academic work please cite the following paper:
 
-## Setup
-Tested with Python 3.9.12. To setup the environment run these two commands in a parent folder of the downloaded repository (replace `/` with `\` and possibly add `--user` if on Windows):
-- `pip install -e llm-events` will setup the project as a package accessible in the environment.
-- `pip install -r llm-events/requirements.txt` will install required packages.
-- Windows User need specific version of kaleiod to work with Plotly `pip install kaleido==0.1.0.post1`. See [Issues](https://github.com/plotly/Kaleido/issues/134)
+> 
 
-### NLTK Installation
-The project also requires NLTK data for text processing. You can install the required NLTK resources using one of these methods:
+The code is open-source and free to use. It is aimed for, but not limited to, academic research. We welcome forking of this repository, pull requests, and any contributions in the spirit of open science and open-source code. For inquiries about collaboration, you may contact Md Shadab Alam (md_shadab_alam@outlook.com) or Pavlo Bazilinskyy (pavlo.bazilinskyy@gmail.com).
 
-1. Run the `download_nltk.ipynb` notebook in this project
+## Getting started
+[![Python Version](https://img.shields.io/badge/python-3.12.13-blue.svg)](https://www.python.org/downloads/release/python-3919/)
+[![Package Manager: uv](https://img.shields.io/badge/package%20manager-uv-green)](https://docs.astral.sh/uv/)
 
-2. Using Python code:
-```python
-import nltk
-nltk.download('all')
+Tested with **Python 3.12.13** and the [`uv`](https://docs.astral.sh/uv/) package manager.
+Follow these steps to set up the project.
+
+**Step 1:** Install `uv`. `uv` is a fast Python package and environment manager. Install it using one of the following methods:
+
+**macOS / Linux (bash/zsh):**
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-3. Using command line:
+**Windows (PowerShell):**
+```powershell
+irm https://astral.sh/uv/install.ps1 | iex
+```
+
+**Alternative (if you already have Python and pip):**
 ```bash
-python -m nltk.downloader all
+pip install uv
+```
+
+**Step 2:** Fix permissions (if needed):
+
+Sometimes `uv` needs to create a folder under `~/.local/share/uv/python` (macOS/Linux) or `%LOCALAPPDATA%\uv\python` (Windows).
+If this folder was created by another tool (e.g. `sudo`), you may see an error like:
+```lua
+error: failed to create directory ... Permission denied (os error 13)
+```
+
+To fix it, ensure you own the directory:
+
+### macOS / Linux
+```bash
+mkdir -p ~/.local/share/uv
+chown -R "$(id -un)":"$(id -gn)" ~/.local/share/uv
+chmod -R u+rwX ~/.local/share/uv
+```
+
+### Windows
+```powershell
+# Create directory if it doesn't exist
+New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\uv"
+
+# Ensure you (the current user) own it
+# (usually not needed, but if permissions are broken)
+icacls "$env:LOCALAPPDATA\uv" /grant "$($env:UserName):(OI)(CI)F"
+```
+
+**Step 3:** After installing, verify:
+```bash
+uv --version
+```
+
+**Step 4:** Clone the repository:
+```command line
+git clone https://github.com/bazilinskyy/llm-events.git
+cd llm-events
+```
+
+**Step 5:** Ensure correct Python version. If you don’t already have Python 3.12.13 installed, let `uv` fetch it:
+```command line
+uv python install 3.12.13
+```
+The repo should contain a .python-version file so `uv` will automatically use this version.
+
+**Step 6:** Create and sync the virtual environment. This will create **.venv** in the project folder and install dependencies exactly as locked in **uv.lock**:
+```command line
+uv sync --frozen
+```
+
+**Step 7:** Activate the virtual environment:
+
+**macOS / Linux (bash/zsh):**
+```bash
+source .venv/bin/activate
+```
+
+**Windows (PowerShell):**
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+**Windows (cmd.exe):**
+```bat
+.\.venv\Scripts\activate.bat
+```
+
+**Step 8:** Ensure that dataset are present. Place required datasets (including **mapping.csv**) into the **data/** directory:
+
+
+**Step 9:** Run the code:
+```command line
+python3 analysis.py
 ```
 
 ### Configuration of project
-Configuration of the project needs to be defined in `llm-events/config`. Please use the `default.config` file for the required structure of the file. If no custom config file is provided, `default.config` is used. The config file has the following parameters:
-- **`reports`**: path with reports.
-- **`data`**: path for CSV with output.
-- **`analyse`**: toggle to run analysis of reports.
-- **`query`**: query to path to LLM.
-- **`plotly_template`**: template used to make graphs in the analysis.
-- **`logger_level`**: Level of console output. Can be: debug, info, warning, error.
+Configuration of the project needs to be defined in `config`. Please use the `default.config` file for the required structure of the file. If no custom config file is provided, `default.config` is used. The config file has the following parameters:
 
-For analysis with GPT-V, the API key of OpenAI needs to be placed in file `llm-events/secret`. The file needs to be formatted as `llm-events/secret example`.
 
-## Analysis
-Analysis can be started by running `python llm-events/llmevents/run.py`. A number of CSV files used for data processing are saved in `llmevents/_output`. Visualisations of all data are saved in `llmevents/_output/figures/`.
 
-## Answers to questions in the query
-[![Histogram of Q1](figures/hist_q1_category.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q1_category.html)
-Histogram of categorisation of output for question 1.
+### Accident overview Sankey diagram
+[![Accident overview Sankey diagram](figures/accident_overview_sankey.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accident_overview_sankey.html)
+Accident overview Sankey diagram showing the flow of parsed accident attributes across the selected plot fields.
 
-[![Histogram of Q2 - automated vehicle brand](figures/hist_q2_av_brand.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_av_brand.html)
-Histogram of categorisation of output for question 2 - automated vehicle brand.
+### Accident overview sunburst diagram
+[![Accident overview sunburst diagram](figures/accident_overview_sunburst.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accident_overview_sunburst.html)
+Accident overview sunburst diagram showing the hierarchical distribution of accident attributes across the selected plot fields.
 
-[![Histogram of Q2 - automated vehicle model](figures/hist_q2_av_model.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_av_model.html)
-Histogram of categorisation of output for question 2 - automated vehicle model.
+### Accident transition graph
+[![Accident transition graph](figures/accident_transition_graph.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accident_transition_graph.html)
+Accident transition graph showing connections between consecutive accident attributes across the selected plot fields.
 
-[![Histogram of Q2 - automated vehicle year](figures/hist_q2_av_year.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_av_year.html)
-Histogram of categorisation of output for question 2 - automated vehicle year.
+### Histogram of AV make
+[![Histogram of AV make](figures/histograms/av_make.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/histograms/av_make.html)
+Histogram of automated vehicle make values extracted from the accident reports.
 
-[![Histogram of Q2 - automated vehicle mode](figures/hist_q2_av_mode.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_av_mode.html)
-Histogram of categorisation of output for question 2 - automated vehicle model mode.
+### Histogram of collision type
+[![Histogram of collision type](figures/histograms/collision_type.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/histograms/collision_type.html)
+Histogram of collision types extracted from the accident reports.
 
-[![Histogram of Q2 - other road user](figures/hist_q2_other_road_user.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_other_road_user.html)
-Histogram of categorisation of output for question 2 - automated vehicle.
-
-[![Histogram of Q2 - other vehicle](figures/hist_q2_other_vehicle.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q2_other_vehicle.html)
-Histogram of categorisation of output for question 2 - other vehicle.
-
-[![Histogram of Q2 - AV mode](figures/hist_q2_av_mode.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/q2_av_mode.html)
-Histogram of categorisation of output for question 2 - AV mode.
-
-[![Histogram of Q3 - address](figures/hist_q3_address.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q3_address.html)
-Histogram of categorisation of output for question 3 - address.
-
-[![Histogram of Q3 - street type](figures/hist_q3_street_type.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q3_street_type.html)
-Histogram of categorisation of output for question 3 - street type.
-
-[![Histogram of Q3 - lanes](figures/hist_q3_lanes.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q3_lanes.html)
-Histogram of categorisation of output for question 3 - lanes.
-
-[![Histogram of Q3 - area type](figures/hist_q3_area_type.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q3_area_type.html)
-Histogram of categorisation of output for question 3 - area type.
-
-[![Histogram of Q4 - weather](figures/hist_q4_weather.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q4_weather.html)
-Histogram of categorisation of output for question 4 - weather.
-
-[![Histogram of Q4 - surface](figures/hist_q4_surface.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q4_surface.html)
-Histogram of categorisation of output for question 4 - surface.
-
-[![Histogram of Q4 - conditions](figures/hist_q4_conditions.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q4_conditions.html)
-Histogram of categorisation of output for question 4 - conditions.
-
-[![Histogram of Q4 - lightning](figures/hist_q4_lighting.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q4_lightning.html)
-Histogram of categorisation of output for question 4 - lightning.
-
-[![Histogram of Q5 - collision type](figures/hist_q5_collision_type.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q5_collision_type.html)
-Histogram of categorisation of output for question 5 - collision type.
-
-[![Histogram of Q5 - AV damage](figures/hist_q5_av_damage.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q5_av_damage.html)
-Histogram of categorisation of output for question 5 - AV damage.
-
-<!-- [![Histogram of Q5 - AV damage category](figures/hist_q5_av_damage_category.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q5_av_damage_category.html)
-Histogram of categorisation of output for question 5 - AV damage category.
-
-[![Histogram of Q5 - Other vehicle damage](figures/hist_q5_other_vehicle_damage.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q5_other_vehicle_damage.html)
-Histogram of categorisation of output for question 5 - Other vehicle damage.
-
-[![Histogram of Q5 - Injuries](figures/hist_q5_other_vehicle_damage.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q5_other_vehicle_damage.html)
-Histogram of categorisation of output for question 5 - Injuries. -->
-
-[![Histogram of Q6 - AV at fault](figures/hist_q6_av_at_fault.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q6_av_at_fault.html)
-Histogram of categorisation of output for question 6 - AV at fault.
-
-[![Histogram of Q7 - traffic conditions](figures/hist_q7_traffic_conditions.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q7_traffic_conditions.html)
-Histogram of categorisation of output for question 7 - traffic conditions.
-
-[![Histogram of Q7 - AV movement](figures/hist_q7_av_movement.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q7_av_movement.html)
-Histogram of categorisation of output for question 7 - AV movement.
-
-[![Histogram of Q7 - Other road user movement](figures/hist_q7_other_road_user_movement.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q7_other_road_user_movement.html)
-Histogram of categorisation of output for question 7 - Other road user movement.
-
-[![Histogram of Q7 - Same direction](figures/hist_q7_same_direction.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q7_same_direction.html)
-Histogram of categorisation of output for question 7 - Same direction.
-
-[![Histogram of Q7 - Same lane](figures/hist_q7_same_lane.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/hist_q7_same_lane.html)
-Histogram of categorisation of output for question 7 - Same lane.
-
-## Contextual analysis
-[![Sunburst](figures/sunburst.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/sunburst.html)
-Sunburst graph.
-
-[![Node graph](figures/node_graph.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/node_graph.html)
-Node graph.
-
-[![Sankey](figures/sankey.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/sankey.html)
-Sankey plot.
-
-## Troubleshooting
-### Troubleshooting setup
-#### ERROR: llm-events is not a valid editable requirement
-Check that you are indeed in the parent folder for running command `pip install -e llm-events`. This command will not work from inside of the folder containing the repo.
+### Histogram of main factor
+[![Histogram of main factor](figures/histograms/main_factor.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/histograms/main_factor.html)
+Histogram of main contributing factors extracted from the accident reports.
