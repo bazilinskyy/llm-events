@@ -18,24 +18,27 @@ class OutputDirs:
     base: Path
     plots: Path
     histograms: Path
-    figures: Path | None
-    figures_histograms: Path | None
+    figures: Path
+    figures_histograms: Path
 
 
-def ensure_output_dirs(base_dir: Path, figures_dir: Path | None = None, save_final: bool = False) -> OutputDirs:
+def ensure_output_dirs(base_dir: Path, figures_dir: Path) -> OutputDirs:
     base = Path(base_dir)
     plots = base / 'plots'
     histograms = plots / 'histograms'
+    figures = Path(figures_dir)
+    figures_histograms = figures / 'histograms'
+
     histograms.mkdir(parents=True, exist_ok=True)
-
-    figures: Path | None = None
-    figures_histograms: Path | None = None
-    if save_final:
-        figures = Path(figures_dir) if figures_dir is not None else Path('figures')
-        figures_histograms = figures / 'histograms'
-        figures_histograms.mkdir(parents=True, exist_ok=True)
-
-    return OutputDirs(base=base, plots=plots, histograms=histograms, figures=figures, figures_histograms=figures_histograms)
+    figures.mkdir(parents=True, exist_ok=True)
+    figures_histograms.mkdir(parents=True, exist_ok=True)
+    return OutputDirs(
+        base=base,
+        plots=plots,
+        histograms=histograms,
+        figures=figures,
+        figures_histograms=figures_histograms,
+    )
 
 
 def _choose_text_column(df: pd.DataFrame, preferred: str | None, row_keep_policy: str = 'output_only') -> str:
@@ -52,7 +55,11 @@ def _choose_text_column(df: pd.DataFrame, preferred: str | None, row_keep_policy
     raise KeyError(f'Could not find a usable text column. Available columns: {list(df.columns)}')
 
 
-def load_input_events(input_csv: Path, preferred_text_column: str | None = None, row_keep_policy: str = 'output_only') -> tuple[pd.DataFrame, str]:
+def load_input_events(
+    input_csv: Path,
+    preferred_text_column: str | None = None,
+    row_keep_policy: str = 'output_only',
+) -> tuple[pd.DataFrame, str]:
     df = pd.read_csv(input_csv)
     available_text_cols = [col for col in ['Output', 'Output - same chat'] if col in df.columns]
     if not available_text_cols:
@@ -70,7 +77,11 @@ def load_input_events(input_csv: Path, preferred_text_column: str | None = None,
 
     dropped = total_rows - int(keep_mask.sum())
     if dropped:
-        logger.info('Dropped %s rows because the selected row_keep_policy=%s marked them as empty.', dropped, row_keep_policy)
+        logger.info(
+            'Dropped %s rows because the selected row_keep_policy=%s marked them as empty.',
+            dropped,
+            row_keep_policy,
+        )
     df = df.loc[keep_mask].copy()
     df.attrs['dropped_empty_output'] = dropped
     df.attrs['row_keep_policy'] = row_keep_policy
@@ -99,4 +110,4 @@ def maybe_open_html(path: Path, auto_open_html: bool) -> None:
         try:
             webbrowser.open(path.resolve().as_uri())
         except Exception as exc:
-            logger.warning('Could not auto-open %s: %s', path, exc)
+            logger.warning('Failed to open %s in browser: %s', path, exc)

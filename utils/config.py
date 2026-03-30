@@ -94,7 +94,7 @@ def _coerce_row_keep_policy(value: Any, default: str = 'output_only') -> str:
 
 
 def _search_config_file(start: Path) -> Path:
-    candidates: list[Path] = []
+    candidates = []
     for base in [start, *start.parents]:
         candidates.extend([base / 'config', base / 'default.config'])
     for candidate in candidates:
@@ -176,6 +176,7 @@ def _resolve_figures_dir(raw_value: Any, project_root: Path) -> Path:
     default_figures = (project_root / 'figures').resolve()
     if raw_value is None:
         return default_figures
+
     raw_path = Path(str(raw_value).strip()).expanduser()
     if not raw_path.is_absolute():
         return (project_root / raw_path).resolve()
@@ -189,7 +190,6 @@ def load_runtime_config() -> RuntimeConfig:
     parser.add_argument('--config', default=None)
     parser.add_argument('--input', default=None)
     parser.add_argument('--output-dir', default=None)
-    parser.add_argument('--figures-dir', default=None)
     parser.add_argument('--text-column', default=None)
     parser.add_argument('--min-count', default=None)
     parser.add_argument('--max-categories', default=None)
@@ -207,8 +207,7 @@ def load_runtime_config() -> RuntimeConfig:
 
     output_dir_raw = args.output_dir or config_data.get('output_dir')
     output_dir = _resolve_output_dir(output_dir_raw, project_root)
-    figures_dir_raw = args.figures_dir or config_data.get('figures_dir')
-    figures_dir = _resolve_figures_dir(figures_dir_raw, project_root)
+    figures_dir = _resolve_figures_dir(config_data.get('figures_dir'), project_root)
 
     if args.open_html:
         auto_open_html = True

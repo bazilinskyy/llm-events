@@ -107,6 +107,20 @@ python3 analysis.py
 
 ### Configuration of project
 Configuration of the project needs to be defined in `config`. Please use the `default.config` file for the required structure of the file. If no custom config file is provided, `default.config` is used. The config file has the following parameters:
+- **`data`**: Path to the input CSV file containing the LLM generated output to be parsed and analysed.
+- **`output_dir`**: Directory where processed CSV files, summary files, and generated plots are saved.
+- **`figures_dir`**: Directory where final copies of figures are saved when save_final is enabled.
+- **`logger_level`**: Logging level used during execution, such as INFO, DEBUG, WARNING, or ERROR.
+- **`auto_open_html`**: Automatically opens generated HTML plots in the default browser after they are created.
+- **`save_final`**: Saves final copies of figures into figures_dir in addition to the standard output location.
+- **`filter_rows_with_na`**: Filters out rows from the plotting dataset when important parsed fields contain missing values.
+- **`na_filter_fields`**: List of parsed fields considered critical for filtering. If any of these fields are missing and filter_rows_with_na is enabled, the corresponding row is excluded from the plots.
+- **`include_plot_fields`**: Ordered list of parsed fields to include in the overview plots such as the Sankey diagram, sunburst diagram, and transition graph.
+- **`exclude_plot_fields`**: List of parsed fields to remove from the configured plot fields, allowing quick experimentation with different figure layouts.
+- **`histogram_fields`**: List of parsed fields for which histogram style summary plots are generated.
+- **`max_categories`**: Maximum number of categories retained per stage in the overview plots before less frequent values are grouped into Other.
+- **`min_count`**: Minimum count threshold for links in the Sankey diagram. Links below this threshold are excluded from the figure.
+- **`row_keep_policy`**: Controls which response rows are kept before parsing. Supported values are output_only and best_available.
 
 
 

@@ -8,7 +8,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-from utils.plots import export_plotly_figure
+from utils.plots import save_plotly_figure
 from utils.sankey import build_sankey_figure
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,8 @@ def create_histogram_figure(df: pd.DataFrame, field: str) -> go.Figure:
 
 
 def create_sunburst_figure(df: pd.DataFrame, plot_fields: list[str]) -> go.Figure:
-    return px.sunburst(df, path=plot_fields, title='')
+    fig = px.sunburst(df, path=plot_fields, title='')
+    return fig
 
 
 def create_transition_graph_figure(df: pd.DataFrame, plot_fields: list[str]) -> go.Figure:
@@ -90,46 +91,53 @@ def create_all_plots(
         logger.warning('Filtered dataframe is empty. Skipping plot creation.')
         return manifest
 
-    sankey_fig = build_sankey_figure(filtered_df, plot_fields, min_count=min_count, max_categories=max_categories)
-    manifest['plots']['accident_overview_sankey'] = export_plotly_figure(
-        sankey_fig,
-        output_dirs.plots / 'accident_overview_sankey',
+    manifest['plots']['accident_overview_sankey'] = save_plotly_figure(
+        build_sankey_figure(filtered_df, plot_fields, min_count=min_count, max_categories=max_categories),
+        'accident_overview_sankey',
+        output_dir=output_dirs.plots,
+        final_dir=output_dirs.figures,
         auto_open_html=auto_open_html,
         save_final=save_final,
-        final_stem=(output_dirs.figures / 'accident_overview_sankey') if output_dirs.figures else None,
+        save_png=True,
+        save_eps=True,
     )
 
     if len(plot_fields) >= 2:
-        sunburst_fig = create_sunburst_figure(filtered_df, plot_fields)
-        manifest['plots']['accident_overview_sunburst'] = export_plotly_figure(
-            sunburst_fig,
-            output_dirs.plots / 'accident_overview_sunburst',
+        manifest['plots']['accident_overview_sunburst'] = save_plotly_figure(
+            create_sunburst_figure(filtered_df, plot_fields),
+            'accident_overview_sunburst',
+            output_dir=output_dirs.plots,
+            final_dir=output_dirs.figures,
             auto_open_html=auto_open_html,
             save_final=save_final,
-            final_stem=(output_dirs.figures / 'accident_overview_sunburst') if output_dirs.figures else None,
+            save_png=True,
+            save_eps=True,
         )
 
-        transition_fig = create_transition_graph_figure(filtered_df, plot_fields)
-        manifest['plots']['accident_transition_graph'] = export_plotly_figure(
-            transition_fig,
-            output_dirs.plots / 'accident_transition_graph',
+        manifest['plots']['accident_transition_graph'] = save_plotly_figure(
+            create_transition_graph_figure(filtered_df, plot_fields),
+            'accident_transition_graph',
+            output_dir=output_dirs.plots,
+            final_dir=output_dirs.figures,
             auto_open_html=auto_open_html,
             save_final=save_final,
-            final_stem=(output_dirs.figures / 'accident_transition_graph') if output_dirs.figures else None,
+            save_png=True,
+            save_eps=True,
         )
 
     histogram_manifest: dict[str, Any] = {}
     for field in histogram_fields:
         if field not in parsed_df.columns:
             continue
-        fig = create_histogram_figure(parsed_df, field)
-        histogram_manifest[field] = export_plotly_figure(
-            fig,
-            output_dirs.histograms / field,
+        histogram_manifest[field] = save_plotly_figure(
+            create_histogram_figure(parsed_df, field),
+            field,
+            output_dir=output_dirs.histograms,
+            final_dir=output_dirs.figures_histograms,
             auto_open_html=auto_open_html,
             save_final=save_final,
-            final_stem=(output_dirs.figures_histograms / field) if output_dirs.figures_histograms else None,
+            save_png=True,
+            save_eps=True,
         )
     manifest['plots']['histograms'] = histogram_manifest
-
     return manifest

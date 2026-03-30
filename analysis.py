@@ -21,11 +21,7 @@ def main() -> int:
     logger.info('Using row_keep_policy: %s', config.row_keep_policy)
     logger.info('Using save_final: %s', config.save_final)
 
-    output_dirs = ensure_output_dirs(
-        base_dir=config.output_dir,
-        figures_dir=config.figures_dir,
-        save_final=config.save_final,
-    )
+    output_dirs = ensure_output_dirs(config.output_dir, config.figures_dir)
 
     raw_df, selected_text_column = load_input_events(
         input_csv=config.input_csv,
@@ -89,7 +85,6 @@ def main() -> int:
     )
     save_json(manifest, output_dirs.base / 'plot_manifest.json')
     logger.info('Wrote plot manifest to %s', output_dirs.base / 'plot_manifest.json')
-
     return 0
 
 
