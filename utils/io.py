@@ -27,14 +27,18 @@ class OutputDirs:
 
 def ensure_output_dirs(base_dir: Path, figures_dir: Path) -> OutputDirs:
     base = Path(base_dir)
-    plots = base / 'plots'
-    histograms = plots / 'histograms'
-    paper = plots / 'paper'
     figures = Path(figures_dir)
-    figures_histograms = figures / 'histograms'
-    figures_paper = figures / 'paper'
 
-    for path in [base, plots, histograms, paper, figures, figures_histograms, figures_paper]:
+    # Save all figures directly into the configured output_dir.
+    # When save_final is true, the same files are also copied directly into
+    # the configured figures_dir.
+    plots = base
+    histograms = base
+    paper = base
+    figures_histograms = figures
+    figures_paper = figures
+
+    for path in [base, figures]:
         path.mkdir(parents=True, exist_ok=True)
 
     return OutputDirs(

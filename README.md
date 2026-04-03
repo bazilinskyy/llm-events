@@ -108,22 +108,27 @@ python3 analysis.py
 ### Configuration of project
 Configuration of the project needs to be defined in `config`. Please use the `default.config` file for the required structure of the file. If no custom config file is provided, `default.config` is used. The config file has the following parameters:
 - **`data`**: Path to the input CSV file containing the LLM generated output to be parsed and analysed.
-- **`output_dir`**: Directory where processed CSV files, summary files, and generated plots are saved.
-- **`figures_dir`**: Directory where final copies of figures are saved when save_final is enabled.
-- **`logger_level`**: Logging level used during execution, such as INFO, DEBUG, WARNING, or ERROR.
+- **`output_dir`**: Directory where processed CSV files, summary files, and generated plots are saved. All generated figures are saved directly into this directory.
+- **`figures_dir`**: Directory where final copies of figures are saved when `save_final` is enabled.
+- **`logger_level`**: Logging level used during execution, such as `INFO`, `DEBUG`, `WARNING`, or `ERROR`.
 - **`auto_open_html`**: Automatically opens generated HTML plots in the default browser after they are created.
-- **`save_final`**: Saves final copies of figures into figures_dir in addition to the standard output location.
+- **`save_final`**: Saves final copies of figures into `figures_dir` in addition to the standard output location.
 - **`filter_rows_with_na`**: Filters out rows from the plotting dataset when important parsed fields contain missing values.
-- **`na_filter_fields`**: List of parsed fields considered critical for filtering. If any of these fields are missing and filter_rows_with_na is enabled, the corresponding row is excluded from the plots.
+- **`na_filter_fields`**: List of parsed fields considered critical for filtering. If any of these fields are missing and `filter_rows_with_na` is enabled, the corresponding row is excluded from the plots.
 - **`include_plot_fields`**: Ordered list of parsed fields to include in the overview plots such as the Sankey diagram, sunburst diagram, and transition graph.
 - **`exclude_plot_fields`**: List of parsed fields to remove from the configured plot fields, allowing quick experimentation with different figure layouts.
 - **`histogram_fields`**: List of parsed fields for which histogram style summary plots are generated.
-- **`max_categories`**: Maximum number of categories retained per stage in the overview plots before less frequent values are grouped into Other.
+- **`blind_spot_fields`**: List of detailed context fields used in blind spot and missingness analysis.
+- **`max_categories`**: Maximum number of categories retained per stage in the overview plots before less frequent values are grouped into `Other`.
 - **`min_count`**: Minimum count threshold for links in the Sankey diagram. Links below this threshold are excluded from the figure.
-- **`row_keep_policy`**: Controls which response rows are kept before parsing. Supported values are output_only and best_available.
+- **`row_keep_policy`**: Controls which response rows are kept before parsing. Supported values are `output_only`, `best_available`, and `best_per_row`.
+- **`validation_sample_size`**: Number of rows sampled for the validation output table.
+- **`validation_seed`**: Random seed used when generating the validation sample.
+- **`validation_include_text`**: Whether the validation sample should include the source text used for parsing.
+- **`paper_plot_top_n`**: Number of top categories retained in selected paper style plots.
 
 
-
+## Results
 ### Accident overview Sankey diagram
 [![Accident overview Sankey diagram](figures/accident_overview_sankey.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accident_overview_sankey.html)
 Accident overview Sankey diagram showing the flow of parsed accident attributes across the selected plot fields.
@@ -136,14 +141,102 @@ Accident overview sunburst diagram showing the hierarchical distribution of acci
 [![Accident transition graph](figures/accident_transition_graph.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accident_transition_graph.html)
 Accident transition graph showing connections between consecutive accident attributes across the selected plot fields.
 
-### Histogram of AV make
-[![Histogram of AV make](figures/histograms/av_make.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/histograms/av_make.html)
-Histogram of automated vehicle make values extracted from the accident reports.
+### Histogram of road user type
+[![Histogram of road user type](figures/road_user_type.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/road_user_type.html)
+Histogram of road user types extracted from the accident reports.
 
-### Histogram of collision type
-[![Histogram of collision type](figures/histograms/collision_type.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/histograms/collision_type.html)
-Histogram of collision types extracted from the accident reports.
+### Histogram of AV mode group
+[![Histogram of AV mode group](figures/av_mode_group.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/av_mode_group.html)
+Histogram of automated vehicle mode groups extracted from the accident reports.
 
-### Histogram of main factor
-[![Histogram of main factor](figures/histograms/main_factor.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/histograms/main_factor.html)
-Histogram of main contributing factors extracted from the accident reports.
+### Histogram of AV movement group
+[![Histogram of AV movement group](figures/av_movement_group.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/av_movement_group.html)
+Histogram of automated vehicle movement groups extracted from the accident reports.
+
+### Histogram of other party movement group
+[![Histogram of other party movement group](figures/other_party_movement_group.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/other_party_movement_group.html)
+Histogram of other road user movement groups extracted from the accident reports.
+
+### Histogram of collision group
+[![Histogram of collision group](figures/collision_group.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/collision_group.html)
+Histogram of collision groups extracted from the accident reports.
+
+### Histogram of blame group
+[![Histogram of blame group](figures/blame_group.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/blame_group.html)
+Histogram of blame groups extracted from the accident reports.
+
+### Histogram of scenario class
+[![Histogram of scenario class](figures/scenario_class.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/scenario_class.html)
+Histogram of scenario classes derived from the accident reports.
+
+### Histogram of report completeness band
+[![Histogram of report completeness band](figures/report_completeness_band.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/report_completeness_band.html)
+Histogram of report completeness bands derived from the parsed accident reports.
+
+### Histogram of weather
+[![Histogram of weather](figures/weather_v1.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/weather_v1.html)
+Histogram of weather conditions extracted from the accident reports.
+
+### Histogram of light condition
+[![Histogram of light condition](figures/light_v1.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/light_v1.html)
+Histogram of lighting conditions extracted from the accident reports.
+
+### Histogram of surface condition
+[![Histogram of surface condition](figures/surface_v1.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/surface_v1.html)
+Histogram of road surface conditions extracted from the accident reports.
+
+### Histogram of roadway condition
+[![Histogram of roadway condition](figures/condition_v1.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/condition_v1.html)
+Histogram of roadway condition values extracted from the accident reports.
+
+### Taxonomy overview
+[![Taxonomy overview](figures/taxonomy_overview.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/taxonomy_overview.html)
+Bar chart showing the most frequent scenario classes in the empirical accident subset.
+
+### Blind spots missingness
+[![Blind spots missingness](figures/blind_spots_missingness.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/blind_spots_missingness.html)
+Bar chart showing missingness across fine grained context and blind spot related fields.
+
+### Accountability by taxonomy
+[![Accountability by taxonomy](figures/accountability_by_taxonomy.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accountability_by_taxonomy.html)
+Chart showing how blame assignments vary across the most common scenario classes.
+
+### Report completeness
+[![Report completeness](figures/report_completeness.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/report_completeness.html)
+Figure showing report completeness scores across the parsed accident reports.
+
+### Taxonomy by road user
+[![Taxonomy by road user](figures/taxonomy_by_road_user.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/taxonomy_by_road_user.html)
+Chart showing how scenario classes vary by road user type.
+
+### Provenance availability
+[![Provenance availability](figures/provenance_availability.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/provenance_availability.html)
+Figure showing mean field availability by provenance source.
+
+### Context gap
+[![Context gap](figures/context_gap.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/context_gap.html)
+Figure showing gaps between coarse and fine contextual information in the parsed reports.
+
+### Movement consistency
+[![Movement consistency](figures/movement_consistency.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/movement_consistency.html)
+Figure showing movement consistency status across source fields.
+
+### Scenario determinability
+[![Scenario determinability](figures/scenario_determinability.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/scenario_determinability.html)
+Figure showing how often the available evidence supports high, medium, or low scenario determinability.
+
+### Environment profile
+[![Environment profile](figures/environment_profile.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/environment_profile.html)
+Figure showing the distribution of environmental friction profiles across the accident set.
+
+### Blame confidence alignment
+[![Blame confidence alignment](figures/blame_confidence_alignment.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/blame_confidence_alignment.html)
+Figure showing alignment between blame assignment and confidence related evidence.
+
+### Stopped AV subtype
+[![Stopped AV subtype](figures/stopped_av_subtype.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/stopped_av_subtype.html)
+Figure showing subtype patterns within stopped automated vehicle scenarios.
+
+### Intersection detail quality
+[![Intersection detail quality](figures/intersection_detail_quality.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/intersection_detail_quality.html)
+Figure showing the quality and completeness of intersection related detail in the parsed reports.

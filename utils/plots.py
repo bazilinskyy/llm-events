@@ -119,7 +119,6 @@ def _save_eps(fig: go.Figure, eps_path: Path, width: int, height: int, scale: in
         ok_svg, svg_message = _run_image_worker(fig, svg_path, 'svg', width=width, height=height, scale=scale, timeout_seconds=timeout_seconds)
         if ok_svg and svg_path.exists():
             try:
-                import cairosvg  # type: ignore
                 cairosvg.svg2ps(url=str(svg_path), write_to=str(eps_path))
                 if eps_path.exists():
                     return True, svg_message

@@ -37,6 +37,126 @@ def _safe_counts(df: pd.DataFrame, field: str) -> pd.DataFrame:
     return counts
 
 
+def _to_list(values: Any) -> list[Any]:
+    if values is None:
+        return []
+    if hasattr(values, "tolist"):
+        try:
+            return list(values.tolist())
+        except Exception:
+            pass
+    if isinstance(values, (list, tuple)):
+        return list(values)
+    try:
+        return list(values)
+    except TypeError:
+        return [values]
+
+
+def _log_dataframe(title: str, df: pd.DataFrame) -> None:
+    logger.info(f"{title}")
+    logger.info(f"rows={len(df)} columns={list(df.columns)}")
+    if df.empty:
+        logger.info("table=<empty>")
+        return
+    for line in df.to_string(index=False).splitlines():
+        logger.info(f"{line}")
+
+
+def _trace_to_dataframe(trace: Any) -> pd.DataFrame:
+    trace_type = getattr(trace, "type", "unknown")
+
+    if trace_type == "bar":
+        x = _to_list(getattr(trace, "x", None))
+        y = _to_list(getattr(trace, "y", None))
+        if x or y:
+            return pd.DataFrame({"x": x, "y": y})
+
+    if trace_type == "scatter":
+        x = _to_list(getattr(trace, "x", None))
+        y = _to_list(getattr(trace, "y", None))
+        text = _to_list(getattr(trace, "text", None))
+        data: dict[str, Any] = {}
+        if x:
+            data["x"] = x
+        if y:
+            data["y"] = y
+        if text and len(text) == max(len(x), len(y), len(text)):
+            data["text"] = text
+        if data:
+            return pd.DataFrame(data)
+
+    if trace_type == "sunburst":
+        labels = _to_list(getattr(trace, "labels", None))
+        parents = _to_list(getattr(trace, "parents", None))
+        values = _to_list(getattr(trace, "values", None))
+        data: dict[str, Any] = {}
+        if labels:
+            data["label"] = labels
+        if parents:
+            data["parent"] = parents
+        if values:
+            data["value"] = values
+        if data:
+            return pd.DataFrame(data)
+
+    if trace_type == "sankey":
+        node = getattr(trace, "node", None)
+        link = getattr(trace, "link", None)
+
+        labels = _to_list(getattr(node, "label", None)) if node is not None else []
+        sources = _to_list(getattr(link, "source", None)) if link is not None else []
+        targets = _to_list(getattr(link, "target", None)) if link is not None else []
+        values = _to_list(getattr(link, "value", None)) if link is not None else []
+
+        rows: list[dict[str, Any]] = []
+        for source, target, value in zip(sources, targets, values):
+            source_label = labels[source] if isinstance(source, int) and 0 <= source < len(labels) else source
+            target_label = labels[target] if isinstance(target, int) and 0 <= target < len(labels) else target
+            rows.append({
+                "source": source_label,
+                "target": target_label,
+                "value": value,
+            })
+        if rows:
+            return pd.DataFrame(rows)
+
+    if trace_type in {"heatmap", "histogram2d"}:
+        x = _to_list(getattr(trace, "x", None))
+        y = _to_list(getattr(trace, "y", None))
+        z = getattr(trace, "z", None)
+        if z is not None and x and y:
+            try:
+                matrix = pd.DataFrame(z, index=y, columns=x)
+                matrix.index.name = "y"
+                return matrix.reset_index()
+            except Exception:
+                pass
+
+    labels = _to_list(getattr(trace, "labels", None))
+    values = _to_list(getattr(trace, "values", None))
+    if labels or values:
+        data: dict[str, Any] = {}
+        if labels:
+            data["label"] = labels
+        if values:
+            data["value"] = values
+        return pd.DataFrame(data)
+
+    return pd.DataFrame({"trace_repr": [str(trace)]})
+
+
+def _log_figure_values(plot_name: str, fig: go.Figure) -> None:
+    logger.info(f"Plot values for {plot_name}")
+    logger.info(f"trace_count={len(fig.data)}")
+    for index, trace in enumerate(fig.data, start=1):
+        trace_name = getattr(trace, "name", "") or f"trace_{index}"
+        trace_type = getattr(trace, "type", "unknown")
+        logger.info(f"trace_index={index} trace_name={trace_name} trace_type={trace_type}")
+        trace_df = _trace_to_dataframe(trace)
+        _log_dataframe(f"Trace table for {plot_name} [{trace_name}]", trace_df)
+
+
 def create_histogram_figure(df: pd.DataFrame, field: str) -> go.Figure:
     counts = _safe_counts(df, field)
     fig = px.bar(counts, x=field, y='count', title='')
@@ -243,6 +363,23 @@ def create_transition_graph_figure(df: pd.DataFrame, plot_fields: list[str]) -> 
     return fig
 
 
+def _save_logged_figure(
+    fig: go.Figure,
+    plot_name: str,
+    output_dir,
+    final_dir,
+    **export_kwargs,
+) -> dict[str, Any]:
+    _log_figure_values(plot_name, fig)
+    return save_plotly_figure(
+        fig,
+        plot_name,
+        output_dir=output_dir,
+        final_dir=final_dir,
+        **export_kwargs,
+    )
+
+
 def create_all_plots(
     parsed_df: pd.DataFrame,
     filtered_df: pd.DataFrame,
@@ -271,8 +408,9 @@ def create_all_plots(
         'export_timeout_seconds': image_export_timeout_seconds,
     }
 
-    manifest['plots']['accident_overview_sankey'] = save_plotly_figure(
-        build_sankey_figure(filtered_df, plot_fields, min_count=min_count, max_categories=max_categories),
+    sankey_fig = build_sankey_figure(filtered_df, plot_fields, min_count=min_count, max_categories=max_categories)
+    manifest['plots']['accident_overview_sankey'] = _save_logged_figure(
+        sankey_fig,
         'accident_overview_sankey',
         output_dir=output_dirs.plots,
         final_dir=output_dirs.figures,
@@ -280,16 +418,18 @@ def create_all_plots(
     )
 
     if len(plot_fields) >= 2:
-        manifest['plots']['accident_overview_sunburst'] = save_plotly_figure(
-            create_sunburst_figure(filtered_df, plot_fields),
+        sunburst_fig = create_sunburst_figure(filtered_df, plot_fields)
+        manifest['plots']['accident_overview_sunburst'] = _save_logged_figure(
+            sunburst_fig,
             'accident_overview_sunburst',
             output_dir=output_dirs.plots,
             final_dir=output_dirs.figures,
             **export_kwargs,
         )
 
-        manifest['plots']['accident_transition_graph'] = save_plotly_figure(
-            create_transition_graph_figure(filtered_df, plot_fields),
+        transition_fig = create_transition_graph_figure(filtered_df, plot_fields)
+        manifest['plots']['accident_transition_graph'] = _save_logged_figure(
+            transition_fig,
             'accident_transition_graph',
             output_dir=output_dirs.plots,
             final_dir=output_dirs.figures,
@@ -300,8 +440,9 @@ def create_all_plots(
     for field in histogram_fields:
         if field not in parsed_df.columns:
             continue
-        histogram_manifest[field] = save_plotly_figure(
-            create_histogram_figure(parsed_df, field),
+        histogram_fig = create_histogram_figure(parsed_df, field)
+        histogram_manifest[field] = _save_logged_figure(
+            histogram_fig,
             field,
             output_dir=output_dirs.histograms,
             final_dir=output_dirs.figures_histograms,
@@ -310,96 +451,31 @@ def create_all_plots(
     manifest['plots']['histograms'] = histogram_manifest
 
     paper_manifest: dict[str, Any] = {}
-    paper_manifest['taxonomy_overview'] = save_plotly_figure(
-        create_taxonomy_bar_figure(filtered_df, top_n=paper_plot_top_n),
-        'taxonomy_overview',
-        output_dir=output_dirs.paper,
-        final_dir=output_dirs.figures_paper,
-        **export_kwargs,
-    )
-    paper_manifest['blind_spots_missingness'] = save_plotly_figure(
-        create_blind_spot_figure(parsed_df, fields=blind_spot_fields),
-        'blind_spots_missingness',
-        output_dir=output_dirs.paper,
-        final_dir=output_dirs.figures_paper,
-        **export_kwargs,
-    )
-    paper_manifest['accountability_by_taxonomy'] = save_plotly_figure(
-        create_accountability_by_taxonomy_figure(filtered_df, top_n=paper_plot_top_n),
-        'accountability_by_taxonomy',
-        output_dir=output_dirs.paper,
-        final_dir=output_dirs.figures_paper,
-        **export_kwargs,
-    )
-    paper_manifest['report_completeness'] = save_plotly_figure(
-        create_completeness_figure(parsed_df),
-        'report_completeness',
-        output_dir=output_dirs.paper,
-        final_dir=output_dirs.figures_paper,
-        **export_kwargs,
-    )
-    paper_manifest['taxonomy_by_road_user'] = save_plotly_figure(
-        create_taxonomy_by_road_user_figure(filtered_df, top_n=paper_plot_top_n),
-        'taxonomy_by_road_user',
-        output_dir=output_dirs.paper,
-        final_dir=output_dirs.figures_paper,
-        **export_kwargs,
-    )
-    paper_manifest['provenance_availability'] = save_plotly_figure(
-        create_provenance_availability_figure(parsed_df),
-        'provenance_availability',
-        output_dir=output_dirs.paper,
-        final_dir=output_dirs.figures_paper,
-        **export_kwargs,
-    )
-    paper_manifest['context_gap'] = save_plotly_figure(
-        create_context_gap_figure(parsed_df),
-        'context_gap',
-        output_dir=output_dirs.paper,
-        final_dir=output_dirs.figures_paper,
-        **export_kwargs,
-    )
-    paper_manifest['movement_consistency'] = save_plotly_figure(
-        create_consistency_figure(parsed_df),
-        'movement_consistency',
-        output_dir=output_dirs.paper,
-        final_dir=output_dirs.figures_paper,
-        **export_kwargs,
-    )
-    paper_manifest['scenario_determinability'] = save_plotly_figure(
-        create_determinability_figure(filtered_df),
-        'scenario_determinability',
-        output_dir=output_dirs.paper,
-        final_dir=output_dirs.figures_paper,
-        **export_kwargs,
-    )
-    paper_manifest['environment_profile'] = save_plotly_figure(
-        create_environment_profile_figure(filtered_df),
-        'environment_profile',
-        output_dir=output_dirs.paper,
-        final_dir=output_dirs.figures_paper,
-        **export_kwargs,
-    )
-    paper_manifest['blame_confidence_alignment'] = save_plotly_figure(
-        create_blame_alignment_figure(parsed_df),
-        'blame_confidence_alignment',
-        output_dir=output_dirs.paper,
-        final_dir=output_dirs.figures_paper,
-        **export_kwargs,
-    )
-    paper_manifest['stopped_av_subtype'] = save_plotly_figure(
-        create_stopped_av_subtype_figure(filtered_df),
-        'stopped_av_subtype',
-        output_dir=output_dirs.paper,
-        final_dir=output_dirs.figures_paper,
-        **export_kwargs,
-    )
-    paper_manifest['intersection_detail_quality'] = save_plotly_figure(
-        create_intersection_detail_figure(parsed_df),
-        'intersection_detail_quality',
-        output_dir=output_dirs.paper,
-        final_dir=output_dirs.figures_paper,
-        **export_kwargs,
-    )
+
+    figure_specs = [
+        ('taxonomy_overview', create_taxonomy_bar_figure(filtered_df, top_n=paper_plot_top_n)),
+        ('blind_spots_missingness', create_blind_spot_figure(parsed_df, fields=blind_spot_fields)),
+        ('accountability_by_taxonomy', create_accountability_by_taxonomy_figure(filtered_df, top_n=paper_plot_top_n)),
+        ('report_completeness', create_completeness_figure(parsed_df)),
+        ('taxonomy_by_road_user', create_taxonomy_by_road_user_figure(filtered_df, top_n=paper_plot_top_n)),
+        ('provenance_availability', create_provenance_availability_figure(parsed_df)),
+        ('context_gap', create_context_gap_figure(parsed_df)),
+        ('movement_consistency', create_consistency_figure(parsed_df)),
+        ('scenario_determinability', create_determinability_figure(filtered_df)),
+        ('environment_profile', create_environment_profile_figure(filtered_df)),
+        ('blame_confidence_alignment', create_blame_alignment_figure(parsed_df)),
+        ('stopped_av_subtype', create_stopped_av_subtype_figure(filtered_df)),
+        ('intersection_detail_quality', create_intersection_detail_figure(parsed_df)),
+    ]
+
+    for plot_name, fig in figure_specs:
+        paper_manifest[plot_name] = _save_logged_figure(
+            fig,
+            plot_name,
+            output_dir=output_dirs.paper,
+            final_dir=output_dirs.figures_paper,
+            **export_kwargs,
+        )
+
     manifest['plots']['paper'] = paper_manifest
     return manifest
