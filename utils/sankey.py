@@ -7,6 +7,7 @@ from typing import Any
 import pandas as pd
 import plotly.graph_objects as go
 
+from utils.labels import humanize_text
 from utils.normalise import is_missing, normalise_category
 
 logger = logging.getLogger(__name__)
@@ -74,7 +75,7 @@ def build_sankey_figure(df: pd.DataFrame, plot_fields: list[str], min_count: int
         key = f'{stage}|{value}'
         if key not in node_map:
             node_map[key] = len(node_labels)
-            node_labels.append(value)
+            node_labels.append(humanize_text(value))
         return node_map[key]
 
     for left, right in zip(plot_fields[:-1], plot_fields[1:]):

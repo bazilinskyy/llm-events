@@ -6,5 +6,6 @@ dependencies = [
   "plotly>=6.1",
   "kaleido>=1.0",
   "networkx>=3.4",
-  "cairosvg>=2.7"
+  "cairosvg>=2.7",
+  "pycountry>=26.2.16",
 ]
