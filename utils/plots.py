@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+import common
 import plotly as py
 import plotly.graph_objects as go
 
@@ -30,6 +31,7 @@ fig = pio.from_json(json_path.read_text(encoding="utf-8"))
 fig.write_image(str(out_path), format=fmt, width=width, height=height, scale=scale)
 '''
 
+
 # Edit figure styles directly here.
 #
 # The key must match the figure filename passed to save_plotly_figure().
@@ -38,31 +40,55 @@ fig.write_image(str(out_path), format=fmt, width=width, height=height, scale=sca
 # - paper figures: taxonomy_overview, taxonomy_by_road_user, context_gap, ...
 # - overview figures: accident_overview_sankey, accident_overview_sunburst, ...
 #
-# 'default' applies to all figures first.
-# A figure specific block overrides only that figure.
+# The default block is loaded from the shared config via common.get_configs().
+# Figure specific blocks override only that figure.
 FIGURE_STYLE_OVERRIDES: dict[str, dict[str, Any]] = {
-    'default': {
-        'font_family': 'Arial',
-        'font_size': 12,
-        'title_font_size': 18,
-        'legend_font_size': 11,
-        'legend_title_font_size': 12,
-        'axis_title_font_size': 14,
-        'axis_tick_font_size': 11,
-        'template': 'plotly_white',
-    },
-    'road_user_type': {
-        # Edit this block to control only the road_user_type histogram.
-        'font_family': 'Times New Roman',
-        'font_size': 16,
-        'title_font_size': 22,
-        'xaxis_title_font_size': 24,
-        'yaxis_title_font_size': 22,
-        'xaxis_tick_font_size': 16,
-        'yaxis_tick_font_size': 14,
-        'xaxis_tick_angle': 0,
+    'accountability_by_taxonomy': {
+        # 'legend_orientation': 'h',
+        'legend_x': 0.9,
+        'legend_y': 0.8,
+        'legend_xanchor': 'center',
+        'legend_yanchor': 'bottom',
     },
 }
+
+
+def _get_common_config(*keys: str, default: Any = None) -> Any:
+    for key in keys:
+        try:
+            value = common.get_configs(key)
+        except Exception:
+            value = None
+        if value is not None:
+            return value
+    return default
+
+
+def _coerce_int(value: Any, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _load_default_figure_style() -> dict[str, Any]:
+    font_family = _get_common_config('font_family', default='Arial')
+    font_size = _coerce_int(_get_common_config('font_size', default=12), 12)
+    title_font_size = _coerce_int(_get_common_config('title_font_size', default=18), 18)
+    legend_font_size = _coerce_int(_get_common_config('legend_font_size', default=font_size), font_size)
+    legend_title_font_size = _coerce_int(_get_common_config('legend_title_font_size', default=legend_font_size), legend_font_size)
+    axis_title_font_size = _coerce_int(_get_common_config('axis_title_font_size', default=font_size), font_size)
+    axis_tick_font_size = _coerce_int(_get_common_config('axis_tick_font_size', default=font_size), font_size)
+    return {
+        'font_family': font_family,
+        'font_size': font_size,
+        'title_font_size': title_font_size,
+        'legend_font_size': legend_font_size,
+        'legend_title_font_size': legend_title_font_size,
+        'axis_title_font_size': axis_title_font_size,
+        'axis_tick_font_size': axis_tick_font_size,
+        'template': _get_common_config('plotly_template', 'template', default='plotly_white'),
+    }
 
 
 def _copy_if_exists(src: Path, dst: Path) -> None:
@@ -71,7 +97,8 @@ def _copy_if_exists(src: Path, dst: Path) -> None:
         shutil.copy(src, dst)
 
 
-def _run_image_worker(fig: go.Figure, out_path: Path, fmt: str, width: int, height: int, scale: int, timeout_seconds: int) -> tuple[bool, str]:
+def _run_image_worker(fig: go.Figure, out_path: Path, fmt: str, width: int, height: int, scale: int,
+                      timeout_seconds: int) -> tuple[bool, str]:
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -143,7 +170,7 @@ def _save_eps(fig: go.Figure, eps_path: Path, width: int, height: int, scale: in
 
 def _merged_figure_style(filename: str) -> dict[str, Any]:
     style: dict[str, Any] = {}
-    style.update(FIGURE_STYLE_OVERRIDES.get('default', {}))
+    style.update(_load_default_figure_style())
     style.update(FIGURE_STYLE_OVERRIDES.get(filename, {}))
     return style
 
@@ -196,12 +223,22 @@ def _apply_figure_style(fig: go.Figure, filename: str) -> go.Figure:
         layout_updates['plot_bgcolor'] = style['plot_bgcolor']
     if title_font:
         layout_updates['title'] = {'font': title_font}
-    if legend_font or legend_title_font:
+    if legend_font or legend_title_font or style.get('legend_orientation') is not None or style.get('legend_x') is not None or style.get('legend_y') is not None or style.get('legend_xanchor') is not None or style.get('legend_yanchor') is not None:
         layout_updates['legend'] = {}
         if legend_font:
             layout_updates['legend']['font'] = legend_font
         if legend_title_font:
             layout_updates['legend']['title'] = {'font': legend_title_font}
+        if style.get('legend_orientation') is not None:
+            layout_updates['legend']['orientation'] = style['legend_orientation']
+        if style.get('legend_x') is not None:
+            layout_updates['legend']['x'] = style['legend_x']
+        if style.get('legend_y') is not None:
+            layout_updates['legend']['y'] = style['legend_y']
+        if style.get('legend_xanchor') is not None:
+            layout_updates['legend']['xanchor'] = style['legend_xanchor']
+        if style.get('legend_yanchor') is not None:
+            layout_updates['legend']['yanchor'] = style['legend_yanchor']
 
     if layout_updates:
         fig.update_layout(**layout_updates)

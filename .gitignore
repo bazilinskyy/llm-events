@@ -111,7 +111,7 @@ secret
 /llmevents/mistral.ipynb
 
 # data.csv
-data.csv
+data
 output
 \reports
 LLM_query.json

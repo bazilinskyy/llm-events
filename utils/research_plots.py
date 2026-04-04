@@ -57,7 +57,9 @@ def create_accountability_by_taxonomy_figure(df: pd.DataFrame, top_n: int = 8) -
     counts['scenario_class'] = _format_series(counts['scenario_class'])
     counts['blame_group'] = _format_series(counts['blame_group'])
     fig = px.bar(counts, x='scenario_class', y='count', color='blame_group', barmode='stack', title='')
-    return _update_axis_labels(fig, x='scenario_class', y='count', legend='blame_group')
+    fig = _update_axis_labels(fig, x='scenario_class', y='count', legend='blame_group')
+    fig.update_layout(legend_title_text='')
+    return fig
 
 
 def create_completeness_figure(df: pd.DataFrame) -> go.Figure:
