@@ -87,6 +87,30 @@ def _to_list(values: Any) -> list[Any]:
         return [values]
 
 
+def _uses_brace_formatting_logger() -> bool:
+    """Returns whether the active logger uses brace style formatting.
+
+    The project sometimes routes logs through ``CustomLogger``, which applies
+    ``str.format`` to message text. Plotly trace strings contain many literal
+    braces, so those must be escaped before logging.
+    """
+
+    return logger.__class__.__name__ == 'CustomLogger'
+
+
+def _escape_braces(text: str) -> str:
+    """Escapes literal braces for brace style loggers."""
+
+    return text.replace('{', '{{').replace('}', '}}')
+
+
+def _log_info(message: str) -> None:
+    """Logs a message safely for both standard and brace style loggers."""
+
+    text = _escape_braces(message) if _uses_brace_formatting_logger() else message
+    logger.info(text)
+
+
 def _log_dataframe(title: str, df: pd.DataFrame) -> None:
     """Logs a dataframe in a readable table form.
 
@@ -95,14 +119,14 @@ def _log_dataframe(title: str, df: pd.DataFrame) -> None:
         df: Dataframe to log.
     """
 
-    logger.info(f"{title}")
-    logger.info(f"rows={len(df)} columns={list(df.columns)}")
+    _log_info(f"{title}")
+    _log_info(f"rows={len(df)} columns={list(df.columns)}")
     if df.empty:
-        logger.info("table=<empty>")
+        _log_info('table=<empty>')
         return
 
     for line in df.to_string(index=False).splitlines():
-        logger.info(f"{line}")
+        _log_info(f"{line}")
 
 
 def _trace_to_dataframe(trace: Any) -> pd.DataFrame:
@@ -117,50 +141,70 @@ def _trace_to_dataframe(trace: Any) -> pd.DataFrame:
         available.
     """
 
-    trace_type = getattr(trace, "type", "unknown")
+    trace_type = getattr(trace, 'type', 'unknown')
 
-    if trace_type == "bar":
-        x = _to_list(getattr(trace, "x", None))
-        y = _to_list(getattr(trace, "y", None))
+    if trace_type == 'bar':
+        x = _to_list(getattr(trace, 'x', None))
+        y = _to_list(getattr(trace, 'y', None))
         if x or y:
-            return pd.DataFrame({"x": x, "y": y})
+            return pd.DataFrame({'x': x, 'y': y})
 
-    if trace_type == "scatter":
-        x = _to_list(getattr(trace, "x", None))
-        y = _to_list(getattr(trace, "y", None))
-        text = _to_list(getattr(trace, "text", None))
+    if trace_type == 'scatter':
+        x = _to_list(getattr(trace, 'x', None))
+        y = _to_list(getattr(trace, 'y', None))
+        text = _to_list(getattr(trace, 'text', None))
         data: dict[str, Any] = {}
         if x:
-            data["x"] = x
+            data['x'] = x
         if y:
-            data["y"] = y
+            data['y'] = y
         if text and len(text) == max(len(x), len(y), len(text)):
-            data["text"] = text
+            data['text'] = text
         if data:
             return pd.DataFrame(data)
 
-    if trace_type == "sunburst":
-        labels = _to_list(getattr(trace, "labels", None))
-        parents = _to_list(getattr(trace, "parents", None))
-        values = _to_list(getattr(trace, "values", None))
+    if trace_type == 'histogram':
+        x = _to_list(getattr(trace, 'x', None))
+        if x:
+            series = pd.Series(x, name='x')
+            numeric = pd.to_numeric(series, errors='coerce')
+            if numeric.notna().all():
+                return pd.DataFrame([
+                    {
+                        'count': int(len(series)),
+                        'min': float(numeric.min()),
+                        'max': float(numeric.max()),
+                        'mean': float(numeric.mean()),
+                        'nbinsx': getattr(trace, 'nbinsx', None),
+                    }
+                ])
+
+            counts = series.astype(str).value_counts(dropna=False).reset_index()
+            counts.columns = ['x', 'count']
+            return counts
+
+    if trace_type == 'sunburst':
+        labels = _to_list(getattr(trace, 'labels', None))
+        parents = _to_list(getattr(trace, 'parents', None))
+        values = _to_list(getattr(trace, 'values', None))
         data: dict[str, Any] = {}
         if labels:
-            data["label"] = labels
+            data['label'] = labels
         if parents:
-            data["parent"] = parents
+            data['parent'] = parents
         if values:
-            data["value"] = values
+            data['value'] = values
         if data:
             return pd.DataFrame(data)
 
-    if trace_type == "sankey":
-        node = getattr(trace, "node", None)
-        link = getattr(trace, "link", None)
+    if trace_type == 'sankey':
+        node = getattr(trace, 'node', None)
+        link = getattr(trace, 'link', None)
 
-        labels = _to_list(getattr(node, "label", None)) if node is not None else []
-        sources = _to_list(getattr(link, "source", None)) if link is not None else []
-        targets = _to_list(getattr(link, "target", None)) if link is not None else []
-        values = _to_list(getattr(link, "value", None)) if link is not None else []
+        labels = _to_list(getattr(node, 'label', None)) if node is not None else []
+        sources = _to_list(getattr(link, 'source', None)) if link is not None else []
+        targets = _to_list(getattr(link, 'target', None)) if link is not None else []
+        values = _to_list(getattr(link, 'value', None)) if link is not None else []
 
         rows: list[dict[str, Any]] = []
         for source, target, value in zip(sources, targets, values):
@@ -175,36 +219,36 @@ def _trace_to_dataframe(trace: Any) -> pd.DataFrame:
                 else target
             )
             rows.append({
-                "source": source_label,
-                "target": target_label,
-                "value": value,
+                'source': source_label,
+                'target': target_label,
+                'value': value,
             })
         if rows:
             return pd.DataFrame(rows)
 
-    if trace_type in {"heatmap", "histogram2d"}:
-        x = _to_list(getattr(trace, "x", None))
-        y = _to_list(getattr(trace, "y", None))
-        z = getattr(trace, "z", None)
+    if trace_type in {'heatmap', 'histogram2d'}:
+        x = _to_list(getattr(trace, 'x', None))
+        y = _to_list(getattr(trace, 'y', None))
+        z = getattr(trace, 'z', None)
         if z is not None and x and y:
             try:
                 matrix = pd.DataFrame(z, index=y, columns=x)
-                matrix.index.name = "y"
+                matrix.index.name = 'y'
                 return matrix.reset_index()
             except Exception:
                 pass
 
-    labels = _to_list(getattr(trace, "labels", None))
-    values = _to_list(getattr(trace, "values", None))
+    labels = _to_list(getattr(trace, 'labels', None))
+    values = _to_list(getattr(trace, 'values', None))
     if labels or values:
         data: dict[str, Any] = {}
         if labels:
-            data["label"] = labels
+            data['label'] = labels
         if values:
-            data["value"] = values
+            data['value'] = values
         return pd.DataFrame(data)
 
-    return pd.DataFrame({"trace_repr": [str(trace)]})
+    return pd.DataFrame({'trace_repr': [str(trace)]})
 
 
 def _log_figure_values(plot_name: str, fig: go.Figure) -> None:
@@ -215,17 +259,17 @@ def _log_figure_values(plot_name: str, fig: go.Figure) -> None:
         fig: Figure whose traces should be logged.
     """
 
-    logger.info(f"Plot values for {plot_name}")
-    logger.info(f"trace_count={len(fig.data)}")
+    _log_info(f"Plot values for {plot_name}")
+    _log_info(f"trace_count={len(fig.data)}")
 
     for index, trace in enumerate(fig.data, start=1):
-        trace_name = getattr(trace, "name", "") or f"trace_{index}"
-        trace_type = getattr(trace, "type", "unknown")
-        logger.info(
-            f"trace_index={index} trace_name={trace_name} trace_type={trace_type}"
+        trace_name = getattr(trace, 'name', '') or f'trace_{index}'
+        trace_type = getattr(trace, 'type', 'unknown')
+        _log_info(
+            f'trace_index={index} trace_name={trace_name} trace_type={trace_type}'
         )
         trace_df = _trace_to_dataframe(trace)
-        _log_dataframe(f"Trace table for {plot_name} [{trace_name}]", trace_df)
+        _log_dataframe(f'Trace table for {plot_name} [{trace_name}]', trace_df)
 
 
 def create_histogram_figure(df: pd.DataFrame, field: str) -> go.Figure:
@@ -355,7 +399,11 @@ def _save_logged_figure(
         The export manifest returned by ``save_plotly_figure``.
     """
 
-    _log_figure_values(plot_name, fig)
+    try:
+        _log_figure_values(plot_name, fig)
+    except Exception:
+        logger.exception('Failed to log figure values for %s. Continuing with export.', plot_name)
+
     return save_plotly_figure(
         fig,
         plot_name,

@@ -226,14 +226,8 @@ def parse_events_dataframe(df: pd.DataFrame, text_column: str) -> pd.DataFrame:
         )
         parsed['model_output_text'] = clean_value(row.get(text_column, 'NA'))
         parsed['raw_output_text'] = clean_value(row.get('Output', 'NA'))
-        parsed['raw_same_chat_text'] = clean_value(
-            row.get('Output - same chat', 'NA')
-        )
         parsed['output_text_score'] = clean_value(
-            row.get('output_text_score', 'NA')
-        )
-        parsed['same_chat_text_score'] = clean_value(
-            row.get('same_chat_text_score', 'NA')
+            row.get('output_text_score', row.get('selected_text_score', 'NA'))
         )
 
         records.append(parsed)

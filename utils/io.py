@@ -136,35 +136,28 @@ def _choose_text_column(
 ) -> str:
     """Chooses the text column to use for downstream parsing.
 
+    The pipeline now reads only the main ``Output`` column. Any preferred
+    column setting that points elsewhere is ignored so that downstream parsing
+    always remains anchored to the primary response export.
+
     Args:
-        df: Input dataframe containing one or more output text columns.
+        df: Input dataframe containing raw model output text.
         preferred: Preferred column name, if supplied by configuration.
-        row_keep_policy: Policy controlling which output columns should be
-            prioritised.
+        row_keep_policy: Retained for backwards compatibility with existing
+            configuration, but no longer changes column selection.
 
     Returns:
-        The selected column name.
+        The selected column name, always ``"Output"``.
 
     Raises:
-        KeyError: If no usable text column is present in ``df``.
+        KeyError: If the ``Output`` column is missing.
     """
 
-    candidates: list[str] = []
-
-    if preferred:
-        candidates.append(preferred)
-
-    if row_keep_policy == "output_only":
-        candidates.extend(["Output", "Output - same chat"])
-    else:
-        candidates.extend(["Output - same chat", "Output"])
-
-    for candidate in candidates:
-        if candidate in df.columns:
-            return candidate
+    if "Output" in df.columns:
+        return "Output"
 
     raise KeyError(
-        f"Could not find a usable text column. Available columns: {list(df.columns)}"
+        f'Could not find the required Output column. Available columns: {list(df.columns)}'
     )
 
 
@@ -175,86 +168,46 @@ def load_input_events(
 ) -> tuple[pd.DataFrame, str]:
     """Loads the input CSV and prepares the text selected for parsing.
 
-    Depending on ``row_keep_policy``, this function either:
-
-    * keeps only rows with non missing ``Output``
-    * keeps rows with any available output text
-    * selects the best text column separately for each row
-
-    It also adds metadata columns used later in the pipeline, such as
-    ``row_id``, ``selected_text_column``, and ``selected_text_score``.
+    The pipeline now reads only the main ``Output`` column. Rows with missing
+    ``Output`` are dropped at load time, and any auxiliary same chat column is
+    ignored entirely even when it is present in the CSV.
 
     Args:
         input_csv: Path to the input CSV file.
-        preferred_text_column: Optional preferred text column name.
-        row_keep_policy: Strategy used to retain rows and choose text.
-            Supported values in the wider pipeline include ``output_only``,
-            ``best_available``, and ``best_per_row``.
+        preferred_text_column: Optional preferred text column name. Kept for
+            backwards compatibility but ignored unless it is ``"Output"``.
+        row_keep_policy: Kept for backwards compatibility with existing
+            configuration. It no longer changes how rows are retained.
 
     Returns:
         A tuple of:
             * the prepared dataframe
             * the name of the text column to parse
 
-        For ``best_per_row``, the returned column name is
-        ``model_output_text``.
-
     Raises:
-        KeyError: If the required text columns are missing.
+        KeyError: If the required ``Output`` column is missing.
     """
 
     df = pd.read_csv(input_csv)
     df = df.reset_index(drop=True)
     df["row_id"] = df.index.astype(int)
 
-    available_text_cols = [
-        col for col in ["Output", "Output - same chat"] if col in df.columns
-    ]
-    if not available_text_cols:
-        raise KeyError(
-            "Input CSV must contain Output and or Output - same chat columns."
-        )
+    if "Output" not in df.columns:
+        raise KeyError('Input CSV must contain an Output column.')
 
     total_rows = len(df)
-
-    if row_keep_policy in {"best_available", "best_per_row"}:
-        # Keep rows that contain at least one non missing candidate text field.
-        keep_mask = pd.Series(False, index=df.index)
-        for col in available_text_cols:
-            keep_mask = keep_mask | ~df[col].apply(is_missing)
-    else:
-        if "Output" not in df.columns:
-            raise KeyError('row_keep_policy="output_only" requires an Output column.')
-        keep_mask = ~df["Output"].apply(is_missing)
+    keep_mask = ~df["Output"].apply(is_missing)
 
     dropped = total_rows - int(keep_mask.sum())
     if dropped:
         logger.info(
-            "Dropped %s rows because the selected row_keep_policy=%s marked "
-            "them as empty.",
+            "Dropped %s rows because the Output column was empty.",
             dropped,
-            row_keep_policy,
         )
 
     df = df.loc[keep_mask].copy()
     df.attrs["dropped_empty_output"] = dropped
     df.attrs["row_keep_policy"] = row_keep_policy
-
-    if row_keep_policy == "best_per_row":
-        # Score each candidate column row by row, then keep the best one for
-        # each record.
-        score_map = {col: df[col].map(_score_text) for col in available_text_cols}
-        score_df = pd.DataFrame(score_map)
-
-        chosen = score_df.idxmax(axis=1)
-        chosen_score = score_df.max(axis=1)
-
-        df["selected_text_column"] = chosen
-        df["selected_text_score"] = chosen_score
-        df["model_output_text"] = [df.at[idx, col] for idx, col in chosen.items()]
-
-        logger.info("Per row text selection summary: %s", dict(chosen.value_counts()))
-        return df.reset_index(drop=True), "model_output_text"
 
     text_column = _choose_text_column(
         df,
@@ -262,16 +215,13 @@ def load_input_events(
         row_keep_policy=row_keep_policy,
     )
 
-    if text_column == "Output - same chat" and "Output" in df.columns:
-        if row_keep_policy == "best_available":
-            # Use Output as a fallback when same chat output is unavailable.
-            df[text_column] = df[text_column].fillna(df["Output"])
-        else:
-            # Keep missing values empty when the policy should not fall back.
-            df[text_column] = df[text_column].fillna("")
-
     df["selected_text_column"] = text_column
     df["selected_text_score"] = df[text_column].map(_score_text)
+
+    logger.info(
+        "Text selection summary: %s",
+        {"Output": int(len(df))},
+    )
 
     return df.reset_index(drop=True), text_column
 

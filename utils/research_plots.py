@@ -158,7 +158,7 @@ def create_accountability_by_taxonomy_figure(
         barmode='stack',
         title='',
     )
-    fig = _update_axis_labels(fig, x='scenario_class', y='count', legend='blame_group')
+    fig = _update_axis_labels(fig, x='scenario_class', y='count', legend='')
 
     # The legend title is intentionally hidden for this plot.
     fig.update_layout(legend_title_text='')

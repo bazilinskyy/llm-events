@@ -6,8 +6,8 @@ This module centralises Plotly figure styling and file export. It provides:
 
 * shared default style loading from project config
 * figure specific style overrides
-* HTML, PNG, and EPS export helpers
-* fallback logic for static image export
+* HTML, PNG, PDF, and EPS export helpers
+* stable EPS export through a PDF to EPS conversion path
 * optional browser opening for generated HTML files
 """
 
@@ -20,18 +20,9 @@ from pathlib import Path
 from typing import Any
 
 import common
-import plotly as py
 import plotly.graph_objects as go
 
 from utils.io import maybe_open_html
-
-# CairoSVG is optional. On some machines the Python package may be installed
-# while the native Cairo system library is missing, which raises OSError during
-# import rather than ImportError. Treat either case as unavailable.
-try:
-    import cairosvg
-except (ImportError, OSError):  # pragma: no cover
-    cairosvg = None
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +65,17 @@ FIGURE_STYLE_OVERRIDES: dict[str, dict[str, Any]] = {
 }
 
 
+_POSTSCRIPT_FONT_MAP = {
+    "arial": "Helvetica",
+    "arial black": "Helvetica-Bold",
+    "helvetica": "Helvetica",
+    "times new roman": "Times-Roman",
+    "times": "Times-Roman",
+    "courier new": "Courier",
+    "courier": "Courier",
+}
+
+
 def _get_common_config(*keys: str, default: Any = None) -> Any:
     """Returns the first non null config value found for the given keys.
 
@@ -95,6 +97,7 @@ def _get_common_config(*keys: str, default: Any = None) -> Any:
     return default
 
 
+
 def _coerce_int(value: Any, default: int) -> int:
     """Converts a value to ``int`` with a safe fallback.
 
@@ -110,6 +113,7 @@ def _coerce_int(value: Any, default: int) -> int:
         return int(value)
     except (TypeError, ValueError):
         return default
+
 
 
 def _load_default_figure_style() -> dict[str, Any]:
@@ -162,6 +166,7 @@ def _load_default_figure_style() -> dict[str, Any]:
     }
 
 
+
 def _copy_if_exists(src: Path, dst: Path) -> None:
     """Copies a file only when the source exists.
 
@@ -173,6 +178,7 @@ def _copy_if_exists(src: Path, dst: Path) -> None:
     if src.exists():
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(src, dst)
+
 
 
 def _run_image_worker(
@@ -247,6 +253,7 @@ def _run_image_worker(
             return False, str(exc)
 
 
+
 def _save_png(
     fig: go.Figure,
     png_path: Path,
@@ -280,6 +287,41 @@ def _save_png(
     )
 
 
+
+def _save_pdf(
+    fig: go.Figure,
+    pdf_path: Path,
+    width: int,
+    height: int,
+    scale: int,
+    timeout_seconds: int,
+) -> tuple[bool, str]:
+    """Exports a figure to PDF.
+
+    Args:
+        fig: Figure to export.
+        pdf_path: Destination PDF path.
+        width: Export width in pixels.
+        height: Export height in pixels.
+        scale: Plotly export scale factor.
+        timeout_seconds: Maximum export runtime.
+
+    Returns:
+        A success flag and status message.
+    """
+
+    return _run_image_worker(
+        fig,
+        pdf_path,
+        "pdf",
+        width=width,
+        height=height,
+        scale=scale,
+        timeout_seconds=timeout_seconds,
+    )
+
+
+
 def _save_eps(
     fig: go.Figure,
     eps_path: Path,
@@ -288,11 +330,11 @@ def _save_eps(
     scale: int,
     timeout_seconds: int,
 ) -> tuple[bool, str]:
-    """Exports a figure to EPS with fallback backends.
+    """Exports a figure to EPS.
 
-    The function first tries direct EPS export. If that fails, it attempts SVG
-    based conversion and then PDF based conversion when the required tools are
-    available.
+    The preferred path is PDF export followed by ``pdftops -eps`` because it
+    tends to preserve layout more consistently than direct EPS export. Direct
+    EPS export remains as a fallback when ``pdftops`` is unavailable.
 
     Args:
         fig: Figure to export.
@@ -306,53 +348,13 @@ def _save_eps(
         A success flag and status message.
     """
 
-    ok, message = _run_image_worker(
-        fig,
-        eps_path,
-        "eps",
-        width=width,
-        height=height,
-        scale=scale,
-        timeout_seconds=timeout_seconds,
-    )
-    if ok:
-        return True, message
-
-    # Fallback through SVG if direct EPS export is unavailable and CairoSVG is
-    # usable in the current environment.
-    if cairosvg is not None:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            svg_path = Path(tmpdir) / "temp.svg"
-            ok_svg, svg_message = _run_image_worker(
-                fig,
-                svg_path,
-                "svg",
-                width=width,
-                height=height,
-                scale=scale,
-                timeout_seconds=timeout_seconds,
-            )
-            if ok_svg and svg_path.exists():
-                try:
-                    cairosvg.svg2ps(url=str(svg_path), write_to=str(eps_path))
-                    if eps_path.exists():
-                        return True, svg_message
-                except Exception as exc:
-                    message = (
-                        f"{message}; svg fallback failed: {exc}"
-                        if message
-                        else f"svg fallback failed: {exc}"
-                    )
-
-    # Fallback through PDF and pdftops when available on the system.
     pdftops = shutil.which("pdftops")
     if pdftops:
         with tempfile.TemporaryDirectory() as tmpdir:
             pdf_path = Path(tmpdir) / "temp.pdf"
-            ok_pdf, pdf_message = _run_image_worker(
+            ok_pdf, pdf_message = _save_pdf(
                 fig,
                 pdf_path,
-                "pdf",
                 width=width,
                 height=height,
                 scale=scale,
@@ -368,15 +370,26 @@ def _save_eps(
                         timeout=timeout_seconds,
                     )
                     if eps_path.exists():
-                        return True, pdf_message
+                        return True, pdf_message or "exported via pdf to eps"
                 except Exception as exc:
-                    message = (
-                        f"{message}; pdf fallback failed: {exc}"
-                        if message
-                        else f"pdf fallback failed: {exc}"
+                    pdf_message = (
+                        f"{pdf_message}; pdf to eps conversion failed: {exc}"
+                        if pdf_message
+                        else f"pdf to eps conversion failed: {exc}"
                     )
+                    logger.warning(pdf_message)
 
-    return False, message or "EPS export failed in all available backends"
+    # Direct EPS export is left as a final fallback only.
+    return _run_image_worker(
+        fig,
+        eps_path,
+        "eps",
+        width=width,
+        height=height,
+        scale=scale,
+        timeout_seconds=timeout_seconds,
+    )
+
 
 
 def _merged_figure_style(filename: str) -> dict[str, Any]:
@@ -394,6 +407,7 @@ def _merged_figure_style(filename: str) -> dict[str, Any]:
     style.update(_load_default_figure_style())
     style.update(FIGURE_STYLE_OVERRIDES.get(filename, {}))
     return style
+
 
 
 def _font_dict(
@@ -421,6 +435,7 @@ def _font_dict(
     if color is not None:
         font["color"] = color
     return font
+
 
 
 def _apply_figure_style(fig: go.Figure, filename: str) -> go.Figure:
@@ -602,6 +617,185 @@ def _apply_figure_style(fig: go.Figure, filename: str) -> go.Figure:
     return fig
 
 
+
+def _clone_figure(fig: go.Figure) -> go.Figure:
+    """Returns a detached clone of a figure.
+
+    Args:
+        fig: Source figure.
+
+    Returns:
+        A deep cloned ``go.Figure``.
+    """
+
+    return go.Figure(fig)
+
+
+
+def _map_postscript_font_name(value: str) -> str:
+    """Maps common desktop font names to PostScript friendly names.
+
+    Args:
+        value: Raw font family string.
+
+    Returns:
+        The mapped font family string.
+    """
+
+    fonts = [part.strip() for part in value.split(",") if part.strip()]
+    mapped: list[str] = []
+    for font in fonts:
+        mapped.append(_POSTSCRIPT_FONT_MAP.get(font.lower(), font))
+    return ", ".join(mapped)
+
+
+
+def _coerce_postscript_fonts(fig: go.Figure) -> go.Figure:
+    """Rewrites common font family names to PostScript safe equivalents.
+
+    Args:
+        fig: Figure to adjust.
+
+    Returns:
+        The updated figure.
+    """
+
+    for trace in fig.data:
+        try:
+            if getattr(trace, "textfont", None) and getattr(trace.textfont, "family", None):
+                trace.textfont.family = _map_postscript_font_name(trace.textfont.family)
+        except Exception:
+            pass
+
+        try:
+            if getattr(trace, "insidetextfont", None) and getattr(trace.insidetextfont, "family", None):
+                trace.insidetextfont.family = _map_postscript_font_name(trace.insidetextfont.family)
+        except Exception:
+            pass
+
+        try:
+            if getattr(trace, "outsidetextfont", None) and getattr(trace.outsidetextfont, "family", None):
+                trace.outsidetextfont.family = _map_postscript_font_name(trace.outsidetextfont.family)
+        except Exception:
+            pass
+
+        try:
+            if getattr(trace, "hoverlabel", None) and getattr(trace.hoverlabel, "font", None):
+                family = getattr(trace.hoverlabel.font, "family", None)
+                if family:
+                    trace.hoverlabel.font.family = _map_postscript_font_name(family)
+        except Exception:
+            pass
+
+    try:
+        if fig.layout.font and fig.layout.font.family:
+            fig.layout.font.family = _map_postscript_font_name(fig.layout.font.family)
+    except Exception:
+        pass
+
+    try:
+        if fig.layout.title and fig.layout.title.font and fig.layout.title.font.family:
+            fig.layout.title.font.family = _map_postscript_font_name(
+                fig.layout.title.font.family
+            )
+    except Exception:
+        pass
+
+    try:
+        if fig.layout.legend and fig.layout.legend.font and fig.layout.legend.font.family:
+            fig.layout.legend.font.family = _map_postscript_font_name(
+                fig.layout.legend.font.family
+            )
+    except Exception:
+        pass
+
+    try:
+        if fig.layout.legend and fig.layout.legend.title and fig.layout.legend.title.font and fig.layout.legend.title.font.family:
+            fig.layout.legend.title.font.family = _map_postscript_font_name(
+                fig.layout.legend.title.font.family
+            )
+    except Exception:
+        pass
+
+    for axis_name in (
+        "xaxis",
+        "xaxis2",
+        "xaxis3",
+        "yaxis",
+        "yaxis2",
+        "yaxis3",
+    ):
+        axis = getattr(fig.layout, axis_name, None)
+        if axis is None:
+            continue
+        try:
+            if axis.title and axis.title.font and axis.title.font.family:
+                axis.title.font.family = _map_postscript_font_name(axis.title.font.family)
+        except Exception:
+            pass
+        try:
+            if axis.tickfont and axis.tickfont.family:
+                axis.tickfont.family = _map_postscript_font_name(axis.tickfont.family)
+        except Exception:
+            pass
+
+    return fig
+
+
+
+def _apply_export_geometry(fig: go.Figure, width: int, height: int) -> go.Figure:
+    """Makes export dimensions explicit for all renderers.
+
+    Args:
+        fig: Figure to adjust.
+        width: Target export width.
+        height: Target export height.
+
+    Returns:
+        The updated figure.
+    """
+
+    fig.update_layout(autosize=False, width=width, height=height)
+    return fig
+
+
+
+def _prepare_html_figure(fig: go.Figure, filename: str, width: int, height: int) -> go.Figure:
+    """Returns the figure variant used for HTML export."""
+
+    html_fig = _clone_figure(fig)
+    html_fig = _apply_figure_style(html_fig, filename)
+    html_fig = _apply_export_geometry(html_fig, width=width, height=height)
+    return html_fig
+
+
+
+def _prepare_static_figure(fig: go.Figure, filename: str, width: int, height: int) -> go.Figure:
+    """Returns the figure variant used for PNG, PDF, and EPS export."""
+
+    static_fig = _clone_figure(fig)
+    static_fig = _apply_figure_style(static_fig, filename)
+    static_fig = _apply_export_geometry(static_fig, width=width, height=height)
+    static_fig = _coerce_postscript_fonts(static_fig)
+    return static_fig
+
+
+
+def _write_html(fig: go.Figure, path: Path, auto_open_html: bool) -> None:
+    """Writes an HTML figure file.
+
+    Args:
+        fig: Figure to export.
+        path: Destination HTML path.
+        auto_open_html: Whether to open the HTML file.
+    """
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.write_html(str(path), auto_open=False, include_plotlyjs="cdn", full_html=True)
+    maybe_open_html(path, auto_open_html)
+
+
+
 def save_plotly_figure(
     fig: go.Figure,
     filename: str,
@@ -644,24 +838,24 @@ def save_plotly_figure(
         final_dir = Path(final_dir)
         final_dir.mkdir(parents=True, exist_ok=True)
 
-    fig = _apply_figure_style(fig, filename)
+    html_fig = _prepare_html_figure(fig, filename, width=width, height=height)
+    static_fig = _prepare_static_figure(fig, filename, width=width, height=height)
 
     manifest: dict[str, str] = {}
 
     html_path = output_dir / f"{filename}.html"
-    py.offline.plot(fig, filename=str(html_path), auto_open=False)
+    _write_html(html_fig, html_path, auto_open_html=auto_open_html)
     manifest["html"] = str(html_path)
-    maybe_open_html(html_path, auto_open_html)
 
     if save_final and final_dir is not None:
         final_html = final_dir / f"{filename}.html"
-        py.offline.plot(fig, filename=str(final_html), auto_open=False)
+        _write_html(html_fig, final_html, auto_open_html=False)
         manifest["html_final"] = str(final_html)
 
     if save_png:
         png_path = output_dir / f"{filename}.png"
         ok_png, png_message = _save_png(
-            fig,
+            static_fig,
             png_path,
             width=width,
             height=height,
@@ -680,7 +874,7 @@ def save_plotly_figure(
     if save_eps:
         eps_path = output_dir / f"{filename}.eps"
         ok_eps, eps_message = _save_eps(
-            fig,
+            static_fig,
             eps_path,
             width=width,
             height=height,

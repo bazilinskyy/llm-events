@@ -1261,10 +1261,6 @@ def _retained_vs_dropped_comparison(
                 float((df['selected_text_column'] == 'Output').mean()),
                 3,
             ),
-            'share_same_chat_selected': round(
-                float((df['selected_text_column'] == 'Output - same chat').mean()),
-                3,
-            ),
         })
     return pd.DataFrame(rows)
 
@@ -1292,126 +1288,21 @@ def _build_source_disagreement_tables(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Builds row and field level disagreement audits across source texts.
 
+    Cross output comparison is disabled because the pipeline now reads only the
+    main ``Output`` column and ignores any same chat export present in the raw
+    CSV.
+
     Args:
         research_df: Research dataframe containing raw source texts.
-        blind_spot_fields: Blind spot fields used during re derivation.
+        blind_spot_fields: Retained for signature compatibility.
 
     Returns:
-        Tuple of:
-            * detailed row level disagreement audit
-            * field level disagreement summary
+        Two empty dataframes.
     """
 
-    if (
-        'raw_output_text' not in research_df.columns
-        or 'raw_same_chat_text' not in research_df.columns
-    ):
-        return pd.DataFrame(), pd.DataFrame()
-    both = research_df.loc[
-        (~research_df['raw_output_text'].map(is_missing))
-        & (~research_df['raw_same_chat_text'].map(is_missing))
-    ].copy()
-    if both.empty:
-        return pd.DataFrame(), pd.DataFrame()
-
-    raw_min = pd.DataFrame({
-        'row_id': both['row_id'],
-        'Report': both['source_report'],
-        'Output': both['raw_output_text'],
-        'Output - same chat': both['raw_same_chat_text'],
-    })
-    parsed_output = derive_research_columns(
-        parse_events_dataframe(raw_min, text_column='Output'),
-        blind_spot_fields=blind_spot_fields,
-    )
-    parsed_same = derive_research_columns(
-        parse_events_dataframe(raw_min, text_column='Output - same chat'),
-        blind_spot_fields=blind_spot_fields,
-    )
-
-    left = parsed_output[
-        ['row_id', 'source_report', 'model_output_text'] + SOURCE_COMPARE_FIELDS
-    ].copy().rename(
-        columns={c: f'{c}__output' for c in ['model_output_text'] + SOURCE_COMPARE_FIELDS}
-    )
-    right = parsed_same[
-        ['row_id', 'model_output_text'] + SOURCE_COMPARE_FIELDS
-    ].copy().rename(
-        columns={c: f'{c}__same_chat' for c in ['model_output_text'] + SOURCE_COMPARE_FIELDS}
-    )
-    detail = left.merge(right, on='row_id', how='inner')
-
-    disagreement_rows = []
-    field_rows = []
-    for _, row in detail.iterrows():
-        disagreement_fields = []
-        for field in SOURCE_COMPARE_FIELDS:
-            same = _compare_field(
-                field,
-                row[f'{field}__output'],
-                row[f'{field}__same_chat'],
-            )
-            field_rows.append({
-                'field': field,
-                'row_id': int(row['row_id']),
-                'is_equal': bool(same),
-            })
-            if not same:
-                disagreement_fields.append(field)
-        disagreement_rows.append({
-            'row_id': int(row['row_id']),
-            'source_report': row['source_report'],
-            'disagreement_count': len(disagreement_fields),
-            'disagreement_fields': (
-                '; '.join(disagreement_fields) if disagreement_fields else 'none'
-            ),
-            'movement_source_disagreement': int(
-                any(
-                    field in disagreement_fields
-                    for field in ['av_movement_group', 'other_party_movement_group']
-                )
-            ),
-            'scenario_source_disagreement': int(
-                'scenario_class' in disagreement_fields
-            ),
-            'blame_source_disagreement': int(
-                any(field in disagreement_fields for field in ['av_guilty', 'blame_group'])
-            ),
-            'source_stability_group': (
-                'identical'
-                if not disagreement_fields
-                else 'minor'
-                if len(disagreement_fields) <= 2
-                else 'major'
-            ),
-            'output_text': row['model_output_text__output'],
-            'same_chat_text': row['model_output_text__same_chat'],
-        })
-    disagreement_detail = (
-        pd.DataFrame(disagreement_rows)
-        .sort_values(['disagreement_count', 'row_id'], ascending=[False, True])
-        .reset_index(drop=True)
-    )
-    field_df = pd.DataFrame(field_rows)
-    disagreement_summary = (
-        field_df.groupby('field')
-        .agg(
-            compared_rows=('row_id', 'count'),
-            equal_count=('is_equal', lambda s: int(pd.Series(s).sum())),
-            disagreement_count=('is_equal', lambda s: int((~pd.Series(s)).sum())),
-        )
-        .reset_index()
-    )
-    disagreement_summary['disagreement_rate'] = (
-        disagreement_summary['disagreement_count']
-        / disagreement_summary['compared_rows'].clip(lower=1)
-    )
-    disagreement_summary = (
-        disagreement_summary
-        .sort_values(['disagreement_rate', 'field'], ascending=[False, True])
-        .reset_index(drop=True)
-    )
-    return disagreement_detail, disagreement_summary
+    _ = research_df
+    _ = blind_spot_fields
+    return pd.DataFrame(), pd.DataFrame()
 
 
 def _build_movement_inconsistency_audit(
