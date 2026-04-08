@@ -17,7 +17,7 @@ from typing import Any
 import pandas as pd
 import plotly.graph_objects as go
 
-from utils.labels import humanize_text
+from utils.labels import humanize_field_name, humanize_text
 from utils.normalise import is_missing, normalise_category
 
 logger = logging.getLogger(__name__)
@@ -117,7 +117,6 @@ def apply_plot_filters(
             ', '.join(relevant_filter_fields),
         )
 
-    # Normalise plot fields after filtering so category labels are consistent.
     for field in plot_fields:
         if field in df.columns:
             df[field] = df[field].map(normalise_category)
@@ -133,11 +132,36 @@ def apply_plot_filters(
     return df.reset_index(drop=True), filter_report
 
 
+def _build_stage_annotations(plot_fields: list[str]) -> list[dict[str, Any]]:
+    """Builds top of plot annotations for Sankey stage labels."""
+
+    if len(plot_fields) < 2:
+        x_positions = [0.5]
+    else:
+        x_positions = [i / (len(plot_fields) - 1) for i in range(len(plot_fields))]
+
+    return [
+        dict(
+            x=x,
+            y=1.08,
+            xref='paper',
+            yref='paper',
+            text=f'<b>{humanize_field_name(field)}</b>',
+            showarrow=False,
+            xanchor='center',
+            yanchor='bottom',
+            font=dict(size=16),
+        )
+        for x, field in zip(x_positions, plot_fields)
+    ]
+
+
 def build_sankey_figure(
     df: pd.DataFrame,
     plot_fields: list[str],
     min_count: int = 1,
     max_categories: int = 20,
+    show_stage_headers: bool = False,
 ) -> go.Figure:
     """Builds a Sankey figure across the ordered plot fields.
 
@@ -149,6 +173,7 @@ def build_sankey_figure(
         plot_fields: Ordered categorical fields representing Sankey stages.
         min_count: Minimum edge count required to keep a link.
         max_categories: Maximum number of categories to keep per field.
+        show_stage_headers: Whether to label each stage across the top.
 
     Returns:
         A Plotly Sankey figure.
@@ -156,7 +181,6 @@ def build_sankey_figure(
 
     working = df.copy()
 
-    # Collapse long tails so the Sankey remains readable.
     for field in plot_fields:
         counts = working[field].value_counts(dropna=False)
         allowed = set(counts.head(max_categories).index.astype(str))
@@ -172,16 +196,6 @@ def build_sankey_figure(
     link_value: list[int] = []
 
     def get_node_id(stage: str, value: str) -> int:
-        """Returns a stable node id for a stage and value combination.
-
-        Args:
-            stage: Stage name in the Sankey flow.
-            value: Category value within the stage.
-
-        Returns:
-            The integer node id for the given pair.
-        """
-
         key = f'{stage}|{value}'
         if key not in node_map:
             node_map[key] = len(node_labels)
@@ -218,7 +232,15 @@ def build_sankey_figure(
             ),
         )
     )
-    fig.update_layout(title='')
+
+    layout_kwargs: dict[str, Any] = {
+        'title': '',
+        'margin': dict(l=0, r=0, b=0, t=0),
+    }
+    if show_stage_headers:
+        layout_kwargs['annotations'] = _build_stage_annotations(plot_fields)
+
+    fig.update_layout(**layout_kwargs)
     return fig
 
 

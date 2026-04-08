@@ -33,6 +33,8 @@ FIELD_ALIASES: dict[str, list[str]] = {
     'av_make': ['av_make'],
     'av_year': ['av_year'],
     'av_model': ['av_model'],
+    'av_company': ['av_company'],
+    'v1_company': ['v1_company'],
     'vehicle_was': ['vehicle_was'],
     'accident_year': ['accident_year'],
     'accident_month': ['accident_month'],
@@ -50,6 +52,8 @@ FIELD_ALIASES: dict[str, list[str]] = {
     'damaged_area': ['Damaged_area'],
     'v2_id': ['v2_id'],
     'v2_year': ['v2_year'],
+    'v2_make': ['v2_make'],
+    'v2_company': ['v2_company'],
     'v2_model': ['v2_model'],
     'v2_state': ['v2_state'],
     'v2_mov': ['v2_mov'],
@@ -94,6 +98,59 @@ KV_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+_KNOWN_MAKE_PREFIXES = {
+    'acura',
+    'alfa romeo',
+    'aston martin',
+    'audi',
+    'bentley',
+    'bmw',
+    'buick',
+    'cadillac',
+    'chevrolet',
+    'chevy',
+    'chrysler',
+    'dodge',
+    'fiat',
+    'ford',
+    'genesis',
+    'gmc',
+    'honda',
+    'hyundai',
+    'infiniti',
+    'jaguar',
+    'jeep',
+    'kia',
+    'land rover',
+    'lexus',
+    'lincoln',
+    'lucid',
+    'mazda',
+    'mercedes',
+    'mercedes benz',
+    'mini',
+    'mitsubishi',
+    'nissan',
+    'polestar',
+    'porsche',
+    'ram',
+    'rivian',
+    'smart',
+    'subaru',
+    'tesla',
+    'toyota',
+    'volkswagen',
+    'volvo',
+}
+
+_MAKE_CANONICAL_OVERRIDES = {
+    'chevy': 'Chevrolet',
+    'mercedes': 'Mercedes',
+    'mercedes benz': 'Mercedes Benz',
+    'gmc': 'GMC',
+    'bmw': 'BMW',
+}
+
 
 def _extract_line_kvs(text: str) -> dict[str, list[str]]:
     """Extracts all key value pairs from raw multi line response text.
@@ -123,6 +180,7 @@ def _extract_line_kvs(text: str) -> dict[str, list[str]]:
     return values
 
 
+
 def _extract_first(kvs: dict[str, list[str]], aliases: list[str]) -> str:
     """Returns the first non missing value for a list of aliases.
 
@@ -141,6 +199,120 @@ def _extract_first(kvs: dict[str, list[str]], aliases: list[str]) -> str:
                 return clean_value(match)
 
     return 'NA'
+
+
+
+def _title_case_token(text: str) -> str:
+    """Converts a token sequence into a readable title case form."""
+
+    cleaned = normalise_category(text)
+    if cleaned in {'NA', 'unknown'}:
+        return 'NA'
+
+    lower = cleaned.lower()
+    if lower in _MAKE_CANONICAL_OVERRIDES:
+        return _MAKE_CANONICAL_OVERRIDES[lower]
+
+    return ' '.join(part.capitalize() for part in lower.split())
+
+
+
+def _infer_make_from_model_text(model_text: Any) -> str:
+    """Infers a likely vehicle make from a free text model field.
+
+    This is useful because some generated answers collapse make and model into
+    one field such as ``Nissan Leaf`` or ``2016 Nissan Leaf``.
+
+    Args:
+        model_text: Raw model text.
+
+    Returns:
+        The inferred make when recognised, otherwise ``'NA'``.
+    """
+
+    text = normalise_category(model_text)
+    if text in {'NA', 'unknown'}:
+        return 'NA'
+
+    cleaned = re.sub(r'[^A-Za-z0-9 ]+', ' ', text)
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip().lower()
+    if not cleaned:
+        return 'NA'
+
+    cleaned = re.sub(r'^\d{4}\s+', '', cleaned)
+
+    for token_count in (3, 2, 1):
+        prefix = ' '.join(cleaned.split()[:token_count]).strip()
+        if prefix in _KNOWN_MAKE_PREFIXES:
+            return _title_case_token(prefix)
+
+    return 'NA'
+
+
+
+def _strip_make_from_model_text(model_text: Any, make_text: Any) -> str:
+    """Removes a recognised make prefix from a combined make and model string.
+
+    Args:
+        model_text: Raw model or make plus model text.
+        make_text: The recognised make to strip.
+
+    Returns:
+        The cleaned model text, or the original normalised text when stripping
+        is not possible.
+    """
+
+    model = normalise_category(model_text)
+    make = normalise_category(make_text)
+    if model in {'NA', 'unknown'}:
+        return 'NA'
+    if make in {'NA', 'unknown'}:
+        return model
+
+    cleaned_model = re.sub(r'\s+', ' ', model).strip()
+    cleaned_model = re.sub(r'^\d{4}\s+', '', cleaned_model)
+
+    pattern = re.compile(rf'^\s*{re.escape(make)}\b\s*', re.IGNORECASE)
+    stripped = pattern.sub('', cleaned_model).strip(' ,-')
+    return stripped or cleaned_model
+
+
+
+def _derive_vehicle_company_fields(parsed: dict[str, str]) -> None:
+    """Derives company and make helper fields for both involved vehicles.
+
+    Args:
+        parsed: Parsed field dictionary updated in place.
+    """
+
+    parsed['av_company'] = first_non_missing(
+        parsed.get('av_company', 'NA'),
+        parsed.get('av_make', 'NA'),
+        parsed.get('av_manufacturer', 'NA'),
+    )
+    parsed['v1_company'] = first_non_missing(
+        parsed.get('v1_company', 'NA'),
+        parsed.get('av_make', 'NA'),
+        parsed.get('av_manufacturer', 'NA'),
+    )
+
+    inferred_v2_make = first_non_missing(
+        parsed.get('v2_make', 'NA'),
+        parsed.get('v2_company', 'NA'),
+        _infer_make_from_model_text(parsed.get('v2_model', 'NA')),
+    )
+    parsed['v2_make'] = inferred_v2_make
+    parsed['v2_company'] = first_non_missing(
+        parsed.get('v2_company', 'NA'),
+        inferred_v2_make,
+    )
+
+    if inferred_v2_make not in {'NA', 'unknown'}:
+        parsed['v2_model'] = first_non_missing(
+            _strip_make_from_model_text(parsed.get('v2_model', 'NA'), inferred_v2_make),
+            parsed.get('v2_model', 'NA'),
+        )
+
 
 
 def parse_response_text(text: str) -> dict[str, str]:
@@ -163,6 +335,8 @@ def parse_response_text(text: str) -> dict[str, str]:
 
     for canonical_name, aliases in FIELD_ALIASES.items():
         parsed[canonical_name] = _extract_first(kvs, aliases)
+
+    _derive_vehicle_company_fields(parsed)
 
     # Apply field specific normalisation before deriving helper columns.
     parsed['av_guilty'] = normalise_boolish(parsed['av_guilty'])
@@ -190,6 +364,7 @@ def parse_response_text(text: str) -> dict[str, str]:
             parsed[key] = normalise_category(value)
 
     return parsed
+
 
 
 def parse_events_dataframe(df: pd.DataFrame, text_column: str) -> pd.DataFrame:

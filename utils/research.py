@@ -8,6 +8,7 @@ validation samples and Markdown summaries used by the broader pipeline.
 """
 
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -271,6 +272,114 @@ def _derive_environment_friction_profile(
     if roadway_unusual:
         return 'roadway_unusual'
     return 'nominal'
+
+
+
+def _derive_where_group(row: pd.Series) -> str:
+    """Builds a coarse ``where`` category for the 5W1H Sankey."""
+
+    street_type = normalise_category(row.get('street_type')).lower()
+    intersection = normalise_category(row.get('intersection_context')).lower()
+    city_present = not is_missing(row.get('city'))
+    county_present = not is_missing(row.get('county'))
+
+    base = street_type if street_type not in {'na', 'unknown'} else 'roadway'
+    if intersection == 'intersection':
+        return f'intersection_{base}'
+    if intersection == 'non_intersection':
+        return f'non_intersection_{base}'
+    if street_type not in {'na', 'unknown'}:
+        return street_type
+    if city_present or county_present:
+        return 'named_location'
+    return 'unknown'
+
+
+def _parse_hour_from_time_text(value: Any) -> int | None:
+    """Extracts an hour from a free text time field when possible."""
+
+    text = normalise_category(value)
+    if text in {'NA', 'unknown'}:
+        return None
+
+    match = re.search(r'(\d{1,2})\s*:\s*(\d{2})\s*([AaPp][Mm])?', text)
+    if match:
+        hour = int(match.group(1))
+        suffix = (match.group(3) or '').lower()
+        if suffix == 'pm' and hour != 12:
+            hour += 12
+        elif suffix == 'am' and hour == 12:
+            hour = 0
+        return hour if 0 <= hour <= 23 else None
+
+    match = re.search(r'(\d{1,2})\s*([AaPp][Mm])', text)
+    if match:
+        hour = int(match.group(1))
+        suffix = match.group(2).lower()
+        if suffix == 'pm' and hour != 12:
+            hour += 12
+        elif suffix == 'am' and hour == 12:
+            hour = 0
+        return hour if 0 <= hour <= 23 else None
+
+    match = re.search(r'(\d{3,4})', text)
+    if match:
+        digits = match.group(1).zfill(4)
+        hour = int(digits[:2])
+        return hour if 0 <= hour <= 23 else None
+
+    return None
+
+
+def _derive_when_group(time_value: Any, light_value: Any) -> str:
+    """Builds a coarse ``when`` category using time and lighting cues."""
+
+    hour = _parse_hour_from_time_text(time_value)
+    if hour is not None:
+        if 5 <= hour < 12:
+            return 'morning'
+        if 12 <= hour < 17:
+            return 'afternoon'
+        if 17 <= hour < 21:
+            return 'evening'
+        return 'night'
+
+    light = normalise_category(light_value).lower()
+    if light == 'daylight':
+        return 'daylight_unspecified'
+    if light in {'dawn', 'dusk'}:
+        return 'twilight'
+    if light in {'streetlight', 'no_streetlight', 'not_function'} or 'dark' in light:
+        return 'night_unspecified'
+    return 'unknown'
+
+
+def _derive_why_group(row: pd.Series) -> str:
+    """Builds a coarse ``why`` category from factor and blame cues."""
+
+    factor = normalise_category(row.get('main_factor_grouped'))
+    if factor not in {'NA', 'unknown'}:
+        return factor
+
+    blame = normalise_category(row.get('blame_group'))
+    if blame not in {'NA', 'unknown'}:
+        return blame
+    return 'unclear'
+
+
+def _derive_how_group(row: pd.Series) -> str:
+    """Builds a coarse ``how`` interaction category from movement cues."""
+
+    av_move = normalise_category(row.get('av_movement_group')).lower()
+    other_move = normalise_category(row.get('other_party_movement_group')).lower()
+
+    if av_move in {'na', 'unknown'} and other_move in {'na', 'unknown'}:
+        return 'unknown_interaction'
+    if av_move in {'na', 'unknown'}:
+        return f'other_{other_move}'
+    if other_move in {'na', 'unknown'}:
+        return f'av_{av_move}'
+    return f'{av_move}_vs_{other_move}'
 
 
 def _derive_scenario_assignment(row: pd.Series) -> tuple[str, str, str]:
@@ -909,6 +1018,17 @@ def derive_research_columns(
         _derive_external_enrichment_group,
         axis=1,
     )
+
+    # 5W1H storyline fields used by the secondary Sankey figure.
+    df['who_group'] = df['road_user_type'].map(normalise_category)
+    df['where_group'] = df.apply(_derive_where_group, axis=1)
+    df['what_group'] = df['collision_group'].map(normalise_category)
+    df['when_group'] = df.apply(
+        lambda row: _derive_when_group(row.get('time'), row.get('light_v1')),
+        axis=1,
+    )
+    df['why_group'] = df.apply(_derive_why_group, axis=1)
+    df['how_group'] = df.apply(_derive_how_group, axis=1)
 
     return df
 

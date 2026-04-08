@@ -13,9 +13,12 @@ This module orchestrates the full workflow:
 """
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+import pandas as pd
 
 import common
 from custom_logger import CustomLogger
@@ -47,6 +50,15 @@ DEFAULT_PLOT_FIELDS = [
     'collision_group',
     'blame_group',
     'scenario_class',
+]
+
+DEFAULT_5W1H_PLOT_FIELDS = [
+    'who_group',
+    'where_group',
+    'what_group',
+    'when_group',
+    'why_group',
+    # 'how_group',
 ]
 
 DEFAULT_HISTOGRAM_FIELDS = [
@@ -515,6 +527,199 @@ def _safe_total(mapping: dict[str, int]) -> int:
     return int(sum(int(v) for v in mapping.values())) if mapping else 0
 
 
+def _is_missing_text(value: Any) -> bool:
+    """Returns whether a loosely typed value should be treated as missing."""
+
+    if value is None:
+        return True
+    try:
+        if pd.isna(value):
+            return True
+    except Exception:
+        pass
+
+    text = str(value).strip()
+    if not text:
+        return True
+
+    return text.lower() in {
+        'na',
+        'n/a',
+        'none',
+        'null',
+        'nan',
+        'unknown',
+        'not specified',
+    }
+
+
+
+def _first_non_missing_value(row: pd.Series, columns: list[str]) -> str | None:
+    """Returns the first present value across the provided columns for one row."""
+
+    for column in columns:
+        if column not in row.index:
+            continue
+        value = row.get(column)
+        if not _is_missing_text(value):
+            return str(value).strip()
+    return None
+
+
+
+def _infer_company_from_model(value: Any) -> str | None:
+    """Infers a probable company or make from a free text vehicle model string."""
+
+    if _is_missing_text(value):
+        return None
+
+    text = str(value).strip()
+    text = re.sub(r'^\d{4}\s+', '', text)
+    tokens = re.findall(r'[A-Za-z][A-Za-z0-9&.-]*', text)
+    if not tokens:
+        return None
+    return tokens[0]
+
+
+
+def _build_report_date_log(df: pd.DataFrame) -> dict[str, Any]:
+    """Builds a logger friendly summary of report dates from oldest to newest."""
+
+    required = {'accident_year', 'accident_month', 'accident_day'}
+    if not required.issubset(df.columns):
+        return {
+            'dated_reports': 0,
+            'undated_reports': int(len(df)),
+            'oldest_report_date': 'NA',
+            'newest_report_date': 'NA',
+            'report_dates_oldest_to_newest': [],
+        }
+
+    working = df.copy()
+    working['accident_year_num'] = pd.to_numeric(
+        working['accident_year'],
+        errors='coerce',
+    )
+    working['accident_month_num'] = pd.to_numeric(
+        working['accident_month'],
+        errors='coerce',
+    )
+    working['accident_day_num'] = pd.to_numeric(
+        working['accident_day'],
+        errors='coerce',
+    )
+
+    working['report_date'] = pd.to_datetime(
+        {
+            'year': working['accident_year_num'],
+            'month': working['accident_month_num'],
+            'day': working['accident_day_num'],
+        },
+        errors='coerce',
+    )
+
+    dated = (
+        working.loc[working['report_date'].notna()]
+        .sort_values('report_date')
+        .reset_index(drop=True)
+    )
+
+    if dated.empty:
+        return {
+            'dated_reports': 0,
+            'undated_reports': int(len(df)),
+            'oldest_report_date': 'NA',
+            'newest_report_date': 'NA',
+            'report_dates_oldest_to_newest': [],
+        }
+
+    ordered_unique_dates = [
+        ts.strftime('%Y-%m-%d')
+        for ts in dated['report_date'].drop_duplicates().tolist()
+    ]
+
+    return {
+        'dated_reports': int(len(dated)),
+        'undated_reports': int(len(df) - len(dated)),
+        'oldest_report_date': ordered_unique_dates[0],
+        'newest_report_date': ordered_unique_dates[-1],
+        'report_dates_oldest_to_newest': ordered_unique_dates,
+    }
+
+
+
+def _summarise_company_values(values: pd.Series, top_n: int = 10) -> dict[str, int]:
+    """Builds a compact count summary for a company or make series."""
+
+    cleaned = values.map(
+        lambda value: None if _is_missing_text(value) else str(value).strip()
+    ).dropna()
+
+    if cleaned.empty:
+        return {}
+
+    return {
+        str(key): int(value)
+        for key, value in cleaned.value_counts().head(top_n).items()
+    }
+
+
+
+def _build_company_log(df: pd.DataFrame, top_n: int = 10) -> dict[str, Any]:
+    """Builds a logger friendly summary of AV and other vehicle companies."""
+
+    working = df.copy()
+
+    av_candidates = [
+        'av_company',
+        'v1_company',
+        'av_manufacturer',
+        'av_make',
+    ]
+    v2_candidates = [
+        'v2_company',
+        'v2_make',
+    ]
+
+    working['av_company_log'] = working.apply(
+        lambda row: _first_non_missing_value(row, av_candidates),
+        axis=1,
+    )
+    working['v2_company_log'] = working.apply(
+        lambda row: _first_non_missing_value(row, v2_candidates),
+        axis=1,
+    )
+
+    if 'v2_model' in working.columns:
+        inferred_v2_company = working['v2_model'].map(_infer_company_from_model)
+        working['v2_company_log'] = working['v2_company_log'].where(
+            working['v2_company_log'].map(lambda value: not _is_missing_text(value)),
+            inferred_v2_company,
+        )
+
+    av_available = int(
+        working['av_company_log'].map(lambda value: not _is_missing_text(value)).sum()
+    )
+    v2_available = int(
+        working['v2_company_log'].map(lambda value: not _is_missing_text(value)).sum()
+    )
+
+    return {
+        'av_company_available': av_available,
+        'av_company_missing': int(len(working) - av_available),
+        'v2_company_available': v2_available,
+        'v2_company_missing': int(len(working) - v2_available),
+        'av_company_top_counts': _summarise_company_values(
+            working['av_company_log'],
+            top_n=top_n,
+        ),
+        'v2_company_top_counts': _summarise_company_values(
+            working['v2_company_log'],
+            top_n=top_n,
+        ),
+    }
+
+
 def _build_interpretation_log(summary: dict[str, object]) -> dict[str, object]:
     """Builds a compact interpretation oriented summary for logging.
 
@@ -681,11 +886,32 @@ def main() -> int:
         parsed_df,
         blind_spot_fields=config.blind_spot_fields,
     )
+
+    log_kv_block(
+        logger,
+        'Report date summary',
+        _build_report_date_log(research_df),
+    )
+    log_kv_block(
+        logger,
+        'Vehicle company summary',
+        _build_company_log(research_df),
+    )
+
     plot_fields = resolve_plot_fields(
         research_df,
         config.include_plot_fields,
         config.exclude_plot_fields,
     )
+    try:
+        story_plot_fields = resolve_plot_fields(
+            research_df,
+            DEFAULT_5W1H_PLOT_FIELDS,
+            [],
+        )
+    except ValueError:
+        story_plot_fields = []
+
     filtered_df, filter_report = apply_plot_filters(
         research_df,
         plot_fields=plot_fields,
@@ -713,7 +939,8 @@ def main() -> int:
         'report_pdf',
         'source_report',
         'scenario_class',
-    ] + [field for field in plot_fields if field in filtered_df.columns]
+    ] + [field for field in plot_fields if field in filtered_df.columns] \
+      + [field for field in story_plot_fields if field in filtered_df.columns]
     plot_input_columns = [
         column for column in plot_input_columns if column in filtered_df.columns
     ]
@@ -769,6 +996,7 @@ def main() -> int:
         parsed_df=research_df,
         filtered_df=filtered_df,
         plot_fields=plot_fields,
+        story_plot_fields=story_plot_fields,
         output_dirs=output_dirs,
         auto_open_html=config.auto_open_html,
         histogram_fields=config.histogram_fields,

@@ -85,8 +85,38 @@ def create_taxonomy_bar_figure(df: pd.DataFrame, top_n: int = 10) -> go.Figure:
         A Plotly figure.
     """
 
+    def _sentence_case_preserve_abbreviations(value: str) -> str:
+        text = humanize_text(value)
+        if text == 'NA':
+            return text
+
+        words = text.split()
+        if not words:
+            return text
+
+        formatted_words: list[str] = []
+        for index, word in enumerate(words):
+            if word.isupper():
+                formatted_words.append(word)
+            elif index == 0:
+                formatted_words.append(word.capitalize())
+            else:
+                formatted_words.append(word.lower())
+
+        return ' '.join(formatted_words)
+
     counts = _top_counts(df, 'scenario_class', top_n)
-    fig = px.bar(counts, x='count', y='scenario_class', orientation='h', title='')
+    counts['scenario_class'] = counts['scenario_class'].map(
+        _sentence_case_preserve_abbreviations
+    )
+
+    fig = px.bar(
+        counts,
+        x='count',
+        y='scenario_class',
+        orientation='h',
+        title='',
+    )
     fig.update_layout(yaxis={'categoryorder': 'total ascending'})
     return _update_axis_labels(fig, x='count', y='scenario_class')
 

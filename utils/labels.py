@@ -39,6 +39,12 @@ _FIELD_LABEL_OVERRIDES = {
     'field': 'Field',
     'provenance': 'Field provenance',
     'context_type': 'Metric',
+    'who_group': 'Who',
+    'where_group': 'Where',
+    'what_group': 'What',
+    'when_group': 'When',
+    'why_group': 'Why',
+    'how_group': 'How',
 }
 
 _TOKEN_OVERRIDES = {
@@ -117,12 +123,51 @@ def _pretty_token(token: str) -> str:
 
 
 
+def _sentence_case_preserve_abbreviations(text: str) -> str:
+    """Converts formatted text to sentence case while preserving abbreviations.
+
+    Args:
+        text: Already formatted display text.
+
+    Returns:
+        Sentence case text that keeps tokens such as ``AV``, ``V1``, ``Q0``,
+        and ``NA`` in uppercase.
+    """
+
+    if not text:
+        return text
+
+    words = text.split()
+    if not words:
+        return text
+
+    formatted_words: list[str] = []
+    for index, word in enumerate(words):
+        lower = word.lower()
+
+        if lower in _TOKEN_OVERRIDES:
+            formatted_words.append(_TOKEN_OVERRIDES[lower])
+            continue
+
+        if word.isupper():
+            formatted_words.append(word)
+            continue
+
+        if index == 0:
+            formatted_words.append(word[:1].upper() + word[1:].lower())
+        else:
+            formatted_words.append(word.lower())
+
+    return ' '.join(formatted_words)
+
+
+
 def humanize_text(value: Any) -> str:
     """Converts a raw value into presentation friendly text.
 
     The function normalises spacing, preserves separators such as ``-`` and
-    ``/``, applies token level formatting, and converts empty values to
-    ``NA``.
+    ``/``, applies token level formatting, converts the result to sentence
+    case, and converts empty values to ``NA``.
 
     Args:
         value: Raw value to format.
@@ -153,7 +198,8 @@ def humanize_text(value: Any) -> str:
 
     pretty = ''.join(pretty_parts)
     pretty = pretty.replace(' - ', ' – ')
-    return pretty.strip()
+    pretty = pretty.strip()
+    return _sentence_case_preserve_abbreviations(pretty)
 
 
 

@@ -88,6 +88,7 @@ lerna-debug.log*
 # Instance specific files
 config
 secret
+logs.txt
 
 # Python files
 */__pycache__
