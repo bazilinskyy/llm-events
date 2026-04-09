@@ -133,27 +133,47 @@ def apply_plot_filters(
 
 
 def _build_stage_annotations(plot_fields: list[str]) -> list[dict[str, Any]]:
-    """Builds top of plot annotations for Sankey stage labels."""
+    """Builds top of plot annotations for Sankey stage labels.
+
+    The first and last stage headers are slightly inset from the plot edges so
+    they are not clipped in exported images.
+    """
+
+    side_padding = 0.03
 
     if len(plot_fields) < 2:
         x_positions = [0.5]
     else:
-        x_positions = [i / (len(plot_fields) - 1) for i in range(len(plot_fields))]
+        usable_width = 1.0 - (2 * side_padding)
+        x_positions = [
+            side_padding + (usable_width * i / (len(plot_fields) - 1))
+            for i in range(len(plot_fields))
+        ]
 
-    return [
-        dict(
-            x=x,
-            y=1.08,
-            xref='paper',
-            yref='paper',
-            text=f'<b>{humanize_field_name(field)}</b>',
-            showarrow=False,
-            xanchor='center',
-            yanchor='bottom',
-            font=dict(size=16),
+    annotations: list[dict[str, Any]] = []
+    for index, (x, field) in enumerate(zip(x_positions, plot_fields)):
+        if index == 0:
+            xanchor = 'left'
+        elif index == len(plot_fields) - 1:
+            xanchor = 'right'
+        else:
+            xanchor = 'center'
+
+        annotations.append(
+            dict(
+                x=x,
+                y=1.03,
+                xref='paper',
+                yref='paper',
+                text=f'<b>{humanize_field_name(field)}</b>',
+                showarrow=False,
+                xanchor=xanchor,
+                yanchor='bottom',
+                font=dict(size=14),
+            )
         )
-        for x, field in zip(x_positions, plot_fields)
-    ]
+
+    return annotations
 
 
 def build_sankey_figure(
@@ -221,10 +241,15 @@ def build_sankey_figure(
             link_target.append(t)
             link_value.append(int(row['count']))
 
+    sankey_domain = dict(x=[0.02, 0.98], y=[0.05, 0.98])
+    if show_stage_headers:
+        sankey_domain = dict(x=[0.02, 0.98], y=[0.06, 0.95])
+
     fig = go.Figure(
         go.Sankey(
             arrangement='snap',
-            node=dict(pad=18, thickness=18, label=node_labels),
+            domain=sankey_domain,
+            node=dict(pad=16, thickness=18, label=node_labels),
             link=dict(
                 source=link_source,
                 target=link_target,
@@ -235,10 +260,11 @@ def build_sankey_figure(
 
     layout_kwargs: dict[str, Any] = {
         'title': '',
-        'margin': dict(l=0, r=0, b=0, t=0),
+        'margin': dict(l=40, r=40, b=40, t=20),
     }
     if show_stage_headers:
         layout_kwargs['annotations'] = _build_stage_annotations(plot_fields)
+        layout_kwargs['margin'] = dict(l=40, r=40, b=40, t=100)
 
     fig.update_layout(**layout_kwargs)
     return fig

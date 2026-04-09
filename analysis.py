@@ -648,8 +648,11 @@ def _build_report_date_log(df: pd.DataFrame) -> dict[str, Any]:
 
 
 
-def _summarise_company_values(values: pd.Series, top_n: int = 10) -> dict[str, int]:
-    """Builds a compact count summary for a company or make series."""
+def _summarise_company_values(
+    values: pd.Series,
+    top_n: int | None = 10,
+) -> dict[str, int]:
+    """Builds a compact count summary for a company, manufacturer, or make series."""
 
     cleaned = values.map(
         lambda value: None if _is_missing_text(value) else str(value).strip()
@@ -658,15 +661,19 @@ def _summarise_company_values(values: pd.Series, top_n: int = 10) -> dict[str, i
     if cleaned.empty:
         return {}
 
+    counts = cleaned.value_counts()
+    if top_n is not None:
+        counts = counts.head(top_n)
+
     return {
         str(key): int(value)
-        for key, value in cleaned.value_counts().head(top_n).items()
+        for key, value in counts.items()
     }
 
 
 
 def _build_company_log(df: pd.DataFrame, top_n: int = 10) -> dict[str, Any]:
-    """Builds a logger friendly summary of AV and other vehicle companies."""
+    """Builds a logger friendly summary of AV and other vehicle company fields."""
 
     working = df.copy()
 
@@ -680,6 +687,11 @@ def _build_company_log(df: pd.DataFrame, top_n: int = 10) -> dict[str, Any]:
         'v2_company',
         'v2_make',
     ]
+
+    if 'av_manufacturer' in working.columns:
+        working['av_manufacturer_log'] = working['av_manufacturer']
+    else:
+        working['av_manufacturer_log'] = None
 
     working['av_company_log'] = working.apply(
         lambda row: _first_non_missing_value(row, av_candidates),
@@ -697,6 +709,11 @@ def _build_company_log(df: pd.DataFrame, top_n: int = 10) -> dict[str, Any]:
             inferred_v2_company,
         )
 
+    av_manufacturer_available = int(
+        working['av_manufacturer_log'].map(
+            lambda value: not _is_missing_text(value)
+        ).sum()
+    )
     av_available = int(
         working['av_company_log'].map(lambda value: not _is_missing_text(value)).sum()
     )
@@ -705,6 +722,15 @@ def _build_company_log(df: pd.DataFrame, top_n: int = 10) -> dict[str, Any]:
     )
 
     return {
+        'av_manufacturer_available': av_manufacturer_available,
+        'av_manufacturer_missing': int(len(working) - av_manufacturer_available),
+        'av_manufacturer_distinct_count': len(
+            _summarise_company_values(working['av_manufacturer_log'], top_n=None)
+        ),
+        'av_manufacturer_counts': _summarise_company_values(
+            working['av_manufacturer_log'],
+            top_n=None,
+        ),
         'av_company_available': av_available,
         'av_company_missing': int(len(working) - av_available),
         'v2_company_available': v2_available,

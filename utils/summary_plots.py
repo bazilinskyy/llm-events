@@ -613,9 +613,30 @@ def create_histogram_figure(df: pd.DataFrame, field: str) -> go.Figure:
     """
 
     counts = _safe_counts(df, field)
-    fig = px.bar(counts, x=field, y='count', title='')
-    fig.update_xaxes(title_text=humanize_field_name(field))
-    fig.update_yaxes(title_text=humanize_field_name('count'))
+    fig = px.bar(counts, x=field, y='count', title='', text='count')
+
+    max_count = int(counts['count'].max()) if not counts.empty else 0
+    y_upper = max(max_count + 1, int(max_count * 1.12), 1)
+
+    fig.update_traces(
+        texttemplate='%{text:,}',
+        textposition='outside',
+        cliponaxis=False,
+    )
+    fig.update_xaxes(
+        title_text=humanize_field_name(field),
+        automargin=True,
+    )
+    fig.update_yaxes(
+        title_text=humanize_field_name('count'),
+        range=[0, y_upper],
+        automargin=True,
+    )
+    fig.update_layout(
+        uniformtext_minsize=8,
+        uniformtext_mode='hide',
+        margin=dict(t=40),
+    )
     return fig
 
 
@@ -742,6 +763,29 @@ def _save_logged_figure(
     )
 
 
+def _merge_overview_and_story_fields(
+    plot_fields: list[str],
+    story_plot_fields: list[str],
+) -> list[str]:
+    """Returns an ordered Sankey field list that includes 5W1H stages.
+
+    The overview Sankey remains anchored on the core taxonomy flow, then
+    appends the 5W1H storyline fields so the exported figure shows the extra
+    stages the user expects without removing the existing analysis path.
+    """
+
+    ordered_fields: list[str] = []
+    seen: set[str] = set()
+
+    for field in [*plot_fields, *story_plot_fields]:
+        if field in seen:
+            continue
+        ordered_fields.append(field)
+        seen.add(field)
+
+    return ordered_fields
+
+
 def create_all_plots(
     parsed_df: pd.DataFrame,
     filtered_df: pd.DataFrame,
@@ -793,9 +837,13 @@ def create_all_plots(
     }
 
     # Build overview flow figures.
+    # Keep the main overview Sankey on the original taxonomy style fields.
+    # The dedicated 5W1H Sankey below handles the story style dimensions.
+    overview_sankey_fields = list(plot_fields)
+    overview_sankey_width = max(1400, 220 * len(overview_sankey_fields))
     sankey_fig = build_sankey_figure(
         filtered_df,
-        plot_fields,
+        overview_sankey_fields,
         min_count=min_count,
         max_categories=max_categories,
         show_stage_headers=False,
@@ -805,10 +853,11 @@ def create_all_plots(
         'accident_overview_sankey',
         output_dir=output_dirs.plots,
         final_dir=output_dirs.figures,
-        width=1600,
-        height=900,
+        width=overview_sankey_width,
+        height=950,
         **export_kwargs,
     )
+    manifest['plots']['accident_overview_sankey_fields'] = overview_sankey_fields
 
     if len(story_plot_fields) >= 2:
         story_sankey_fig = build_sankey_figure(

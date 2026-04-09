@@ -7,6 +7,7 @@ figures for the analysis pipeline. The helpers standardise label formatting,
 axis titles, and a few repeated aggregation patterns across figures.
 """
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -74,6 +75,210 @@ def _update_axis_labels(
     return fig
 
 
+
+def _to_list(values: object) -> list[object]:
+    """Safely coerces scalar or array like values into a Python list."""
+
+    if values is None:
+        return []
+
+    if hasattr(values, 'tolist'):
+        try:
+            return list(values.tolist())
+        except Exception:
+            pass
+
+    if isinstance(values, (list, tuple)):
+        return list(values)
+
+    try:
+        return list(values)
+    except TypeError:
+        return [values]
+
+def _get_numeric_trace_max(fig: go.Figure, axis: str) -> float:
+    """Returns the maximum numeric value found across bar traces on an axis."""
+
+    max_value = 0.0
+    for trace in fig.data:
+        if getattr(trace, 'type', None) != 'bar':
+            continue
+
+        values = getattr(trace, axis, None)
+        if values is None:
+            continue
+
+        numeric = pd.to_numeric(pd.Series(list(values)), errors='coerce').dropna()
+        if not numeric.empty:
+            max_value = max(max_value, float(numeric.max()))
+
+    return max_value
+
+
+def _add_bar_value_labels(
+    fig: go.Figure,
+    *,
+    numeric_axis: str,
+    value_format: str,
+    textposition: str = 'outside',
+    headroom_factor: float = 1.15,
+) -> go.Figure:
+    """Adds numeric labels to bar traces and expands the numeric axis if needed.
+
+    Args:
+        fig: Figure to annotate.
+        numeric_axis: The numeric trace axis, either ``'x'`` or ``'y'``.
+        value_format: Python format specifier such as ``'.0f'`` or ``'.0%'``.
+        textposition: Plotly text position.
+        headroom_factor: Axis expansion factor for outside labels.
+
+    Returns:
+        The updated figure.
+    """
+
+    if numeric_axis not in {'x', 'y'}:
+        raise ValueError("numeric_axis must be either 'x' or 'y'.")
+
+    for trace in fig.data:
+        if getattr(trace, 'type', None) != 'bar':
+            continue
+
+        values = getattr(trace, numeric_axis, None)
+        if values is None:
+            continue
+
+        labels: list[str] = []
+        for value in values:
+            numeric_value = pd.to_numeric(pd.Series([value]), errors='coerce').iloc[0]
+            if pd.isna(numeric_value):
+                labels.append('')
+            else:
+                labels.append(format(float(numeric_value), value_format))
+
+        trace.text = labels
+        trace.texttemplate = '%{text}'
+        trace.textposition = textposition
+        trace.cliponaxis = False
+
+    if textposition == 'outside':
+        max_value = _get_numeric_trace_max(fig, numeric_axis)
+        if max_value > 0:
+            upper_bound = max_value * headroom_factor
+            if numeric_axis == 'x':
+                fig.update_xaxes(range=[0, upper_bound], automargin=True)
+            else:
+                fig.update_yaxes(range=[0, upper_bound], automargin=True)
+
+    fig.update_xaxes(automargin=True)
+    fig.update_yaxes(automargin=True)
+    fig.update_layout(
+        uniformtext_minsize=8,
+        uniformtext_mode='hide',
+        margin=dict(t=40, r=100, b=60, l=140),
+    )
+    return fig
+
+
+def _add_stacked_bar_segment_labels(
+    fig: go.Figure,
+    *,
+    min_inside_value: float = 10.0,
+    headroom_factor: float = 1.18,
+) -> go.Figure:
+    """Adds readable labels to stacked bar charts.
+
+    Large segments are labelled inside the bar. Small segments get callout
+    annotations so their values remain visible even when the segment is too
+    thin to hold text. A total is also shown above each stack.
+
+    Args:
+        fig: Figure to annotate.
+        min_inside_value: Minimum segment height that can hold an inside label.
+        headroom_factor: Axis expansion factor for the total labels.
+
+    Returns:
+        The updated figure.
+    """
+
+    totals: dict[str, float] = {}
+    cumulative: dict[str, float] = {}
+    small_label_count: dict[str, int] = {}
+
+    for trace in fig.data:
+        if getattr(trace, 'type', None) != 'bar':
+            continue
+
+        x_values = _to_list(getattr(trace, 'x', None))
+        y_values = pd.to_numeric(pd.Series(_to_list(getattr(trace, 'y', None))), errors='coerce')
+
+        labels: list[str] = []
+        for x_value, raw_y in zip(x_values, y_values):
+            if pd.isna(raw_y) or float(raw_y) <= 0:
+                labels.append('')
+                continue
+
+            y_value = float(raw_y)
+            category = str(x_value)
+            base_value = cumulative.get(category, 0.0)
+
+            totals[category] = totals.get(category, 0.0) + y_value
+
+            if y_value >= min_inside_value:
+                labels.append(f'{y_value:.0f}')
+            else:
+                labels.append('')
+                callout_index = small_label_count.get(category, 0)
+                xshift = 26 + (callout_index % 3) * 14
+                yshift = (-16 if callout_index % 2 == 0 else 16) + (callout_index // 2) * 6
+                fig.add_annotation(
+                    x=x_value,
+                    y=base_value + (y_value / 2.0),
+                    text=f'{y_value:.0f}',
+                    showarrow=True,
+                    arrowhead=0,
+                    arrowsize=1,
+                    arrowwidth=1,
+                    ax=xshift,
+                    ay=yshift,
+                    bgcolor='rgba(255,255,255,0.92)',
+                    bordercolor='rgba(90,90,90,0.55)',
+                    borderpad=2,
+                    font=dict(size=10),
+                    align='center',
+                )
+                small_label_count[category] = callout_index + 1
+
+            cumulative[category] = base_value + y_value
+
+        trace.text = labels
+        trace.texttemplate = '%{text}'
+        trace.textposition = 'inside'
+        trace.insidetextanchor = 'middle'
+        trace.cliponaxis = False
+
+    if totals:
+        max_total = max(totals.values())
+        for category, total in totals.items():
+            fig.add_annotation(
+                x=category,
+                y=total,
+                text=f'{total:.0f}',
+                showarrow=False,
+                yshift=14,
+                font=dict(size=11),
+            )
+
+        fig.update_yaxes(range=[0, max_total * headroom_factor], automargin=True)
+
+    fig.update_xaxes(automargin=True)
+    fig.update_layout(
+        uniformtext_minsize=8,
+        uniformtext_mode='hide',
+        margin=dict(t=50, r=170, b=80, l=80),
+    )
+    return fig
+
+
 def create_taxonomy_bar_figure(df: pd.DataFrame, top_n: int = 10) -> go.Figure:
     """Creates a horizontal bar chart for the most common scenario classes.
 
@@ -117,8 +322,13 @@ def create_taxonomy_bar_figure(df: pd.DataFrame, top_n: int = 10) -> go.Figure:
         orientation='h',
         title='',
     )
-    fig.update_layout(yaxis={'categoryorder': 'total ascending'})
-    return _update_axis_labels(fig, x='count', y='scenario_class')
+    fig.update_traces(width=0.55)
+    fig.update_layout(
+        yaxis={'categoryorder': 'total ascending'},
+        bargap=0.35,
+    )
+    fig = _update_axis_labels(fig, x='count', y='scenario_class')
+    return _add_bar_value_labels(fig, numeric_axis='x', value_format='.0f')
 
 
 def create_blind_spot_figure(df: pd.DataFrame, fields: list[str]) -> go.Figure:
@@ -152,14 +362,26 @@ def create_blind_spot_figure(df: pd.DataFrame, fields: list[str]) -> go.Figure:
 
     frame = pd.DataFrame(rows).sort_values('missing_rate', ascending=True)
     fig = px.bar(frame, x='missing_rate', y='field', orientation='h', title='')
-    return _update_axis_labels(fig, x='missing_rate', y='field')
+    fig.update_traces(width=0.55)
+    fig.update_layout(bargap=0.35)
+    fig = _update_axis_labels(fig, x='missing_rate', y='field')
+    return _add_bar_value_labels(fig, numeric_axis='x', value_format='.0%')
 
 
 def create_accountability_by_taxonomy_figure(
     df: pd.DataFrame,
     top_n: int = 8,
 ) -> go.Figure:
-    """Creates a stacked accountability chart by scenario class.
+    """Creates a grouped horizontal accountability chart by scenario class.
+
+    This version avoids Plotly multicategory y axes because they can reorder
+    bars within a section during rendering and static export. Instead, it uses
+    explicit numeric row positions, scenario labels drawn as annotations inside
+    a reserved left label area, and blame group labels drawn inside that same
+    area. This guarantees two things for the exported figure:
+
+    * bars stay sorted within each blame group by descending count
+    * the left side labels stay inside the plot and do not get cut off
 
     Args:
         df: Source dataframe.
@@ -169,31 +391,205 @@ def create_accountability_by_taxonomy_figure(
         A Plotly figure.
     """
 
-    top_taxonomy = df['scenario_class'].astype(str).value_counts().head(top_n).index.tolist()
+    top_taxonomy = (
+        df['scenario_class']
+        .astype(str)
+        .value_counts()
+        .head(top_n)
+        .index
+        .tolist()
+    )
     working = df.loc[df['scenario_class'].astype(str).isin(top_taxonomy)].copy()
 
     counts = (
-        working.groupby(['scenario_class', 'blame_group'])
+        working.groupby(['blame_group', 'scenario_class'])
         .size()
         .reset_index(name='count')
     )
+    if counts.empty:
+        return go.Figure()
+
     counts['scenario_class'] = _format_series(counts['scenario_class'])
     counts['blame_group'] = _format_series(counts['blame_group'])
 
-    fig = px.bar(
-        counts,
-        x='scenario_class',
-        y='count',
-        color='blame_group',
-        barmode='stack',
-        title='',
+    blame_totals = counts.groupby('blame_group', as_index=False)['count'].sum()
+
+    # Keep the overall section order visually similar to the existing figure:
+    # smaller sections at the top and larger sections at the bottom.
+    blame_order_top_to_bottom = (
+        blame_totals.sort_values(['count', 'blame_group'], ascending=[True, True])
+        ['blame_group']
+        .tolist()
     )
-    fig = _update_axis_labels(fig, x='scenario_class', y='count', legend='')
 
-    # The legend title is intentionally hidden for this plot.
-    fig.update_layout(legend_title_text='')
+    palette = px.colors.qualitative.Plotly
+    blame_color_map = {
+        blame_group: palette[index % len(palette)]
+        for index, blame_group in enumerate(blame_order_top_to_bottom)
+    }
+
+    plot_rows: list[dict[str, object]] = []
+    annotations: list[dict[str, object]] = []
+    separator_ys: list[float] = []
+
+    y_cursor = 0.0
+    group_gap = 1.0
+
+    for blame_group in blame_order_top_to_bottom:
+        group_rows = (
+            counts.loc[counts['blame_group'] == blame_group]
+            .sort_values(['count', 'scenario_class'], ascending=[False, True])
+            .reset_index(drop=True)
+        )
+        if group_rows.empty:
+            continue
+
+        start_y = y_cursor
+        for row in group_rows.itertuples(index=False):
+            plot_rows.append({
+                'y': y_cursor,
+                'count': float(row.count),
+                'scenario_class': str(row.scenario_class),
+                'blame_group': str(blame_group),
+                'bar_color': blame_color_map[str(blame_group)],
+            })
+            y_cursor += 1.0
+
+        end_y = y_cursor - 1.0
+        group_mid_y = (start_y + end_y) / 2.0
+        annotations.append({
+            'xref': 'x',
+            'yref': 'y',
+            'x': 0.0,  # placeholder, filled after label area width is known
+            'y': group_mid_y,
+            'text': f'<b>{blame_group}</b>',
+            'showarrow': False,
+            'xanchor': 'left',
+            'yanchor': 'middle',
+            'align': 'left',
+            'font': {'size': 14},
+        })
+
+        separator_ys.append(y_cursor - 0.5 + (group_gap / 2.0))
+        y_cursor += group_gap
+
+    if separator_ys:
+        separator_ys = separator_ys[:-1]
+
+    plot_frame = pd.DataFrame(plot_rows)
+    if plot_frame.empty:
+        return go.Figure()
+
+    max_count = float(pd.to_numeric(plot_frame['count'], errors='coerce').max())
+    if max_count <= 0:
+        x_upper = 1.0
+    elif max_count <= 300:
+        x_upper = 300.0
+    else:
+        x_upper = float(((int(max_count) + 49) // 50) * 50)
+
+    # Reserve an internal left label area inside the x axis range so long
+    # labels are rendered within the plotting area instead of being clipped in
+    # the export margin. Keep this area compact so the distance between the
+    # blame group label and the scenario label stays visually tight.
+    label_zone_width = max(130.0, x_upper * 0.46)
+    scenario_label_x = 0.0
+    group_label_x = -125.0
+
+    for annotation in annotations:
+        annotation['x'] = group_label_x
+
+    for row in plot_frame.itertuples(index=False):
+        annotations.append({
+            'xref': 'x',
+            'yref': 'y',
+            'x': scenario_label_x,
+            'y': float(row.y),
+            'text': str(row.scenario_class),
+            'showarrow': False,
+            'xanchor': 'right',
+            'yanchor': 'middle',
+            'align': 'right',
+            'font': {'size': 12},
+        })
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Bar(
+            x=plot_frame['count'].tolist(),
+            y=plot_frame['y'].tolist(),
+            orientation='h',
+            marker=dict(color=plot_frame['bar_color'].tolist()),
+            text=[f'{value:.0f}' for value in plot_frame['count'].tolist()],
+            textposition='outside',
+            cliponaxis=False,
+            hovertemplate=(
+                'Blame group=%{customdata[0]}<br>'
+                'Scenario class=%{customdata[1]}<br>'
+                'Count=%{x:.0f}<extra></extra>'
+            ),
+            customdata=plot_frame[['blame_group', 'scenario_class']].to_numpy(),
+        )
+    )
+
+    tick_step = 50 if x_upper >= 50 else 10
+    x_tick_values = list(range(0, int(x_upper) + 1, tick_step))
+    if not x_tick_values or x_tick_values[-1] != int(x_upper):
+        x_tick_values.append(int(x_upper))
+
+    shapes: list[dict[str, object]] = [
+        {
+            'type': 'line',
+            'xref': 'x',
+            'yref': 'paper',
+            'x0': 0,
+            'x1': 0,
+            'y0': 0,
+            'y1': 1,
+            'line': {'color': 'rgba(140,140,140,0.55)', 'width': 1},
+        }
+    ]
+    for separator_y in separator_ys:
+        shapes.append({
+            'type': 'line',
+            'xref': 'x',
+            'yref': 'y',
+            'x0': -label_zone_width,
+            'x1': x_upper,
+            'y0': separator_y,
+            'y1': separator_y,
+            'line': {'color': 'rgba(140,140,140,0.35)', 'width': 1},
+        })
+
+    fig.update_layout(
+        title='',
+        showlegend=False,
+        bargap=0.28,
+        annotations=annotations,
+        shapes=shapes,
+        uniformtext_minsize=8,
+        uniformtext_mode='hide',
+        # The labels live inside the plot area, so only a modest margin is
+        # needed and the exported figure no longer clips the left side.
+        margin=dict(t=20, r=40, b=40, l=20),
+    )
+    fig.update_xaxes(
+        title_text='Count',
+        range=[-label_zone_width, x_upper],
+        tickmode='array',
+        tickvals=x_tick_values,
+        ticktext=[str(value) for value in x_tick_values],
+        showgrid=True,
+        zeroline=False,
+        automargin=True,
+    )
+    fig.update_yaxes(
+        title_text='',
+        showticklabels=False,
+        range=[y_cursor - 0.5, -0.5],
+        automargin=False,
+    )
     return fig
-
 
 def create_completeness_figure(df: pd.DataFrame) -> go.Figure:
     """Creates a histogram of report completeness scores.
@@ -205,8 +601,35 @@ def create_completeness_figure(df: pd.DataFrame) -> go.Figure:
         A Plotly figure.
     """
 
-    fig = px.histogram(df, x='report_completeness_score', nbins=20, title='')
-    return _update_axis_labels(fig, x='report_completeness_score', y='count')
+    series = pd.to_numeric(df['report_completeness_score'], errors='coerce').dropna()
+    if series.empty:
+        return go.Figure()
+
+    if float(series.min()) == float(series.max()):
+        bin_edges = np.array([float(series.min()) - 0.5, float(series.max()) + 0.5])
+    else:
+        bin_edges = np.histogram_bin_edges(series.to_numpy(), bins=20)
+
+    counts, edges = np.histogram(series.to_numpy(), bins=bin_edges)
+    frame = pd.DataFrame({
+        'bin_left': edges[:-1],
+        'bin_right': edges[1:],
+        'count': counts,
+    })
+    frame['bin_center'] = (frame['bin_left'] + frame['bin_right']) / 2
+    frame['bin_width'] = frame['bin_right'] - frame['bin_left']
+
+    fig = px.bar(frame, x='bin_center', y='count', title='')
+    fig.update_traces(
+        width=frame['bin_width'],
+        hovertemplate=(
+            'Range=%{customdata[0]:.3f} to %{customdata[1]:.3f}<br>'
+            'Count=%{y:.0f}<extra></extra>'
+        ),
+        customdata=frame[['bin_left', 'bin_right']].to_numpy(),
+    )
+    fig = _update_axis_labels(fig, x='report_completeness_score', y='count')
+    return _add_bar_value_labels(fig, numeric_axis='y', value_format='.0f')
 
 
 def create_taxonomy_by_road_user_figure(
@@ -240,6 +663,7 @@ def create_taxonomy_by_road_user_figure(
     pivot.columns = [humanize_text(value) for value in pivot.columns]
 
     fig = px.imshow(pivot, aspect='auto', title='')
+    fig.update_traces(text=pivot.to_numpy(), texttemplate='%{text:.0f}')
     return _update_axis_labels(fig, x='scenario_class', y='road_user_type')
 
 
@@ -270,7 +694,8 @@ def create_provenance_availability_figure(df: pd.DataFrame) -> go.Figure:
 
     summary = pd.DataFrame(rows).sort_values('availability_rate', ascending=True)
     fig = px.bar(summary, x='availability_rate', y='provenance', orientation='h', title='')
-    return _update_axis_labels(fig, x='availability_rate', y='provenance')
+    fig = _update_axis_labels(fig, x='availability_rate', y='provenance')
+    return _add_bar_value_labels(fig, numeric_axis='x', value_format='.0%')
 
 
 def create_context_gap_figure(df: pd.DataFrame) -> go.Figure:
@@ -308,7 +733,8 @@ def create_context_gap_figure(df: pd.DataFrame) -> go.Figure:
     ])
 
     fig = px.bar(frame, x='context_type', y='mean_score', title='')
-    return _update_axis_labels(fig, x='context_type', y='mean_score')
+    fig = _update_axis_labels(fig, x='context_type', y='mean_score')
+    return _add_bar_value_labels(fig, numeric_axis='y', value_format='.2f')
 
 
 def create_consistency_figure(df: pd.DataFrame) -> go.Figure:
@@ -328,7 +754,8 @@ def create_consistency_figure(df: pd.DataFrame) -> go.Figure:
     )
 
     fig = px.bar(counts, x='movement_consistency_overall', y='count', title='')
-    return _update_axis_labels(fig, x='movement_consistency_overall', y='count')
+    fig = _update_axis_labels(fig, x='movement_consistency_overall', y='count')
+    return _add_bar_value_labels(fig, numeric_axis='y', value_format='.0f')
 
 
 def create_determinability_figure(df: pd.DataFrame) -> go.Figure:
@@ -348,7 +775,8 @@ def create_determinability_figure(df: pd.DataFrame) -> go.Figure:
     )
 
     fig = px.bar(counts, x='scenario_determinability_group', y='count', title='')
-    return _update_axis_labels(fig, x='scenario_determinability_group', y='count')
+    fig = _update_axis_labels(fig, x='scenario_determinability_group', y='count')
+    return _add_bar_value_labels(fig, numeric_axis='y', value_format='.0f')
 
 
 def create_environment_profile_figure(df: pd.DataFrame) -> go.Figure:
@@ -368,7 +796,8 @@ def create_environment_profile_figure(df: pd.DataFrame) -> go.Figure:
     )
 
     fig = px.bar(counts, x='environment_friction_profile', y='count', title='')
-    return _update_axis_labels(fig, x='environment_friction_profile', y='count')
+    fig = _update_axis_labels(fig, x='environment_friction_profile', y='count')
+    return _add_bar_value_labels(fig, numeric_axis='y', value_format='.0f')
 
 
 def create_blame_alignment_figure(df: pd.DataFrame) -> go.Figure:
@@ -388,7 +817,8 @@ def create_blame_alignment_figure(df: pd.DataFrame) -> go.Figure:
     )
 
     fig = px.bar(counts, x='blame_confidence_alignment', y='count', title='')
-    return _update_axis_labels(fig, x='blame_confidence_alignment', y='count')
+    fig = _update_axis_labels(fig, x='blame_confidence_alignment', y='count')
+    return _add_bar_value_labels(fig, numeric_axis='y', value_format='.0f')
 
 
 def create_stopped_av_subtype_figure(df: pd.DataFrame) -> go.Figure:
@@ -410,7 +840,8 @@ def create_stopped_av_subtype_figure(df: pd.DataFrame) -> go.Figure:
     counts['stopped_av_subtype'] = _format_series(counts['stopped_av_subtype'])
 
     fig = px.bar(counts, x='stopped_av_subtype', y='count', title='')
-    return _update_axis_labels(fig, x='stopped_av_subtype', y='count')
+    fig = _update_axis_labels(fig, x='stopped_av_subtype', y='count')
+    return _add_bar_value_labels(fig, numeric_axis='y', value_format='.0f')
 
 
 def create_intersection_detail_figure(df: pd.DataFrame) -> go.Figure:
@@ -430,4 +861,5 @@ def create_intersection_detail_figure(df: pd.DataFrame) -> go.Figure:
     )
 
     fig = px.bar(counts, x='intersection_detail_quality', y='count', title='')
-    return _update_axis_labels(fig, x='intersection_detail_quality', y='count')
+    fig = _update_axis_labels(fig, x='intersection_detail_quality', y='count')
+    return _add_bar_value_labels(fig, numeric_axis='y', value_format='.0f')
