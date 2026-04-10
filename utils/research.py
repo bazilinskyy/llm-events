@@ -30,7 +30,9 @@ from utils.normalise import (
     normalise_road_user,
     safe_int_dict,
 )
-from utils.parsing import parse_events_dataframe
+
+
+from utils.parsing import parse_events_dataframe  # noqa:F401
 
 logger = logging.getLogger(__name__)
 
@@ -272,7 +274,6 @@ def _derive_environment_friction_profile(
     if roadway_unusual:
         return 'roadway_unusual'
     return 'nominal'
-
 
 
 def _derive_where_group(row: pd.Series) -> str:

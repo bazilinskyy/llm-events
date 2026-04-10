@@ -553,7 +553,6 @@ def _is_missing_text(value: Any) -> bool:
     }
 
 
-
 def _first_non_missing_value(row: pd.Series, columns: list[str]) -> str | None:
     """Returns the first present value across the provided columns for one row."""
 
@@ -564,7 +563,6 @@ def _first_non_missing_value(row: pd.Series, columns: list[str]) -> str | None:
         if not _is_missing_text(value):
             return str(value).strip()
     return None
-
 
 
 def _infer_company_from_model(value: Any) -> str | None:
@@ -579,7 +577,6 @@ def _infer_company_from_model(value: Any) -> str | None:
     if not tokens:
         return None
     return tokens[0]
-
 
 
 def _build_report_date_log(df: pd.DataFrame) -> dict[str, Any]:
@@ -647,7 +644,6 @@ def _build_report_date_log(df: pd.DataFrame) -> dict[str, Any]:
     }
 
 
-
 def _summarise_company_values(
     values: pd.Series,
     top_n: int | None = 10,
@@ -669,7 +665,6 @@ def _summarise_company_values(
         str(key): int(value)
         for key, value in counts.items()
     }
-
 
 
 def _build_company_log(df: pd.DataFrame, top_n: int = 10) -> dict[str, Any]:

@@ -16,7 +16,6 @@ import logging
 import time
 import urllib.parse
 import urllib.request
-from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -354,7 +353,6 @@ def create_accident_location_map_figure(
         margin=dict(l=20, r=20, t=20, b=20),
     )
     return fig, location_df
-
 
 
 def _safe_counts(df: pd.DataFrame, field: str) -> pd.DataFrame:

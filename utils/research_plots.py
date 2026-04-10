@@ -76,7 +76,6 @@ def _update_axis_labels(
     return fig
 
 
-
 def _apply_uniform_horizontal_bar_density(
     fig: go.Figure,
     *,
@@ -133,7 +132,6 @@ def _apply_uniform_horizontal_bar_density(
     return fig
 
 
-
 def _to_list(values: object) -> list[object]:
     """Safely coerces scalar or array like values into a Python list."""
 
@@ -153,6 +151,7 @@ def _to_list(values: object) -> list[object]:
         return list(values)
     except TypeError:
         return [values]
+
 
 def _get_numeric_trace_max(fig: go.Figure, axis: str) -> float:
     """Returns the maximum numeric value found across bar traces on an axis."""
@@ -671,6 +670,7 @@ def create_accountability_by_taxonomy_figure(
         automargin=False,
     )
     return fig
+
 
 def create_completeness_figure(df: pd.DataFrame) -> go.Figure:
     """Creates a histogram of report completeness scores.

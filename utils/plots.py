@@ -97,7 +97,6 @@ def _get_common_config(*keys: str, default: Any = None) -> Any:
     return default
 
 
-
 def _coerce_int(value: Any, default: int) -> int:
     """Converts a value to ``int`` with a safe fallback.
 
@@ -113,7 +112,6 @@ def _coerce_int(value: Any, default: int) -> int:
         return int(value)
     except (TypeError, ValueError):
         return default
-
 
 
 def _load_default_figure_style() -> dict[str, Any]:
@@ -166,7 +164,6 @@ def _load_default_figure_style() -> dict[str, Any]:
     }
 
 
-
 def _copy_if_exists(src: Path, dst: Path) -> None:
     """Copies a file only when the source exists.
 
@@ -178,7 +175,6 @@ def _copy_if_exists(src: Path, dst: Path) -> None:
     if src.exists():
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(src, dst)
-
 
 
 def _run_image_worker(
@@ -253,7 +249,6 @@ def _run_image_worker(
             return False, str(exc)
 
 
-
 def _save_png(
     fig: go.Figure,
     png_path: Path,
@@ -287,7 +282,6 @@ def _save_png(
     )
 
 
-
 def _save_pdf(
     fig: go.Figure,
     pdf_path: Path,
@@ -319,7 +313,6 @@ def _save_pdf(
         scale=scale,
         timeout_seconds=timeout_seconds,
     )
-
 
 
 def _save_eps(
@@ -391,7 +384,6 @@ def _save_eps(
     )
 
 
-
 def _merged_figure_style(filename: str) -> dict[str, Any]:
     """Builds the final style dictionary for a figure.
 
@@ -409,13 +401,7 @@ def _merged_figure_style(filename: str) -> dict[str, Any]:
     return style
 
 
-
-def _font_dict(
-    *,
-    family: Any = None,
-    size: Any = None,
-    color: Any = None,
-) -> dict[str, Any]:
+def _font_dict(*, family: Any = None, size: Any = None, color: Any = None) -> dict[str, Any]:
     """Builds a Plotly font dictionary while skipping null values.
 
     Args:
@@ -435,7 +421,6 @@ def _font_dict(
     if color is not None:
         font["color"] = color
     return font
-
 
 
 def _apply_figure_style(fig: go.Figure, filename: str) -> go.Figure:
@@ -617,7 +602,6 @@ def _apply_figure_style(fig: go.Figure, filename: str) -> go.Figure:
     return fig
 
 
-
 def _clone_figure(fig: go.Figure) -> go.Figure:
     """Returns a detached clone of a figure.
 
@@ -629,7 +613,6 @@ def _clone_figure(fig: go.Figure) -> go.Figure:
     """
 
     return go.Figure(fig)
-
 
 
 def _map_postscript_font_name(value: str) -> str:
@@ -647,7 +630,6 @@ def _map_postscript_font_name(value: str) -> str:
     for font in fonts:
         mapped.append(_POSTSCRIPT_FONT_MAP.get(font.lower(), font))
     return ", ".join(mapped)
-
 
 
 def _coerce_postscript_fonts(fig: go.Figure) -> go.Figure:
@@ -710,7 +692,7 @@ def _coerce_postscript_fonts(fig: go.Figure) -> go.Figure:
         pass
 
     try:
-        if fig.layout.legend and fig.layout.legend.title and fig.layout.legend.title.font and fig.layout.legend.title.font.family:
+        if fig.layout.legend and fig.layout.legend.title and fig.layout.legend.title.font and fig.layout.legend.title.font.family:  # noqa:E501
             fig.layout.legend.title.font.family = _map_postscript_font_name(
                 fig.layout.legend.title.font.family
             )
@@ -740,7 +722,6 @@ def _coerce_postscript_fonts(fig: go.Figure) -> go.Figure:
             pass
 
     return fig
-
 
 
 def _resolve_export_dimension(
@@ -777,7 +758,6 @@ def _resolve_export_dimension(
         return int(default)
 
 
-
 def _apply_export_geometry(fig: go.Figure, width: int, height: int) -> go.Figure:
     """Makes export dimensions explicit for all renderers.
 
@@ -794,7 +774,6 @@ def _apply_export_geometry(fig: go.Figure, width: int, height: int) -> go.Figure
     return fig
 
 
-
 def _prepare_html_figure(fig: go.Figure, filename: str, width: int, height: int) -> go.Figure:
     """Returns the figure variant used for HTML export."""
 
@@ -802,7 +781,6 @@ def _prepare_html_figure(fig: go.Figure, filename: str, width: int, height: int)
     html_fig = _apply_figure_style(html_fig, filename)
     html_fig = _apply_export_geometry(html_fig, width=width, height=height)
     return html_fig
-
 
 
 def _prepare_static_figure(fig: go.Figure, filename: str, width: int, height: int) -> go.Figure:
@@ -813,7 +791,6 @@ def _prepare_static_figure(fig: go.Figure, filename: str, width: int, height: in
     static_fig = _apply_export_geometry(static_fig, width=width, height=height)
     static_fig = _coerce_postscript_fonts(static_fig)
     return static_fig
-
 
 
 def _write_html(fig: go.Figure, path: Path, auto_open_html: bool) -> None:
@@ -828,7 +805,6 @@ def _write_html(fig: go.Figure, path: Path, auto_open_html: bool) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.write_html(str(path), auto_open=False, include_plotlyjs="cdn", full_html=True)
     maybe_open_html(path, auto_open_html)
-
 
 
 def save_plotly_figure(
