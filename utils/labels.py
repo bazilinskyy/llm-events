@@ -95,7 +95,6 @@ def _normalise_spaces(text: str) -> str:
     return re.sub(r'\s+', ' ', text).strip()
 
 
-
 def _pretty_token(token: str) -> str:
     """Formats a single token for human readable display.
 
@@ -120,7 +119,6 @@ def _pretty_token(token: str) -> str:
         return token
 
     return token.capitalize()
-
 
 
 def _sentence_case_preserve_abbreviations(text: str) -> str:
@@ -161,7 +159,6 @@ def _sentence_case_preserve_abbreviations(text: str) -> str:
     return ' '.join(formatted_words)
 
 
-
 def humanize_text(value: Any) -> str:
     """Converts a raw value into presentation friendly text.
 
@@ -200,7 +197,6 @@ def humanize_text(value: Any) -> str:
     pretty = pretty.replace(' - ', ' – ')
     pretty = pretty.strip()
     return _sentence_case_preserve_abbreviations(pretty)
-
 
 
 def humanize_field_name(field_name: str) -> str:

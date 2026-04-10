@@ -3,7 +3,7 @@
 ## Citation and usage of code
 If you use this work for academic work please cite the following paper:
 
-> 
+>  Alam, M. S., Zhang, L., Li, Z., Dou, F., Bazilinskyy, P. (2026). Collision Patterns and Reporting Blind Spots in 970 California Autonomous Vehicle Crash Reports.
 
 The code is open-source and free to use. It is aimed for, but not limited to, academic research. We welcome forking of this repository, pull requests, and any contributions in the spirit of open science and open-source code. For inquiries about collaboration, you may contact Md Shadab Alam (md_shadab_alam@outlook.com) or Pavlo Bazilinskyy (pavlo.bazilinskyy@gmail.com).
 
@@ -135,6 +135,10 @@ Configuration of the project needs to be defined in `config`. Please use the `de
 [![Accident overview Sankey diagram](figures/accident_overview_sankey.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accident_overview_sankey.html)
 Accident overview Sankey diagram showing the flow of parsed accident attributes across the selected plot fields.
 
+#### Accident 5W1H Sankey diagram
+[![Accident 5W1H Sankey diagram](figures/accident_5w1h_sankey.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accident_5w1h_sankey.html)
+Accident 5W1H Sankey diagram showing the flow across who, where, what, when, and why storyline dimensions.
+
 #### Accident overview sunburst diagram
 [![Accident overview sunburst diagram](figures/accident_overview_sunburst.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accident_overview_sunburst.html)
 Accident overview sunburst diagram showing the hierarchical distribution of accident attributes across the selected plot fields.
@@ -143,11 +147,16 @@ Accident overview sunburst diagram showing the hierarchical distribution of acci
 [![Accident transition graph](figures/accident_transition_graph.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accident_transition_graph.html)
 Accident transition graph showing connections between consecutive accident attributes across the selected plot fields.
 
+#### Accident location map
+[![Accident location map](figures/accident_location_map.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accident_location_map.html)
+Accident location map showing geocoded accident report locations derived from questionnaire address fields.
+
 ### Histogram figures
 
 #### Histogram of road user type
 [![Histogram of road user type](figures/road_user_type.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/road_user_type.html)
 Histogram of road user types extracted from the accident reports.
+
 
 #### Histogram of collision group
 [![Histogram of collision group](figures/collision_group.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/collision_group.html)
@@ -160,10 +169,6 @@ Histogram of blame groups extracted from the accident reports.
 #### Histogram of scenario class
 [![Histogram of scenario class](figures/scenario_class.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/scenario_class.html)
 Histogram of scenario classes derived from the accident reports.
-
-#### Histogram of main factor grouped
-[![Histogram of main factor grouped](figures/main_factor_grouped.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/main_factor_grouped.html)
-Histogram of grouped main contributing factors extracted from the accident reports.
 
 ### Research figures
 
@@ -204,7 +209,7 @@ Figure showing movement consistency status across source fields.
 Figure showing how often the available evidence supports high, medium, or low scenario determinability.
 
 #### Environment profile
-[![Environment profile](figures/environment_profile.png)](https://htmlpreview.github.io/?https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/environment_profile.html)
+[![Environment profile](figures/environment_profile.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/environment_profile.html)
 Figure showing the distribution of environmental friction profiles across the accident set.
 
 #### Blame confidence alignment

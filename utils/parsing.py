@@ -180,7 +180,6 @@ def _extract_line_kvs(text: str) -> dict[str, list[str]]:
     return values
 
 
-
 def _extract_first(kvs: dict[str, list[str]], aliases: list[str]) -> str:
     """Returns the first non missing value for a list of aliases.
 
@@ -201,7 +200,6 @@ def _extract_first(kvs: dict[str, list[str]], aliases: list[str]) -> str:
     return 'NA'
 
 
-
 def _title_case_token(text: str) -> str:
     """Converts a token sequence into a readable title case form."""
 
@@ -214,7 +212,6 @@ def _title_case_token(text: str) -> str:
         return _MAKE_CANONICAL_OVERRIDES[lower]
 
     return ' '.join(part.capitalize() for part in lower.split())
-
 
 
 def _infer_make_from_model_text(model_text: Any) -> str:
@@ -249,7 +246,6 @@ def _infer_make_from_model_text(model_text: Any) -> str:
     return 'NA'
 
 
-
 def _strip_make_from_model_text(model_text: Any, make_text: Any) -> str:
     """Removes a recognised make prefix from a combined make and model string.
 
@@ -275,7 +271,6 @@ def _strip_make_from_model_text(model_text: Any, make_text: Any) -> str:
     pattern = re.compile(rf'^\s*{re.escape(make)}\b\s*', re.IGNORECASE)
     stripped = pattern.sub('', cleaned_model).strip(' ,-')
     return stripped or cleaned_model
-
 
 
 def _derive_vehicle_company_fields(parsed: dict[str, str]) -> None:
@@ -312,7 +307,6 @@ def _derive_vehicle_company_fields(parsed: dict[str, str]) -> None:
             _strip_make_from_model_text(parsed.get('v2_model', 'NA'), inferred_v2_make),
             parsed.get('v2_model', 'NA'),
         )
-
 
 
 def parse_response_text(text: str) -> dict[str, str]:
@@ -364,7 +358,6 @@ def parse_response_text(text: str) -> dict[str, str]:
             parsed[key] = normalise_category(value)
 
     return parsed
-
 
 
 def parse_events_dataframe(df: pd.DataFrame, text_column: str) -> pd.DataFrame:

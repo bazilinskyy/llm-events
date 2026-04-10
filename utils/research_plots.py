@@ -7,6 +7,7 @@ figures for the analysis pipeline. The helpers standardise label formatting,
 axis titles, and a few repeated aggregation patterns across figures.
 """
 
+import common
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -72,6 +73,63 @@ def _update_axis_labels(
         fig.update_yaxes(title_text=humanize_field_name(y))
     if legend is not None:
         fig.update_layout(legend_title_text=humanize_field_name(legend))
+    return fig
+
+
+
+def _apply_uniform_horizontal_bar_density(
+    fig: go.Figure,
+    *,
+    n_bars: int,
+    bar_width: float = 0.55,
+    bargap: float = 0.35,
+    row_slot_px: int = 58,
+    min_height: int = 650,
+    margin_top: int = 50,
+    margin_right: int = 140,
+    margin_bottom: int = 80,
+    margin_left: int = 80,
+) -> go.Figure:
+    """Applies a consistent visual bar density to horizontal bar charts.
+
+    This keeps bar thickness and inter bar spacing visually aligned across
+    figures even when the number of categories differs. The export helper can
+    then reuse the figure's explicit height so static outputs match the HTML
+    rendering.
+
+    Args:
+        fig: Figure to update.
+        n_bars: Number of horizontal bars in the chart.
+        bar_width: Relative bar thickness within each category slot.
+        bargap: Gap between category slots.
+        row_slot_px: Pixel height reserved per category slot.
+        min_height: Minimum overall figure height.
+        margin_top: Top margin in pixels.
+        margin_right: Right margin in pixels.
+        margin_bottom: Bottom margin in pixels.
+        margin_left: Left margin in pixels.
+
+    Returns:
+        The updated figure.
+    """
+
+    bar_count = max(int(n_bars), 1)
+    figure_height = max(
+        int(min_height),
+        int(margin_top + margin_bottom + (bar_count * row_slot_px)),
+    )
+
+    fig.update_traces(width=bar_width)
+    fig.update_layout(
+        bargap=bargap,
+        height=figure_height,
+        margin=dict(
+            t=margin_top,
+            r=margin_right,
+            b=margin_bottom,
+            l=margin_left,
+        ),
+    )
     return fig
 
 
@@ -322,10 +380,10 @@ def create_taxonomy_bar_figure(df: pd.DataFrame, top_n: int = 10) -> go.Figure:
         orientation='h',
         title='',
     )
-    fig.update_traces(width=0.55)
-    fig.update_layout(
-        yaxis={'categoryorder': 'total ascending'},
-        bargap=0.35,
+    fig.update_layout(yaxis={'categoryorder': 'total ascending'})
+    fig = _apply_uniform_horizontal_bar_density(
+        fig,
+        n_bars=len(counts),
     )
     fig = _update_axis_labels(fig, x='count', y='scenario_class')
     return _add_bar_value_labels(fig, numeric_axis='x', value_format='.0f')
@@ -362,8 +420,10 @@ def create_blind_spot_figure(df: pd.DataFrame, fields: list[str]) -> go.Figure:
 
     frame = pd.DataFrame(rows).sort_values('missing_rate', ascending=True)
     fig = px.bar(frame, x='missing_rate', y='field', orientation='h', title='')
-    fig.update_traces(width=0.55)
-    fig.update_layout(bargap=0.35)
+    fig = _apply_uniform_horizontal_bar_density(
+        fig,
+        n_bars=len(frame),
+    )
     fig = _update_axis_labels(fig, x='missing_rate', y='field')
     return _add_bar_value_labels(fig, numeric_axis='x', value_format='.0%')
 
@@ -390,6 +450,8 @@ def create_accountability_by_taxonomy_figure(
     Returns:
         A Plotly figure.
     """
+
+    font_size = int(common.get_configs("font_size"))
 
     top_taxonomy = (
         df['scenario_class']
@@ -467,7 +529,7 @@ def create_accountability_by_taxonomy_figure(
             'xanchor': 'left',
             'yanchor': 'middle',
             'align': 'left',
-            'font': {'size': 14},
+            'font': {'size': font_size},
         })
 
         separator_ys.append(y_cursor - 0.5 + (group_gap / 2.0))
@@ -488,13 +550,17 @@ def create_accountability_by_taxonomy_figure(
     else:
         x_upper = float(((int(max_count) + 49) // 50) * 50)
 
-    # Reserve an internal left label area inside the x axis range so long
+    # Reserve a wider internal left label area inside the x axis range so long
     # labels are rendered within the plotting area instead of being clipped in
-    # the export margin. Keep this area compact so the distance between the
-    # blame group label and the scenario label stays visually tight.
-    label_zone_width = max(130.0, x_upper * 0.46)
-    scenario_label_x = 0.0
-    group_label_x = -125.0
+    # the export margin. Keep a larger gutter between the blame group label
+    # column and the scenario label column so the two levels are clearly
+    # separated in exports.
+    label_zone_width = max(285.0, x_upper * 0.82)
+    group_label_padding = max(20.0, font_size * 1.2)
+    scenario_label_padding = max(8.0, font_size * 0.45)
+    group_label_x = -label_zone_width + group_label_padding
+    scenario_label_x = -scenario_label_padding
+    label_column_separator_x = (group_label_x + scenario_label_x) / 2.0
 
     for annotation in annotations:
         annotation['x'] = group_label_x
@@ -510,7 +576,7 @@ def create_accountability_by_taxonomy_figure(
             'xanchor': 'right',
             'yanchor': 'middle',
             'align': 'right',
-            'font': {'size': 12},
+            'font': {'size': font_size},
         })
 
     fig = go.Figure()
@@ -547,7 +613,21 @@ def create_accountability_by_taxonomy_figure(
             'y0': 0,
             'y1': 1,
             'line': {'color': 'rgba(140,140,140,0.55)', 'width': 1},
-        }
+        },
+        {
+            'type': 'line',
+            'xref': 'x',
+            'yref': 'paper',
+            'x0': label_column_separator_x,
+            'x1': label_column_separator_x,
+            'y0': 0,
+            'y1': 1,
+            'line': {
+                'color': 'rgba(140,140,140,0.20)',
+                'width': 1,
+                'dash': 'dot',
+            },
+        },
     ]
     for separator_y in separator_ys:
         shapes.append({
@@ -567,7 +647,8 @@ def create_accountability_by_taxonomy_figure(
         bargap=0.28,
         annotations=annotations,
         shapes=shapes,
-        uniformtext_minsize=8,
+        font=dict(size=font_size),
+        uniformtext_minsize=font_size,
         uniformtext_mode='hide',
         # The labels live inside the plot area, so only a modest margin is
         # needed and the exported figure no longer clips the left side.

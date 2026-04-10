@@ -743,6 +743,41 @@ def _coerce_postscript_fonts(fig: go.Figure) -> go.Figure:
 
 
 
+def _resolve_export_dimension(
+    requested: int,
+    layout_value: Any,
+    *,
+    default: int,
+) -> int:
+    """Returns the export dimension, preferring explicit figure geometry.
+
+    When callers leave width or height at the shared default, a figure level
+    layout width or height should still be respected. This is useful for charts
+    whose category counts differ and therefore need different heights to keep
+    bar thickness and spacing visually consistent.
+
+    Args:
+        requested: Requested export dimension from the save helper.
+        layout_value: Dimension already set on the figure layout.
+        default: Shared default dimension used by the save helper.
+
+    Returns:
+        The resolved integer dimension.
+    """
+
+    if layout_value is not None and requested == default:
+        try:
+            return int(layout_value)
+        except (TypeError, ValueError):
+            pass
+
+    try:
+        return int(requested)
+    except (TypeError, ValueError):
+        return int(default)
+
+
+
 def _apply_export_geometry(fig: go.Figure, width: int, height: int) -> go.Figure:
     """Makes export dimensions explicit for all renderers.
 
@@ -838,8 +873,29 @@ def save_plotly_figure(
         final_dir = Path(final_dir)
         final_dir.mkdir(parents=True, exist_ok=True)
 
-    html_fig = _prepare_html_figure(fig, filename, width=width, height=height)
-    static_fig = _prepare_static_figure(fig, filename, width=width, height=height)
+    resolved_width = _resolve_export_dimension(
+        width,
+        getattr(fig.layout, "width", None),
+        default=1600,
+    )
+    resolved_height = _resolve_export_dimension(
+        height,
+        getattr(fig.layout, "height", None),
+        default=900,
+    )
+
+    html_fig = _prepare_html_figure(
+        fig,
+        filename,
+        width=resolved_width,
+        height=resolved_height,
+    )
+    static_fig = _prepare_static_figure(
+        fig,
+        filename,
+        width=resolved_width,
+        height=resolved_height,
+    )
 
     manifest: dict[str, str] = {}
 
@@ -857,8 +913,8 @@ def save_plotly_figure(
         ok_png, png_message = _save_png(
             static_fig,
             png_path,
-            width=width,
-            height=height,
+            width=resolved_width,
+            height=resolved_height,
             scale=scale,
             timeout_seconds=export_timeout_seconds,
         )
@@ -876,8 +932,8 @@ def save_plotly_figure(
         ok_eps, eps_message = _save_eps(
             static_fig,
             eps_path,
-            width=width,
-            height=height,
+            width=resolved_width,
+            height=resolved_height,
             scale=scale,
             timeout_seconds=export_timeout_seconds,
         )
