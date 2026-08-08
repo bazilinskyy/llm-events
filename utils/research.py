@@ -25,6 +25,7 @@ from utils.normalise import (
     normalise_category,
     normalise_collision,
     normalise_factor,
+    normalise_manufacturer,
     normalise_mode,
     normalise_movement,
     normalise_road_user,
@@ -67,22 +68,62 @@ NARRATIVE_FIELDS = [
 
 ONLINE_FIELDS = ['lane_number', 'street_type', 'speed_limit', 'street_busy']
 
-COARSE_CONTEXT_FIELDS = [
-    'road_user_type', 'road_user_vulnerability_group', 'av_mode_group',
-    'av_movement_group', 'other_party_movement_group', 'collision_group',
-    'blame_group', 'environment_friction_profile',
+# Coarse context is scored from the availability of original extracted fields,
+# not downstream categories. This prevents derived labels such as ``unclear``,
+# ``unknown_or_other``, or ``nominal`` from being counted as source evidence.
+COARSE_SOURCE_GROUPS = {
+    'road_user': ['v2_id'],
+    'av_mode': ['v1_av'],
+    'av_movement': ['move_v1', 'v1_move'],
+    'other_party_movement': ['move_v2', 'v2_move', 'v2_mov'],
+    'collision': ['collision_v1', 'collision_v2'],
+    'blame': ['av_guilty', 'main_factor', 'q0_explanation'],
+    'environment': ['weather_v1', 'light_v1', 'surface_v1', 'condition_v1'],
+}
+
+# Fine report context excludes online enrichment. External fields receive their
+# own score so regulatory report availability is not conflated with web lookup
+# success.
+FINE_REPORT_CONTEXT_FIELDS = [
+    'v1_lane',
+    'v2_lane',
+    'v1_speed',
+    'v2_speed',
+    'v1_intersection',
+    'v2_intersection',
+    'direction',
+    'v1_damage_desc',
+    'v2_damage_desc',
 ]
 
-FINE_CONTEXT_FIELDS = [
-    'v1_lane', 'v2_lane', 'v1_speed', 'v2_speed', 'v1_intersection',
-    'v2_intersection', 'direction', 'lane_number', 'street_type',
-    'street_busy',
-]
+# Backwards compatible alias retained for downstream plotting code.
+FINE_CONTEXT_FIELDS = FINE_REPORT_CONTEXT_FIELDS
 
 SCENARIO_EVIDENCE_FIELDS = [
-    'road_user_type', 'av_movement_group', 'other_party_movement_group',
-    'collision_group', 'intersection_context',
+    'source_available__road_user',
+    'source_available__av_movement',
+    'source_available__other_party_movement',
+    'source_available__collision',
+    'intersection_source_available',
 ]
+
+SCENARIO_PRIORITY = [
+    'vulnerable_road_user_interaction',
+    'AV_stopped_rear_end',
+    'intersection_lateral_conflict',
+    'turn_across_path_conflict',
+    'lane_change_or_merge_conflict',
+    'curbside_or_parked_vehicle_conflict',
+    'low_speed_stop_or_obstruction_case',
+]
+
+MOVEMENT_COMPATIBLE_PAIRS = {
+    frozenset({'change_lane', 'merging'}),
+    frozenset({'turn_left', 'turn_other'}),
+    frozenset({'turn_right', 'turn_other'}),
+    frozenset({'entering_traffic', 'merging'}),
+    frozenset({'passing', 'change_lane'}),
+}
 
 FIELD_PROVENANCE_ORDER = [
     'bounded_form',
@@ -133,6 +174,15 @@ def _score_rate(row: pd.Series, fields: list[str]) -> float:
     if not fields:
         return 0.0
     return _available_count(row, fields) / len(fields)
+
+
+def _any_source_available(row: pd.Series, fields: list[str]) -> bool:
+    """Returns whether at least one original field in a group is available."""
+
+    return any(
+        field in row.index and not is_missing(row.get(field))
+        for field in fields
+    )
 
 
 def _normalise_intersection(v1_value: Any, v2_value: Any) -> str:
@@ -205,34 +255,81 @@ def _derive_road_user_vulnerability_group(road_user_type: Any) -> str:
     return 'unknown_or_other'
 
 
-def _derive_harm_scope_group(v1_injury: Any, v2_injury: Any) -> str:
-    """Derives a coarse harm severity scope from injury text.
+def _party_injury_status(value: Any) -> str:
+    """Classifies one party's injury field without inferring severity.
 
     Args:
-        v1_injury: Injury description for party one.
-        v2_injury: Injury description for party two.
+        value: Raw injury field text.
 
     Returns:
-        Harm scope group label.
+        Conservative reported injury status.
     """
 
-    combined = ' '.join([
-        normalise_category(v1_injury).lower(),
-        normalise_category(v2_injury).lower(),
-    ])
-    if (
-        'deceased' in combined
-        or 'injured' in combined
-        or 'driver' in combined
-        or 'passenger' in combined
-        or 'bicyclist' in combined
+    if is_missing(value):
+        return 'missing'
+
+    text = normalise_category(value).lower()
+    negative_phrases = [
+        'no_injury_marker',
+        'no injury',
+        'no injuries',
+        'not injured',
+        'without injury',
+        'denied injury',
+    ]
+    if any(phrase in text for phrase in negative_phrases):
+        return 'no_injury_marker'
+    if 'deceased' in text or 'fatal' in text or 'death' in text:
+        return 'reported_fatality'
+    if any(
+        token in text
+        for token in [
+            'injur',
+            'driver',
+            'passenger',
+            'bicyclist',
+            'cyclist',
+            'pedestrian',
+            'transported',
+            'hospital',
+            'medical',
+        ]
     ):
-        return 'bodily_harm_or_fatality'
-    if 'property' in combined:
-        return 'property_damage_only'
-    if 'none' in combined:
-        return 'no_recorded_harm'
-    return 'unknown'
+        return 'reported_injury'
+    if 'property' in text:
+        return 'property_only'
+    return 'unclear'
+
+
+def _derive_reported_injury_status(v1_injury: Any, v2_injury: Any) -> str:
+    """Combines party fields into a conservative report level injury status."""
+
+    statuses = {
+        _party_injury_status(v1_injury),
+        _party_injury_status(v2_injury),
+    }
+    if 'reported_fatality' in statuses:
+        return 'reported_fatality'
+    if 'reported_injury' in statuses:
+        return 'reported_injury'
+    if statuses == {'missing'}:
+        return 'missing'
+    if statuses.issubset(
+        {'missing', 'no_injury_marker', 'property_only'}
+    ):
+        return 'no_injury_marked'
+    return 'unclear'
+
+
+def _derive_harm_scope_group(v1_injury: Any, v2_injury: Any) -> str:
+    """Provides a backwards compatible coarse harm label."""
+
+    status = _derive_reported_injury_status(v1_injury, v2_injury)
+    if status in {'reported_injury', 'reported_fatality'}:
+        return 'reported_bodily_harm'
+    if status == 'no_injury_marked':
+        return 'no_reported_bodily_harm'
+    return status
 
 
 def _derive_environment_friction_profile(
@@ -252,6 +349,9 @@ def _derive_environment_friction_profile(
     Returns:
         Environmental friction profile label.
     """
+
+    if all(is_missing(value) for value in [weather, light, surface, condition]):
+        return 'unknown'
 
     weather_text = normalise_category(weather).lower()
     light_text = normalise_category(light).lower()
@@ -313,7 +413,7 @@ def _parse_hour_from_time_text(value: Any) -> int | None:
             hour = 0
         return hour if 0 <= hour <= 23 else None
 
-    match = re.search(r'(\d{1,2})\s*([AaPp][Mm])', text)
+    match = re.search(r'\b(\d{1,2})\s*([AaPp][Mm])\b', text)
     if match:
         hour = int(match.group(1))
         suffix = match.group(2).lower()
@@ -323,7 +423,7 @@ def _parse_hour_from_time_text(value: Any) -> int | None:
             hour = 0
         return hour if 0 <= hour <= 23 else None
 
-    match = re.search(r'(\d{3,4})', text)
+    match = re.search(r'\b(\d{3,4})\b', text)
     if match:
         digits = match.group(1).zfill(4)
         hour = int(digits[:2])
@@ -355,6 +455,20 @@ def _derive_when_group(time_value: Any, light_value: Any) -> str:
     return 'unknown'
 
 
+def _derive_report_period(year_value: Any) -> str:
+    """Groups report years into broad periods for descriptive sensitivity."""
+
+    try:
+        year = int(float(year_value))
+    except (TypeError, ValueError):
+        return 'unknown'
+    if year <= 2019:
+        return '2014_2019'
+    if year <= 2022:
+        return '2020_2022'
+    return '2023_2026'
+
+
 def _derive_why_group(row: pd.Series) -> str:
     """Builds a coarse ``why`` category from factor and blame cues."""
 
@@ -383,157 +497,216 @@ def _derive_how_group(row: pd.Series) -> str:
     return f'{av_move}_vs_{other_move}'
 
 
-def _derive_scenario_assignment(row: pd.Series) -> tuple[str, str, str]:
-    """Assigns a scenario class and explanatory trigger for one row.
+def _scenario_candidates(
+    row: pd.Series,
+    *,
+    source: str = 'combined',
+    use_explanation: bool = True,
+) -> list[tuple[str, str, str]]:
+    """Returns every scenario rule supported by a row.
 
-    Args:
-        row: Research dataframe row.
-
-    Returns:
-        Tuple of:
-            * scenario class
-            * trigger name
-            * evidence source label
+    ``source`` can be ``combined``, ``checkbox_only``, or ``narrative_only``.
+    The source limited variants are sensitivity analyses, not validation.
     """
 
-    av_move = row.get('av_movement_group', 'NA')
-    other_move = row.get('other_party_movement_group', 'NA')
-    collision = row.get('collision_group', 'NA')
-    intersection = row.get('intersection_context', 'unknown')
-    explanation = normalise_category(row.get('q0_explanation', '')).lower()
+    if source == 'checkbox_only':
+        av_move = normalise_movement(row.get('move_v1'))
+        other_move = normalise_movement(row.get('move_v2'))
+        collision = normalise_collision(row.get('collision_type'))
+        intersection = 'unknown'
+        explanation = ''
+    elif source == 'narrative_only':
+        av_move = normalise_movement(row.get('v1_move'))
+        other_move = normalise_movement(
+            first_non_missing(row.get('v2_move'), row.get('v2_mov'))
+        )
+        collision = 'NA'
+        intersection = _normalise_intersection(
+            row.get('v1_intersection'),
+            row.get('v2_intersection'),
+        )
+        explanation = (
+            normalise_category(row.get('q0_explanation', '')).lower()
+            if use_explanation
+            else ''
+        )
+    else:
+        av_move = row.get('av_movement_group', 'NA')
+        other_move = row.get('other_party_movement_group', 'NA')
+        collision = row.get('collision_group', 'NA')
+        intersection = row.get('intersection_context', 'unknown')
+        explanation = (
+            normalise_category(row.get('q0_explanation', '')).lower()
+            if use_explanation
+            else ''
+        )
+
     v2_raw = normalise_category(row.get('v2_id', '')).lower()
+    candidates: list[tuple[str, str, str]] = []
 
     if row.get('road_user_vulnerability_group') == 'vulnerable_road_user':
-        return (
+        candidates.append((
             'vulnerable_road_user_interaction',
             'vulnerable_road_user_trigger',
             'road_user_vulnerability_group',
-        )
+        ))
     if av_move == 'stop' and collision == 'rear_end':
-        return (
+        candidates.append((
             'AV_stopped_rear_end',
             'av_stop_plus_rear_end',
-            'av_movement_group+collision_group',
-        )
+            'av_movement+collision',
+        ))
     if intersection == 'intersection' and collision in {
         'broadside',
         'side_swipe',
         'head_on',
     }:
-        return (
+        candidates.append((
             'intersection_lateral_conflict',
             'intersection_plus_lateral_collision',
-            'intersection_context+collision_group',
-        )
+            'intersection+collision',
+        ))
     if av_move == 'straight' and other_move in {
         'turn_left',
         'turn_right',
         'turn_other',
         'turn_u',
     }:
-        return (
+        candidates.append((
             'turn_across_path_conflict',
             'straight_vs_turning_conflict',
-            'av_movement_group+other_party_movement_group',
-        )
+            'av_movement+other_party_movement',
+        ))
     if (
         av_move in {'change_lane', 'merging'}
         or other_move in {'change_lane', 'merging'}
         or collision == 'side_swipe'
     ):
-        return (
+        candidates.append((
             'lane_change_or_merge_conflict',
             'lane_change_merge_or_side_swipe',
-            'movement_or_collision_rule',
-        )
+            'movement_or_collision',
+        ))
     if (
         'parked' in explanation
         or 'double-parked' in explanation
         or 'parked' in v2_raw
         or collision == 'object'
     ):
-        return (
+        candidates.append((
             'curbside_or_parked_vehicle_conflict',
             'parked_vehicle_or_object_cue',
-            'q0_explanation_or_v2_id_or_collision_group',
-        )
+            'explanation_or_v2_id_or_collision',
+        ))
     if (
         av_move == 'stop'
-        and (
-            'uncertainty' in explanation
-            or 'obstruction' in explanation
-            or 'yield' in explanation
+        and use_explanation
+        and contains_any(
+            explanation,
+            ['uncertainty', 'obstruction', 'yield', 'blocked'],
         )
     ):
-        return (
+        candidates.append((
             'low_speed_stop_or_obstruction_case',
             'stop_for_uncertainty_or_obstruction',
-            'av_movement_group+q0_explanation',
-        )
+            'av_movement+explanation',
+        ))
+
+    return candidates
+
+
+def _select_primary_scenario(
+    candidates: list[tuple[str, str, str]],
+) -> tuple[str, str, str]:
+    """Selects the first candidate according to the declared priority."""
+
+    by_class = {candidate[0]: candidate for candidate in candidates}
+    for scenario_class in SCENARIO_PRIORITY:
+        if scenario_class in by_class:
+            return by_class[scenario_class]
     return 'other_or_ambiguous', 'no_rule_fired', 'insufficient_or_mixed_evidence'
 
 
-def _consistency_status(value_a: Any, value_b: Any, normaliser) -> str:
-    """Compares two values after normalisation and returns a status label.
+def _derive_scenario_assignment(
+    row: pd.Series,
+    *,
+    source: str = 'combined',
+    use_explanation: bool = True,
+) -> tuple[str, str, str]:
+    """Assigns the primary scenario while preserving explicit rule priority."""
 
-    Args:
-        value_a: First value.
-        value_b: Second value.
-        normaliser: Callable used to normalise each value.
+    return _select_primary_scenario(
+        _scenario_candidates(
+            row,
+            source=source,
+            use_explanation=use_explanation,
+        )
+    )
 
-    Returns:
-        Consistency status label.
-    """
 
-    a = normaliser(value_a)
-    b = normaliser(value_b)
-    if a in {'NA', 'unknown'} and b in {'NA', 'unknown'}:
-        return 'insufficient_both_missing'
-    if a in {'NA', 'unknown'} or b in {'NA', 'unknown'}:
-        return 'insufficient_one_missing'
+def _movement_field_agreement(value_a: Any, value_b: Any) -> str:
+    """Compares two movement fields using exact and compatible categories."""
+
+    a = normalise_movement(value_a)
+    b = normalise_movement(value_b)
+    missing_tokens = {'NA', 'na', 'unknown'}
+    if a in missing_tokens and b in missing_tokens:
+        return 'both_sources_missing'
+    if a in missing_tokens or b in missing_tokens:
+        return 'one_source_missing'
     if a == b:
-        return 'consistent'
-    return 'inconsistent'
+        return 'exact_agreement'
+    if frozenset({a, b}) in MOVEMENT_COMPATIBLE_PAIRS:
+        return 'compatible_agreement'
+    return 'contradictory'
 
 
-def _overall_movement_consistency(av_status: str, other_status: str) -> str:
-    """Collapses per party movement consistency into an overall status.
-
-    Args:
-        av_status: AV movement consistency status.
-        other_status: Other party movement consistency status.
-
-    Returns:
-        Overall movement consistency label.
-    """
+def _overall_movement_agreement(av_status: str, other_status: str) -> str:
+    """Combines party specific movement agreement into one report label."""
 
     statuses = {av_status, other_status}
-    if statuses == {'consistent'}:
-        return 'consistent'
-    if 'inconsistent' in statuses:
-        return 'inconsistent'
-    if 'consistent' in statuses:
-        return 'partial_consistency'
-    return 'insufficient'
+    if 'contradictory' in statuses:
+        return 'contradictory'
+    if statuses == {'exact_agreement'}:
+        return 'exact_agreement'
+    if statuses.issubset({'exact_agreement', 'compatible_agreement'}):
+        return 'compatible_agreement'
+    if statuses == {'both_sources_missing'}:
+        return 'both_sources_missing'
+    return 'one_or_more_sources_missing'
+
+
+def _derive_scenario_rule_support_score(row: pd.Series) -> float:
+    """Scores internal rule support without claiming classification accuracy."""
+
+    evidence_count = int(row.get('scenario_evidence_count', 0))
+    denominator = max(len(SCENARIO_EVIDENCE_FIELDS), 1)
+    score = evidence_count / denominator
+
+    if row.get('scenario_class') == 'other_or_ambiguous':
+        score -= 0.20
+    if int(row.get('scenario_candidate_count', 0)) > 1:
+        score -= 0.10
+    if row.get('movement_field_agreement') == 'contradictory':
+        score -= 0.15
+    return max(0.0, min(float(score), 1.0))
+
+
+def _derive_scenario_rule_support_group(row: pd.Series) -> str:
+    """Buckets internal rule support into high, medium, and low groups."""
+
+    score = float(row.get('scenario_rule_support_score', 0.0))
+    if row.get('scenario_class') != 'other_or_ambiguous' and score >= 0.75:
+        return 'high'
+    if score >= 0.50:
+        return 'medium'
+    return 'low'
 
 
 def _derive_scenario_determinability_group(row: pd.Series) -> str:
-    """Derives how determinate the assigned scenario appears.
+    """Backwards compatible alias for the scenario rule support group."""
 
-    Args:
-        row: Research dataframe row.
-
-    Returns:
-        ``'high'``, ``'medium'``, or ``'low'``.
-    """
-
-    evidence_count = int(row.get('scenario_evidence_count', 0))
-    scenario_class = normalise_category(row.get('scenario_class')).lower()
-    if scenario_class != 'other_or_ambiguous' and evidence_count >= 4:
-        return 'high'
-    if evidence_count >= 3:
-        return 'medium'
-    return 'low'
+    return _derive_scenario_rule_support_group(row)
 
 
 def _derive_intersection_detail_quality(row: pd.Series) -> str:
@@ -736,7 +909,7 @@ def _derive_initial_movement_inconsistency_diagnosis(row: pd.Series) -> str:
         return 'missing_or_under_specified'
     if row.get('scenario_class') == 'other_or_ambiguous':
         return 'ambiguous_scenario_context'
-    return 'within_report_conflict_or_parser_issue'
+    return 'cross_field_movement_disagreement'
 
 
 def derive_research_columns(
@@ -761,6 +934,16 @@ def derive_research_columns(
     df = parsed_df.copy()
     df.attrs.update(getattr(parsed_df, 'attrs', {}))
 
+    df['manufacturer_group'] = (
+        df['av_manufacturer'].map(normalise_manufacturer)
+        if 'av_manufacturer' in df.columns
+        else 'Unknown'
+    )
+    df['report_period'] = (
+        df['accident_year'].map(_derive_report_period)
+        if 'accident_year' in df.columns
+        else 'unknown'
+    )
     df['road_user_type'] = (
         df['v2_id'].map(normalise_road_user)
         if 'v2_id' in df.columns
@@ -830,6 +1013,13 @@ def derive_research_columns(
         ),
         axis=1,
     )
+    df['reported_injury_status'] = df.apply(
+        lambda row: _derive_reported_injury_status(
+            row.get('v1_injury'),
+            row.get('v2_injury'),
+        ),
+        axis=1,
+    )
 
     completeness_fields = [
         field for field in DEFAULT_COMPLETENESS_FIELDS if field in df.columns
@@ -894,17 +1084,46 @@ def derive_research_columns(
         if field in df.columns:
             df[f'blind_spot__{field}'] = df[field].map(is_missing)
 
-    df['coarse_context_score'] = df.apply(
-        lambda row: _score_rate(
+    # Availability is derived from original fields before analytical
+    # categories are considered. Each source group contributes at most one
+    # point regardless of how many aliases or sections can provide it.
+    for group_name, fields in COARSE_SOURCE_GROUPS.items():
+        df[f'source_available__{group_name}'] = df.apply(
+            lambda row, source_fields=fields: _any_source_available(
+                row,
+                source_fields,
+            ),
+            axis=1,
+        )
+    df['intersection_source_available'] = df.apply(
+        lambda row: _any_source_available(
             row,
-            [field for field in COARSE_CONTEXT_FIELDS if field in df.columns],
+            ['v1_intersection', 'v2_intersection'],
         ),
         axis=1,
+    )
+    coarse_availability_columns = [
+        f'source_available__{group_name}'
+        for group_name in COARSE_SOURCE_GROUPS
+    ]
+    df['coarse_context_score'] = (
+        df[coarse_availability_columns].astype(float).mean(axis=1)
     )
     df['fine_context_score'] = df.apply(
         lambda row: _score_rate(
             row,
-            [field for field in FINE_CONTEXT_FIELDS if field in df.columns],
+            [
+                field
+                for field in FINE_REPORT_CONTEXT_FIELDS
+                if field in df.columns
+            ],
+        ),
+        axis=1,
+    )
+    df['external_context_score'] = df.apply(
+        lambda row: _score_rate(
+            row,
+            [field for field in ONLINE_FIELDS if field in df.columns],
         ),
         axis=1,
     )
@@ -917,7 +1136,17 @@ def derive_research_columns(
         )
     )
 
-    # Assign scenario classes and supporting evidence metadata.
+    # Assign the primary scenario while retaining every rule that fired. This
+    # makes rule overlap and rule ordering visible to sensitivity analyses.
+    candidate_lists = df.apply(_scenario_candidates, axis=1)
+    df['scenario_candidate_rules'] = candidate_lists.map(
+        lambda candidates: '|'.join(candidate[0] for candidate in candidates)
+        if candidates
+        else 'none'
+    )
+    df['scenario_candidate_count'] = candidate_lists.map(len)
+    df['scenario_rule_overlap'] = df['scenario_candidate_count'].gt(1)
+
     scenario_assignment = df.apply(
         _derive_scenario_assignment,
         axis=1,
@@ -929,39 +1158,91 @@ def derive_research_columns(
         'scenario_assignment_evidence',
     ]
     df = pd.concat([df, scenario_assignment], axis=1)
-    df['scenario_evidence_count'] = df.apply(
-        lambda row: _available_count(
+
+    df['scenario_class_no_explanation'] = df.apply(
+        lambda row: _derive_scenario_assignment(
             row,
-            [field for field in SCENARIO_EVIDENCE_FIELDS if field in df.columns],
+            use_explanation=False,
+        )[0],
+        axis=1,
+    )
+    df['scenario_class_checkbox_only'] = df.apply(
+        lambda row: _derive_scenario_assignment(
+            row,
+            source='checkbox_only',
+            use_explanation=False,
+        )[0],
+        axis=1,
+    )
+    df['scenario_class_narrative_only'] = df.apply(
+        lambda row: _derive_scenario_assignment(
+            row,
+            source='narrative_only',
+            use_explanation=True,
+        )[0],
+        axis=1,
+    )
+
+    df['av_move_agreement_status'] = df.apply(
+        lambda row: _movement_field_agreement(
+            row.get('move_v1'),
+            row.get('v1_move'),
         ),
+        axis=1,
+    )
+    df['other_move_agreement_status'] = df.apply(
+        lambda row: _movement_field_agreement(
+            row.get('move_v2'),
+            first_non_missing(row.get('v2_move'), row.get('v2_mov')),
+        ),
+        axis=1,
+    )
+    df['movement_field_agreement'] = df.apply(
+        lambda row: _overall_movement_agreement(
+            row.get('av_move_agreement_status'),
+            row.get('other_move_agreement_status'),
+        ),
+        axis=1,
+    )
+
+    # Backwards compatible columns remain available for existing figures and
+    # downstream scripts, but their values now derive from the more explicit
+    # agreement categories above.
+    agreement_to_legacy = {
+        'exact_agreement': 'consistent',
+        'compatible_agreement': 'consistent',
+        'contradictory': 'inconsistent',
+        'both_sources_missing': 'insufficient',
+        'one_source_missing': 'insufficient',
+        'one_or_more_sources_missing': 'insufficient',
+    }
+    df['av_move_consistency_status'] = df[
+        'av_move_agreement_status'
+    ].map(agreement_to_legacy)
+    df['other_move_consistency_status'] = df[
+        'other_move_agreement_status'
+    ].map(agreement_to_legacy)
+    df['movement_consistency_overall'] = df[
+        'movement_field_agreement'
+    ].map(agreement_to_legacy)
+
+    df['scenario_evidence_count'] = df.apply(
+        lambda row: sum(
+            bool(row.get(field, False))
+            for field in SCENARIO_EVIDENCE_FIELDS
+        ),
+        axis=1,
+    )
+    df['scenario_rule_support_score'] = df.apply(
+        _derive_scenario_rule_support_score,
+        axis=1,
+    )
+    df['scenario_rule_support_group'] = df.apply(
+        _derive_scenario_rule_support_group,
         axis=1,
     )
     df['scenario_determinability_group'] = df.apply(
         _derive_scenario_determinability_group,
-        axis=1,
-    )
-
-    df['av_move_consistency_status'] = df.apply(
-        lambda row: _consistency_status(
-            row.get('move_v1'),
-            row.get('v1_move'),
-            normalise_movement,
-        ),
-        axis=1,
-    )
-    df['other_move_consistency_status'] = df.apply(
-        lambda row: _consistency_status(
-            row.get('move_v2'),
-            first_non_missing(row.get('v2_move'), row.get('v2_mov')),
-            normalise_movement,
-        ),
-        axis=1,
-    )
-    df['movement_consistency_overall'] = df.apply(
-        lambda row: _overall_movement_consistency(
-            row.get('av_move_consistency_status'),
-            row.get('other_move_consistency_status'),
-        ),
         axis=1,
     )
     df['movement_inconsistency_diagnosis'] = df.apply(
@@ -992,6 +1273,10 @@ def derive_research_columns(
         ),
         axis=1,
     )
+    df['blame_field_completeness_score'] = df['blame_evidence_score']
+    df['blame_field_completeness_group'] = df[
+        'blame_field_completeness_score'
+    ].map(bucket_score)
     df['blame_explicitness_group'] = df.apply(
         _derive_blame_explicitness_group,
         axis=1,
@@ -1167,7 +1452,10 @@ def _score_summary_table(df: pd.DataFrame) -> pd.DataFrame:
         'report_explicitness_score',
         'coarse_context_score',
         'fine_context_score',
+        'external_context_score',
         'context_granularity_gap',
+        'scenario_rule_support_score',
+        'blame_field_completeness_score',
         'blame_evidence_score',
     ]
     rows: list[dict[str, Any]] = []
@@ -1203,6 +1491,268 @@ def _distribution_table(df: pd.DataFrame, field: str) -> pd.DataFrame:
             top_n=max(df[field].astype(str).nunique(), 1),
         )
     return pd.DataFrame(columns=[field, 'count', 'share'])
+
+
+def _grouped_scenario_table(
+    df: pd.DataFrame,
+    group_field: str,
+) -> pd.DataFrame:
+    """Builds scenario counts and within group shares."""
+
+    columns = [group_field, 'scenario_class', 'count', 'group_total', 'share']
+    if df.empty or group_field not in df.columns:
+        return pd.DataFrame(columns=columns)
+
+    table = (
+        df.groupby([group_field, 'scenario_class'], dropna=False)
+        .size()
+        .reset_index(name='count')
+    )
+    table['group_total'] = table.groupby(group_field)['count'].transform('sum')
+    table['share'] = table['count'] / table['group_total'].clip(lower=1)
+    return table.sort_values(
+        [group_field, 'count', 'scenario_class'],
+        ascending=[True, False, True],
+    ).reset_index(drop=True)
+
+
+def _taxonomy_sensitivity_table(df: pd.DataFrame) -> pd.DataFrame:
+    """Summarises scenario distributions under alternative specifications."""
+
+    columns = [
+        'specification',
+        'scenario_class',
+        'count',
+        'rows_in_specification',
+        'share',
+    ]
+    if df.empty:
+        return pd.DataFrame(columns=columns)
+
+    specifications: list[tuple[str, pd.DataFrame, str]] = [
+        ('baseline', df, 'scenario_class'),
+        ('without_explanation', df, 'scenario_class_no_explanation'),
+        ('checkbox_only', df, 'scenario_class_checkbox_only'),
+        ('narrative_only', df, 'scenario_class_narrative_only'),
+        (
+            'single_rule_only',
+            df.loc[df['scenario_candidate_count'].eq(1)],
+            'scenario_class',
+        ),
+        (
+            'movement_agreement_supported',
+            df.loc[
+                df['movement_field_agreement'].isin(
+                    {'exact_agreement', 'compatible_agreement'}
+                )
+            ],
+            'scenario_class',
+        ),
+        (
+            'high_rule_support',
+            df.loc[df['scenario_rule_support_group'].eq('high')],
+            'scenario_class',
+        ),
+    ]
+    if 'amendment_status' in df.columns:
+        specifications.append((
+            'exclude_amended_reports',
+            df.loc[df['amendment_status'].ne('amended_report')],
+            'scenario_class',
+        ))
+    if 'potential_duplicate_event' in df.columns:
+        specifications.append((
+            'exclude_potential_duplicate_rows',
+            df.loc[~df['potential_duplicate_event'].fillna(False)],
+            'scenario_class',
+        ))
+
+    rows: list[dict[str, Any]] = []
+    for specification, subset, scenario_field in specifications:
+        if subset.empty or scenario_field not in subset.columns:
+            continue
+        counts = subset[scenario_field].value_counts(dropna=False)
+        total = int(len(subset))
+        for scenario_class, count in counts.items():
+            rows.append({
+                'specification': specification,
+                'scenario_class': str(scenario_class),
+                'count': int(count),
+                'rows_in_specification': total,
+                'share': int(count) / total if total else 0.0,
+            })
+    return pd.DataFrame(rows, columns=columns).sort_values(
+        ['specification', 'count', 'scenario_class'],
+        ascending=[True, False, True],
+    ).reset_index(drop=True)
+
+
+def _cohen_kappa(left: pd.Series, right: pd.Series) -> float:
+    """Calculates unweighted Cohen kappa for two categorical series."""
+
+    paired = pd.DataFrame({'left': left, 'right': right}).dropna()
+    if paired.empty:
+        return 0.0
+    observed = float(paired['left'].eq(paired['right']).mean())
+    left_share = paired['left'].value_counts(normalize=True)
+    right_share = paired['right'].value_counts(normalize=True)
+    labels = set(left_share.index).union(right_share.index)
+    expected = sum(
+        float(left_share.get(label, 0.0))
+        * float(right_share.get(label, 0.0))
+        for label in labels
+    )
+    if expected >= 1.0:
+        return 1.0 if observed >= 1.0 else 0.0
+    return (observed - expected) / (1.0 - expected)
+
+
+def _taxonomy_agreement_table(df: pd.DataFrame) -> pd.DataFrame:
+    """Compares baseline taxonomy with automated sensitivity variants."""
+
+    columns = [
+        'comparison',
+        'row_count',
+        'exact_agreement_rate',
+        'cohen_kappa',
+    ]
+    if df.empty or 'scenario_class' not in df.columns:
+        return pd.DataFrame(columns=columns)
+
+    variants = {
+        'baseline_vs_without_explanation': 'scenario_class_no_explanation',
+        'baseline_vs_checkbox_only': 'scenario_class_checkbox_only',
+        'baseline_vs_narrative_only': 'scenario_class_narrative_only',
+    }
+    rows = []
+    for comparison, field in variants.items():
+        if field not in df.columns:
+            continue
+        paired = df[['scenario_class', field]].dropna()
+        rows.append({
+            'comparison': comparison,
+            'row_count': int(len(paired)),
+            'exact_agreement_rate': (
+                float(paired['scenario_class'].eq(paired[field]).mean())
+                if len(paired)
+                else 0.0
+            ),
+            'cohen_kappa': _cohen_kappa(
+                paired['scenario_class'],
+                paired[field],
+            ),
+        })
+    return pd.DataFrame(rows, columns=columns)
+
+
+def _manufacturer_leave_one_out_table(
+    df: pd.DataFrame,
+    top_n: int = 3,
+) -> pd.DataFrame:
+    """Summarises taxonomy after excluding each dominant manufacturer."""
+
+    columns = [
+        'specification',
+        'excluded_manufacturer',
+        'scenario_class',
+        'count',
+        'rows_in_specification',
+        'share',
+    ]
+    if df.empty or 'manufacturer_group' not in df.columns:
+        return pd.DataFrame(columns=columns)
+
+    manufacturer_counts = (
+        df.loc[df['manufacturer_group'].ne('Unknown'), 'manufacturer_group']
+        .value_counts()
+        .head(top_n)
+    )
+    specifications: list[tuple[str, str, pd.DataFrame]] = [
+        ('baseline', 'none', df)
+    ]
+    specifications.extend(
+        (
+            f'exclude_{manufacturer}',
+            str(manufacturer),
+            df.loc[df['manufacturer_group'].ne(manufacturer)],
+        )
+        for manufacturer in manufacturer_counts.index
+    )
+
+    rows: list[dict[str, Any]] = []
+    for specification, excluded, subset in specifications:
+        total = int(len(subset))
+        for scenario_class, count in subset['scenario_class'].value_counts().items():
+            rows.append({
+                'specification': specification,
+                'excluded_manufacturer': excluded,
+                'scenario_class': str(scenario_class),
+                'count': int(count),
+                'rows_in_specification': total,
+                'share': int(count) / total if total else 0.0,
+            })
+    return pd.DataFrame(rows, columns=columns).sort_values(
+        ['specification', 'count', 'scenario_class'],
+        ascending=[True, False, True],
+    ).reset_index(drop=True)
+
+
+def _corpus_manifest_table(df: pd.DataFrame) -> pd.DataFrame:
+    """Builds a report manifest with amendment and duplicate indicators."""
+
+    manifest_columns = [
+        'row_id',
+        'source_report',
+        'report_pdf',
+        'manufacturer_group',
+        'accident_year',
+        'accident_month',
+        'accident_day',
+        'time',
+        'city',
+        'address',
+    ]
+    available = [column for column in manifest_columns if column in df.columns]
+    manifest = df[available].copy()
+
+    source_name = manifest.get(
+        'source_report',
+        pd.Series('', index=manifest.index, dtype='object'),
+    ).fillna('').astype(str)
+    manifest['amendment_status'] = source_name.str.contains(
+        'amended',
+        case=False,
+        regex=False,
+    ).map({True: 'amended_report', False: 'not_identified_as_amended'})
+
+    event_key_fields = [
+        field
+        for field in [
+            'manufacturer_group',
+            'accident_year',
+            'accident_month',
+            'accident_day',
+            'time',
+            'city',
+            'address',
+        ]
+        if field in manifest.columns
+    ]
+    event_key = manifest[event_key_fields].fillna('').astype(str).apply(
+        lambda row: '|'.join(value.strip().lower() for value in row),
+        axis=1,
+    )
+    manifest['event_key'] = event_key
+    meaningful_event_key = event_key.str.replace('|', '', regex=False).str.strip()
+    manifest['potential_duplicate_group_size'] = (
+        event_key.groupby(event_key).transform('size')
+    )
+    manifest['potential_duplicate_event'] = (
+        manifest['potential_duplicate_group_size'].gt(1)
+        & meaningful_event_key.ne('')
+    )
+    manifest['included_in_analysis'] = True
+    return manifest.sort_values('row_id').reset_index(drop=True)
 
 
 def _data_availability_table(
@@ -1485,7 +2035,7 @@ def _build_movement_inconsistency_audit(
             return 'missing_or_under_specified'
         if row.get('scenario_class') == 'other_or_ambiguous':
             return 'ambiguous_scenario_context'
-        return 'within_report_conflict_or_parser_issue'
+        return 'cross_field_movement_disagreement'
 
     working['movement_inconsistency_diagnosis'] = working.apply(diagnose, axis=1)
     audit_columns = [
@@ -1496,11 +2046,14 @@ def _build_movement_inconsistency_audit(
         'scenario_determinability_group',
         'move_v1',
         'v1_move',
+        'av_move_agreement_status',
         'av_move_consistency_status',
         'move_v2',
         'v2_move',
         'v2_mov',
+        'other_move_agreement_status',
         'other_move_consistency_status',
+        'movement_field_agreement',
         'movement_consistency_overall',
         'movement_inconsistency_diagnosis',
         'movement_source_disagreement',
@@ -1546,6 +2099,8 @@ def _build_blame_evidence_table(
         'q0_confidence',
         'q0_confidence_numeric',
         'q0_explanation',
+        'blame_field_completeness_score',
+        'blame_field_completeness_group',
         'blame_evidence_score',
         'blame_explicitness_group',
         'blame_conflict_reason',
@@ -1580,8 +2135,16 @@ def _build_taxonomy_assignment_table(research_df: pd.DataFrame) -> pd.DataFrame:
         'scenario_class',
         'scenario_rule_trigger',
         'scenario_assignment_evidence',
+        'scenario_candidate_rules',
+        'scenario_candidate_count',
+        'scenario_rule_overlap',
         'scenario_evidence_count',
+        'scenario_rule_support_score',
+        'scenario_rule_support_group',
         'scenario_determinability_group',
+        'scenario_class_no_explanation',
+        'scenario_class_checkbox_only',
+        'scenario_class_narrative_only',
         'road_user_type',
         'av_movement_group',
         'other_party_movement_group',
@@ -1702,6 +2265,7 @@ def _build_field_contradiction_report(
             'row_id',
             'source_report',
             'scenario_class',
+            'movement_field_agreement',
             'movement_consistency_overall',
             'blame_conflict_flag',
             'blame_conflict_reason',
@@ -1719,8 +2283,8 @@ def _build_field_contradiction_report(
         working['disagreement_count'] = 0
         working['source_stability_group'] = 'unknown'
     working['movement_conflict_flag'] = working[
-        'movement_consistency_overall'
-    ].eq('inconsistent')
+        'movement_field_agreement'
+    ].eq('contradictory')
     working['source_disagreement_flag'] = pd.to_numeric(
         working['disagreement_count'],
         errors='coerce',
@@ -1760,6 +2324,29 @@ def build_research_summary(
     """
 
     blind_spots = _missingness_table(research_df, blind_spot_fields)
+    blind_spots['scope'] = blind_spots['field'].map(
+        lambda field: 'online_enrichment_post_extraction'
+        if field in ONLINE_FIELDS
+        else 'report_context_post_extraction'
+    )
+    report_context_fields = [
+        field for field in blind_spot_fields if field not in ONLINE_FIELDS
+    ]
+    external_context_fields = list(ONLINE_FIELDS)
+    report_context_unavailability = _missingness_table(
+        research_df,
+        report_context_fields,
+    )
+    report_context_unavailability['scope'] = (
+        'report_context_post_extraction'
+    )
+    external_context_unavailability = _missingness_table(
+        research_df,
+        external_context_fields,
+    )
+    external_context_unavailability['scope'] = (
+        'online_enrichment_post_extraction'
+    )
     field_provenance = _field_provenance_table(research_df)
     provenance_summary = _provenance_summary_table(field_provenance)
     taxonomy_counts = _top_counts(
@@ -1784,6 +2371,61 @@ def build_research_summary(
         .size()
         .reset_index(name='count')
         .sort_values(['scenario_class', 'count'], ascending=[True, False])
+    )
+    scenario_by_av_mode = _grouped_scenario_table(
+        filtered_research_df,
+        'av_mode_group',
+    )
+    scenario_by_period = _grouped_scenario_table(
+        filtered_research_df,
+        'report_period',
+    )
+    scenario_by_manufacturer = _grouped_scenario_table(
+        filtered_research_df,
+        'manufacturer_group',
+    )
+    scenario_by_reported_injury = _grouped_scenario_table(
+        filtered_research_df,
+        'reported_injury_status',
+    )
+    corpus_manifest = _corpus_manifest_table(research_df)
+    sensitivity_df = filtered_research_df.merge(
+        corpus_manifest[
+            [
+                'row_id',
+                'amendment_status',
+                'event_key',
+                'potential_duplicate_event',
+                'potential_duplicate_group_size',
+            ]
+        ],
+        on='row_id',
+        how='left',
+    )
+    taxonomy_sensitivity = _taxonomy_sensitivity_table(sensitivity_df)
+    taxonomy_agreement = _taxonomy_agreement_table(filtered_research_df)
+    manufacturer_leave_one_out = _manufacturer_leave_one_out_table(
+        filtered_research_df,
+    )
+    taxonomy_rule_overlap = _distribution_table(
+        filtered_research_df,
+        'scenario_candidate_count',
+    )
+    movement_agreement_distribution = _distribution_table(
+        research_df,
+        'movement_field_agreement',
+    )
+    scenario_rule_support_distribution = _distribution_table(
+        filtered_research_df,
+        'scenario_rule_support_group',
+    )
+    reported_injury_distribution = _distribution_table(
+        research_df,
+        'reported_injury_status',
+    )
+    blame_field_completeness_distribution = _distribution_table(
+        research_df,
+        'blame_field_completeness_group',
     )
     parse_quality = (
         research_df[
@@ -1864,6 +2506,18 @@ def build_research_summary(
             ),
         },
         {
+            'metric': 'external_context_score',
+            'mean': round(
+                float(
+                    pd.to_numeric(
+                        research_df['external_context_score'],
+                        errors='coerce',
+                    ).mean()
+                ),
+                3,
+            ),
+        },
+        {
             'metric': 'context_granularity_gap',
             'mean': round(
                 float(
@@ -1909,6 +2563,13 @@ def build_research_summary(
         source_disagreement_audit,
     )
 
+    top_unavailability = {
+        str(k): round(float(v), 3)
+        for k, v in zip(
+            blind_spots['field'].head(10),
+            blind_spots['missing_rate'],
+        )
+    }
     summary = {
         'rows_total': int(len(research_df)),
         'rows_used_for_empirical_analysis': int(len(filtered_research_df)),
@@ -1919,13 +2580,9 @@ def build_research_summary(
         'taxonomy_top_counts': safe_int_dict(
             dict(zip(taxonomy_counts['scenario_class'], taxonomy_counts['count']))
         ),
-        'blind_spot_top_missingness': {
-            str(k): round(float(v), 3)
-            for k, v in zip(
-                blind_spots['field'].head(10),
-                blind_spots['missing_rate'],
-            )
-        },
+        'post_extraction_top_unavailability': top_unavailability,
+        # Backwards compatible key for existing consumers.
+        'blind_spot_top_missingness': top_unavailability,
         'blame_distribution': safe_int_dict(
             dict(zip(blame_counts['blame_group'], blame_counts['count']))
         ),
@@ -1947,11 +2604,55 @@ def build_research_summary(
                 )
             )
         ),
+        'movement_field_agreement_distribution': safe_int_dict(
+            dict(
+                zip(
+                    movement_agreement_distribution['movement_field_agreement'],
+                    movement_agreement_distribution['count'],
+                )
+            )
+        ),
         'scenario_determinability_distribution': safe_int_dict(
             dict(
                 zip(
                     determinability_distribution['scenario_determinability_group'],
                     determinability_distribution['count'],
+                )
+            )
+        ),
+        'scenario_rule_support_distribution': safe_int_dict(
+            dict(
+                zip(
+                    scenario_rule_support_distribution[
+                        'scenario_rule_support_group'
+                    ],
+                    scenario_rule_support_distribution['count'],
+                )
+            )
+        ),
+        'scenario_rule_overlap_distribution': safe_int_dict(
+            dict(
+                zip(
+                    taxonomy_rule_overlap['scenario_candidate_count'],
+                    taxonomy_rule_overlap['count'],
+                )
+            )
+        ),
+        'reported_injury_distribution': safe_int_dict(
+            dict(
+                zip(
+                    reported_injury_distribution['reported_injury_status'],
+                    reported_injury_distribution['count'],
+                )
+            )
+        ),
+        'blame_field_completeness_distribution': safe_int_dict(
+            dict(
+                zip(
+                    blame_field_completeness_distribution[
+                        'blame_field_completeness_group'
+                    ],
+                    blame_field_completeness_distribution['count'],
                 )
             )
         ),
@@ -2047,20 +2748,55 @@ def build_research_summary(
             if len(research_df)
             else 0.0
         ),
+        'average_external_context_score': (
+            round(float(research_df['external_context_score'].mean()), 3)
+            if len(research_df)
+            else 0.0
+        ),
         'average_context_gap': (
             round(float(research_df['context_granularity_gap'].mean()), 3)
             if len(research_df)
             else 0.0
+        ),
+        'amended_report_count': int(
+            corpus_manifest['amendment_status'].eq('amended_report').sum()
+        ),
+        'potential_duplicate_event_count': int(
+            corpus_manifest['potential_duplicate_event'].sum()
+        ),
+        'potential_duplicate_event_group_count': int(
+            corpus_manifest.loc[
+                corpus_manifest['potential_duplicate_event'],
+                'event_key',
+            ].nunique()
         ),
         'other_or_ambiguous_review_count': int(len(other_or_ambiguous_review)),
     }
     tables = {
         'taxonomy_counts': taxonomy_counts,
         'blind_spot_missingness': blind_spots,
+        'post_extraction_unavailability': blind_spots,
+        'report_context_unavailability': report_context_unavailability,
+        'external_context_unavailability': external_context_unavailability,
         'blame_counts': blame_counts,
         'road_user_counts': road_user_counts,
         'accountability_by_taxonomy': accountability_by_taxonomy,
         'taxonomy_by_road_user': taxonomy_by_road_user,
+        'scenario_by_av_mode': scenario_by_av_mode,
+        'scenario_by_period': scenario_by_period,
+        'scenario_by_manufacturer': scenario_by_manufacturer,
+        'scenario_by_reported_injury': scenario_by_reported_injury,
+        'taxonomy_sensitivity': taxonomy_sensitivity,
+        'taxonomy_agreement': taxonomy_agreement,
+        'taxonomy_rule_overlap': taxonomy_rule_overlap,
+        'manufacturer_leave_one_out': manufacturer_leave_one_out,
+        'movement_field_agreement_distribution': movement_agreement_distribution,
+        'scenario_rule_support_distribution': scenario_rule_support_distribution,
+        'reported_injury_distribution': reported_injury_distribution,
+        'blame_field_completeness_distribution': (
+            blame_field_completeness_distribution
+        ),
+        'corpus_manifest': corpus_manifest,
         'parse_quality': parse_quality,
         'field_provenance': field_provenance,
         'provenance_summary': provenance_summary,
@@ -2081,6 +2817,10 @@ def build_research_summary(
         'source_disagreement_summary': source_disagreement_summary,
         'movement_inconsistency_audit': movement_inconsistency_audit,
         'movement_inconsistency_summary': movement_inconsistency_summary,
+        'movement_field_agreement_audit': movement_inconsistency_audit,
+        'movement_field_agreement_audit_summary': (
+            movement_inconsistency_summary
+        ),
         'blame_evidence_strength': blame_evidence_table,
         'blame_evidence_strength_distribution': blame_evidence_strength_distribution,
         'taxonomy_assignment_explanations': taxonomy_assignment_explanations,
@@ -2159,8 +2899,16 @@ def create_validation_sample(
         'row_id',
         'source_report',
         'selected_text_column',
+        'manufacturer_group',
+        'report_period',
         'scenario_class',
         'scenario_rule_trigger',
+        'scenario_candidate_rules',
+        'scenario_candidate_count',
+        'scenario_rule_support_group',
+        'scenario_class_no_explanation',
+        'scenario_class_checkbox_only',
+        'scenario_class_narrative_only',
         'road_user_type',
         'road_user_vulnerability_group',
         'collision_group',
@@ -2170,11 +2918,16 @@ def create_validation_sample(
         'blame_group',
         'blame_evidence_strength',
         'scenario_determinability_group',
+        'movement_field_agreement',
         'movement_consistency_overall',
         'environment_friction_profile',
+        'reported_injury_status',
         'intersection_detail_quality',
         'report_completeness_score',
         'report_explicitness_score',
+        'coarse_context_score',
+        'fine_context_score',
+        'external_context_score',
         'blame_evidence_score',
     ]
     if include_text and 'model_output_text' in sample.columns:
@@ -2185,6 +2938,8 @@ def create_validation_sample(
     result['manual_scenario_class'] = ''
     result['manual_blame_group'] = ''
     result['manual_determinability'] = ''
+    result['manual_source_presence_notes'] = ''
+    result['manual_extraction_accuracy_notes'] = ''
     result['manual_notes'] = ''
     result['adjudicated_scenario_class'] = ''
     result['adjudicated_blame_group'] = ''
@@ -2220,7 +2975,17 @@ def format_research_markdown(summary: dict[str, Any], config: Any) -> str:
         f"- Average explicitness score: {summary.get('average_explicitness_score', 0.0)}",
         f"- Average coarse context score: {summary.get('average_coarse_context_score', 0.0)}",
         f"- Average fine context score: {summary.get('average_fine_context_score', 0.0)}",
+        f"- Average external context score: {summary.get('average_external_context_score', 0.0)}",
         f"- Average context gap: {summary.get('average_context_gap', 0.0)}",
+        f"- Reports identified as amended: {summary.get('amended_report_count', 0)}",
+        (
+            '- Potential duplicate event rows: '
+            f"{summary.get('potential_duplicate_event_count', 0)}"
+        ),
+        (
+            '- Potential duplicate event groups: '
+            f"{summary.get('potential_duplicate_event_group_count', 0)}"
+        ),
         '',
         '## Data availability',
     ]
@@ -2229,29 +2994,44 @@ def format_research_markdown(summary: dict[str, Any], config: Any) -> str:
     lines.extend(['', '## Top taxonomy classes'])
     for label, count in summary.get('taxonomy_top_counts', {}).items():
         lines.append(f'- {label}: {count}')
-    lines.extend(['', '## Top blind spots'])
-    for label, value in summary.get('blind_spot_top_missingness', {}).items():
+    lines.extend(['', '## Top post extraction unavailability'])
+    for label, value in summary.get(
+        'post_extraction_top_unavailability',
+        summary.get('blind_spot_top_missingness', {}),
+    ).items():
         lines.append(f'- {label}: missing rate {value}')
     lines.extend(['', '## Provenance availability'])
     for label, value in summary.get('provenance_mean_availability', {}).items():
         lines.append(f'- {label}: mean availability {value}')
-    lines.extend(['', '## Movement consistency'])
-    for label, count in summary.get('movement_consistency_distribution', {}).items():
+    lines.extend(['', '## Movement field agreement'])
+    for label, count in summary.get(
+        'movement_field_agreement_distribution',
+        {},
+    ).items():
         lines.append(f'- {label}: {count}')
     lines.extend(['', '## Movement inconsistency diagnosis'])
     for label, count in summary.get('movement_inconsistency_diagnosis', {}).items():
         lines.append(f'- {label}: {count}')
-    lines.extend(['', '## Scenario determinability'])
-    for label, count in summary.get('scenario_determinability_distribution', {}).items():
+    lines.extend(['', '## Scenario rule support'])
+    for label, count in summary.get(
+        'scenario_rule_support_distribution',
+        {},
+    ).items():
         lines.append(f'- {label}: {count}')
-    lines.extend(['', '## Blame evidence strength'])
-    for label, count in summary.get('blame_evidence_strength_distribution', {}).items():
+    lines.extend(['', '## Blame field completeness'])
+    for label, count in summary.get(
+        'blame_field_completeness_distribution',
+        {},
+    ).items():
         lines.append(f'- {label}: {count}')
     lines.extend(['', '## Source disagreement'])
     for label, count in summary.get('source_disagreement_summary', {}).items():
         lines.append(f'- {label}: {count}')
     lines.extend(['', '## Environment profiles'])
     for label, count in summary.get('environment_profile_distribution', {}).items():
+        lines.append(f'- {label}: {count}')
+    lines.extend(['', '## Reported injury status'])
+    for label, count in summary.get('reported_injury_distribution', {}).items():
         lines.append(f'- {label}: {count}')
     lines.extend(['', '## External enrichment presence'])
     for label, count in summary.get('external_enrichment_distribution', {}).items():
@@ -2273,6 +3053,9 @@ def format_research_markdown(summary: dict[str, Any], config: Any) -> str:
         '## Configuration highlights',
         f'- Row keep policy: {getattr(config, "row_keep_policy", "NA")}',
         f'- Validation sample size: {getattr(config, "validation_sample_size", "NA")}',
-        f'- Blind spot fields: {", ".join(getattr(config, "blind_spot_fields", []))}',
+        (
+            '- Post extraction unavailability fields: '
+            f'{", ".join(getattr(config, "blind_spot_fields", []))}'
+        ),
     ])
     return "\n".join(lines) + "\n"

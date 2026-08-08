@@ -256,7 +256,37 @@ def normalise_movement(value: Any) -> str:
         "wrong_way": "wrong_way",
         "traveling wrong way": "wrong_way",
     }
-    return mapping.get(text, text)
+    if text in mapping:
+        return mapping[text]
+
+    # Use conservative phrase matching for common free text variants. These
+    # rules intentionally require a movement cue and avoid broad terms such as
+    # "travel" that could collapse genuinely different manoeuvres.
+    if any(token in text for token in {"stopp", "waiting", "slowing"}):
+        return "stop"
+    if "left" in text and "turn" in text:
+        return "turn_left"
+    if "right" in text and "turn" in text:
+        return "turn_right"
+    if "u-turn" in text or "u turn" in text:
+        return "turn_u"
+    if "turn" in text:
+        return "turn_other"
+    if "lane" in text and ("chang" in text or "shift" in text):
+        return "change_lane"
+    if "merg" in text:
+        return "merging"
+    if "park" in text:
+        return "parked"
+    if "back" in text or "revers" in text:
+        return "backing"
+    if "enter" in text and "traffic" in text:
+        return "entering_traffic"
+    if "pass" in text or "overtak" in text:
+        return "passing"
+    if "straight" in text or "proceeding" in text:
+        return "straight"
+    return text
 
 
 def normalise_collision(value: Any) -> str:
@@ -308,6 +338,52 @@ def normalise_factor(value: Any) -> str:
         return "v1_or_av"
     if "v2" in text or "other driver" in text or "other party" in text:
         return "v2_or_other_road_user"
+    return text
+
+
+def normalise_manufacturer(value: Any) -> str:
+    """Normalises common California AV reporting entity name variants.
+
+    The mapping is intended for descriptive grouping. It represents the
+    company lineage decisions used in this project and should not be
+    interpreted as strict legal entity matching.
+
+    Args:
+        value: Raw manufacturer name.
+
+    Returns:
+        A consolidated manufacturer label or ``"Unknown"``.
+    """
+
+    text = normalise_category(value)
+    if text in {"NA", "unknown"}:
+        return "Unknown"
+
+    lower = text.lower()
+    if "waymo" in lower or "google auto" in lower or "google self" in lower:
+        return "Waymo"
+    if "cruise" in lower:
+        return "Cruise"
+    if "zoox" in lower:
+        return "Zoox"
+    if "apple" in lower:
+        return "Apple Inc"
+    if "pony" in lower:
+        return "Pony.ai"
+    if "weride" in lower:
+        return "WeRide"
+    if (
+        "woven" in lower
+        or "toyota research institute" in lower
+        or "toyota motor" in lower
+    ):
+        return "Woven by Toyota"
+    if "mercedes" in lower:
+        return "Mercedes-Benz R&D North America"
+    if "nuro" in lower:
+        return "Nuro"
+    if "aurora" in lower:
+        return "Aurora"
     return text
 
 

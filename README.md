@@ -1,14 +1,31 @@
-# LLM events refactor
+# California autonomous vehicle collision report analysis
+
+This project parses LLM responses produced from California DMV autonomous
+vehicle collision reports and applies deterministic research rules to create
+descriptive tables, robustness checks, audit files, and figures.
+
+The revised analysis deliberately distinguishes three concepts:
+
+1. post extraction unavailability, where a value is unavailable in the parsed
+   dataset;
+2. report context, which covers information extracted from the regulatory form
+   and narrative; and
+3. external context, which covers online enrichment.
+
+Post extraction unavailability must not be interpreted as proof that a field
+was absent from the original report. Establishing whether a value was absent
+from the form, missed during extraction, or genuinely unknown requires
+comparison with source reports or an independently coded reference sample.
 
 ## Citation and usage of code
 If you use this work for academic work please cite the following paper:
 
->  Alam, M. S., Zhang, L., Li, Z., Dou, F., Bazilinskyy, P. (2026). Collision Patterns and Reporting Blind Spots in 970 California Autonomous Vehicle Crash Reports.
+> Alam, M. S., Zhang, L., Li, J., Dou, F., Bazilinskyy, P. (2026). Collision Patterns and Reporting Blind Spots in 970 California Autonomous Vehicle Crash Reports.
 
 The code is open-source and free to use. It is aimed for, but not limited to, academic research. We welcome forking of this repository, pull requests, and any contributions in the spirit of open science and open-source code. For inquiries about collaboration, you may contact Md Shadab Alam (md_shadab_alam@outlook.com) or Pavlo Bazilinskyy (pavlo.bazilinskyy@gmail.com).
 
 ## Getting started
-[![Python Version](https://img.shields.io/badge/python-3.12.13-blue.svg)](https://www.python.org/downloads/release/python-3919/)
+[![Python Version](https://img.shields.io/badge/python-3.12.13-blue.svg)](https://www.python.org/downloads/)
 [![Package Manager: uv](https://img.shields.io/badge/package%20manager-uv-green)](https://docs.astral.sh/uv/)
 
 Tested with **Python 3.12.13** and the [`uv`](https://docs.astral.sh/uv/) package manager.
@@ -97,7 +114,9 @@ source .venv/bin/activate
 .\.venv\Scripts\activate.bat
 ```
 
-**Step 8:** Ensure that dataset are present. Place required datasets (including **mapping.csv**) into the **data/** directory:
+**Step 8:** Set the `data` value in `config` to the input CSV. The input must
+contain a `Report` column and an `Output` column. `Report` identifies the
+source document and `Output` contains the complete LLM response.
 
 
 **Step 9:** Run the code:
@@ -118,7 +137,7 @@ Configuration of the project needs to be defined in `config`. Please use the `de
 - **`include_plot_fields`**: Ordered list of parsed fields to include in the overview plots such as the Sankey diagram, sunburst diagram, and transition graph.
 - **`exclude_plot_fields`**: List of parsed fields to remove from the configured plot fields, allowing quick experimentation with different figure layouts.
 - **`histogram_fields`**: List of parsed fields for which histogram style summary plots are generated.
-- **`blind_spot_fields`**: List of detailed context fields used in blind spot and missingness analysis.
+- **`blind_spot_fields`**: List of detailed context fields used to measure post extraction unavailability. The configuration name is retained for backwards compatibility.
 - **`max_categories`**: Maximum number of categories retained per stage in the overview plots before less frequent values are grouped into `Other`.
 - **`min_count`**: Minimum count threshold for links in the Sankey diagram. Links below this threshold are excluded from the figure.
 - **`row_keep_policy`**: Controls which response rows are kept before parsing. Supported values are `output_only`, `best_available`, and `best_per_row`.
@@ -176,9 +195,11 @@ Histogram of scenario classes derived from the accident reports.
 [![Taxonomy overview](figures/taxonomy_overview.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/taxonomy_overview.html)
 Bar chart showing the most frequent scenario classes in the empirical accident subset.
 
-#### Blind spots missingness
+#### Post extraction unavailability
 [![Blind spots missingness](figures/blind_spots_missingness.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/blind_spots_missingness.html)
-Bar chart showing missingness across fine grained context and blind spot related fields.
+Bar chart showing unavailable values after extraction across selected context
+fields. The chart does not identify whether the source report, the form
+design, or the extraction process accounts for an unavailable value.
 
 #### Accountability by taxonomy
 [![Accountability by taxonomy](figures/accountability_by_taxonomy.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accountability_by_taxonomy.html)
@@ -198,15 +219,18 @@ Figure showing mean field availability by provenance source.
 
 #### Context gap
 [![Context gap](figures/context_gap.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/context_gap.html)
-Figure showing gaps between coarse and fine contextual information in the parsed reports.
+Figure comparing coarse report context, fine report context, and external
+online context availability.
 
-#### Movement consistency
+#### Movement field agreement
 [![Movement consistency](figures/movement_consistency.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/movement_consistency.html)
-Figure showing movement consistency status across source fields.
+Figure showing exact, compatible, contradictory, and unavailable movement
+comparisons across checkbox and narrative fields.
 
-#### Scenario determinability
+#### Scenario rule support
 [![Scenario determinability](figures/scenario_determinability.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/scenario_determinability.html)
-Figure showing how often the available evidence supports high, medium, or low scenario determinability.
+Figure showing internal rule support for deterministic scenario assignments.
+This measure is not a validated classification accuracy score.
 
 #### Environment profile
 [![Environment profile](figures/environment_profile.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/environment_profile.html)
@@ -223,3 +247,12 @@ Figure showing subtype patterns within stopped automated vehicle scenarios.
 #### Intersection detail quality
 [![Intersection detail quality](figures/intersection_detail_quality.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/intersection_detail_quality.html)
 Figure showing the quality and completeness of intersection related detail in the parsed reports.
+
+### Injury status interpretation
+
+`reported_injury_status` is a conservative extraction based category.
+`no_injury_marked` means that the extracted injury fields contained an
+explicit `None` or no injury marker. It does not establish a clinically
+verified absence of injury. `reported_injury` and `reported_fatality` likewise
+refer to what was marked in the extracted fields, not an independently
+validated medical outcome.

@@ -755,24 +755,30 @@ def _build_interpretation_log(summary: dict[str, object]) -> dict[str, object]:
         str(k): int(v)
         for k, v in (summary.get('taxonomy_top_counts', {}) or {}).items()
     }
-    blind_spots = {
+    post_extraction_unavailability = {
         str(k): float(v)
-        for k, v in (summary.get('blind_spot_top_missingness', {}) or {}).items()
+        for k, v in (
+            summary.get(
+                'post_extraction_top_unavailability',
+                summary.get('blind_spot_top_missingness', {}),
+            )
+            or {}
+        ).items()
     }
     blame = {
         str(k): int(v)
         for k, v in (summary.get('blame_distribution', {}) or {}).items()
     }
-    determinability = {
+    rule_support = {
         str(k): int(v)
         for k, v in (
-            summary.get('scenario_determinability_distribution', {}) or {}
+            summary.get('scenario_rule_support_distribution', {}) or {}
         ).items()
     }
-    movement = {
+    movement_agreement = {
         str(k): int(v)
         for k, v in (
-            summary.get('movement_consistency_distribution', {}) or {}
+            summary.get('movement_field_agreement_distribution', {}) or {}
         ).items()
     }
     availability = {
@@ -791,15 +797,15 @@ def _build_interpretation_log(summary: dict[str, object]) -> dict[str, object]:
     )
     ambiguity_count = int(taxonomy.get('other_or_ambiguous', 0) or 0)
     blame_total = _safe_total(blame)
-    movement_total = _safe_total(movement)
-    determinability_total = _safe_total(determinability)
+    movement_total = _safe_total(movement_agreement)
+    rule_support_total = _safe_total(rule_support)
 
     top_taxonomy_items = sorted(
         taxonomy.items(),
         key=lambda kv: (-kv[1], kv[0]),
     )[:3]
-    top_blind_spots = sorted(
-        blind_spots.items(),
+    top_unavailable_fields = sorted(
+        post_extraction_unavailability.items(),
         key=lambda kv: (-kv[1], kv[0]),
     )[:3]
     top_disagreement_fields = sorted(
@@ -832,17 +838,23 @@ def _build_interpretation_log(summary: dict[str, object]) -> dict[str, object]:
             round(blame.get('other_road_user', 0) / blame_total, 3)
             if blame_total else 0.0
         ),
-        'high_determinability_share': (
-            round(determinability.get('high', 0) / determinability_total, 3)
-            if determinability_total else 0.0
+        'high_rule_support_share': (
+            round(rule_support.get('high', 0) / rule_support_total, 3)
+            if rule_support_total else 0.0
         ),
-        'movement_inconsistency_share': (
-            round(movement.get('inconsistent', 0) / movement_total, 3)
+        'contradictory_movement_field_share': (
+            round(
+                movement_agreement.get('contradictory', 0) / movement_total,
+                3,
+            )
             if movement_total else 0.0
         ),
-        'strongest_blind_spots': (
-            '; '.join(f'{k}={round(v, 3)}' for k, v in top_blind_spots)
-            if top_blind_spots else 'NA'
+        'highest_post_extraction_unavailability': (
+            '; '.join(
+                f'{k}={round(v, 3)}'
+                for k, v in top_unavailable_fields
+            )
+            if top_unavailable_fields else 'NA'
         ),
         'largest_cross_source_disagreements': (
             '; '.join(f'{k} ({v})' for k, v in top_disagreement_fields)
@@ -850,9 +862,9 @@ def _build_interpretation_log(summary: dict[str, object]) -> dict[str, object]:
         ),
         'mean_context_gap': summary.get('average_context_gap', 0.0),
         'mean_explicitness_score': summary.get('average_explicitness_score', 0.0),
-        'paper_takeaway': (
-            'Recurring conflicts dominate and fine interaction context remains under specified'
-            if empirical_rows else 'No empirical subset available'
+        'interpretation_boundary': (
+            'Availability and automated stability only; source presence and '
+            'extraction accuracy require reference coding'
         ),
     }
 
@@ -960,6 +972,12 @@ def main() -> int:
         'report_pdf',
         'source_report',
         'scenario_class',
+        'scenario_rule_support_group',
+        'scenario_candidate_count',
+        'movement_field_agreement',
+        'reported_injury_status',
+        'report_period',
+        'manufacturer_group',
     ] + [field for field in plot_fields if field in filtered_df.columns] \
       + [field for field in story_plot_fields if field in filtered_df.columns]
     plot_input_columns = [
@@ -1010,6 +1028,17 @@ def main() -> int:
         'source_disagreement_summary': output_dirs.base / 'source_disagreement_summary.csv',
         'movement_inconsistency_audit': output_dirs.base / 'movement_inconsistency_audit.csv',
         'other_or_ambiguous_review': output_dirs.base / 'other_or_ambiguous_review.csv',
+        'corpus_manifest': output_dirs.base / 'corpus_manifest.csv',
+        'report_context_unavailability': output_dirs.base / 'report_context_unavailability.csv',
+        'external_context_unavailability': output_dirs.base / 'external_context_unavailability.csv',
+        'taxonomy_sensitivity': output_dirs.base / 'taxonomy_sensitivity.csv',
+        'taxonomy_agreement': output_dirs.base / 'taxonomy_agreement.csv',
+        'taxonomy_rule_overlap': output_dirs.base / 'taxonomy_rule_overlap.csv',
+        'scenario_by_av_mode': output_dirs.base / 'scenario_by_av_mode.csv',
+        'scenario_by_period': output_dirs.base / 'scenario_by_period.csv',
+        'scenario_by_manufacturer': output_dirs.base / 'scenario_by_manufacturer.csv',
+        'scenario_by_reported_injury': output_dirs.base / 'scenario_by_reported_injury.csv',
+        'manufacturer_leave_one_out': output_dirs.base / 'manufacturer_leave_one_out.csv',
     })
 
     # Build and export all overview, histogram, and paper figures.
@@ -1033,11 +1062,20 @@ def main() -> int:
     log_kv_block(logger, 'Plot export summary', summarise_plot_manifest(manifest))
     log_kv_block(logger, 'Key empirical results', {
         'top_taxonomy_classes': research_summary.get('taxonomy_top_counts', {}),
-        'top_blind_spots': research_summary.get('blind_spot_top_missingness', {}),
+        'top_post_extraction_unavailability': research_summary.get(
+            'post_extraction_top_unavailability',
+            {},
+        ),
         'blame_distribution': research_summary.get('blame_distribution', {}),
         'provenance_mean_availability': research_summary.get('provenance_mean_availability', {}),
         'movement_consistency_distribution': research_summary.get('movement_consistency_distribution', {}),
+        'movement_field_agreement_distribution': research_summary.get('movement_field_agreement_distribution', {}),
         'scenario_determinability_distribution': research_summary.get('scenario_determinability_distribution', {}),
+        'scenario_rule_support_distribution': research_summary.get('scenario_rule_support_distribution', {}),
+        'scenario_rule_overlap_distribution': research_summary.get('scenario_rule_overlap_distribution', {}),
+        'reported_injury_distribution': research_summary.get('reported_injury_distribution', {}),
+        'blame_field_completeness_distribution': research_summary.get('blame_field_completeness_distribution', {}),
+        'average_external_context_score': research_summary.get('average_external_context_score', 0.0),
         'data_availability_summary': research_summary.get('data_availability_summary', {}),
         'source_disagreement_summary': research_summary.get('source_disagreement_summary', {}),
         'movement_inconsistency_diagnosis': research_summary.get('movement_inconsistency_diagnosis', {}),

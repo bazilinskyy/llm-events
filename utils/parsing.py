@@ -92,11 +92,31 @@ ALL_LABELS = [alias for aliases in FIELD_ALIASES.values() for alias in aliases]
 ALL_LABELS_SORTED = sorted(ALL_LABELS, key=len, reverse=True)
 LABEL_PATTERN = '|'.join(re.escape(label) for label in ALL_LABELS_SORTED)
 
-# Match "key=value" segments while stopping at the next recognised label.
-KV_PATTERN = re.compile(
-    rf'(?P<key>{LABEL_PATTERN})\s*=\s*(?P<value>.*?)(?=,\s*(?:{LABEL_PATTERN})\s*=|$)',
+# Locate every recognised ``key=`` marker. Values are recovered from the span
+# between consecutive markers because many archived responses place the whole
+# questionnaire on one line and separate questions with ``Q14.`` rather than
+# a comma or newline.
+KEY_START_PATTERN = re.compile(
+    rf'(?<![A-Za-z0-9_])(?P<key>{LABEL_PATTERN})\s*=\s*',
     re.IGNORECASE,
 )
+
+QUESTION_SUFFIX_PATTERN = re.compile(
+    r'(?:[,.;]\s*)?Q\s*\d+(?:\.\d+)?\s*[:.]?\s*$',
+    re.IGNORECASE,
+)
+SOURCE_NOTE_PATTERN = re.compile(r'\s+Source\(s\)\s*:', re.IGNORECASE)
+NEXT_QUESTION_ASSIGNMENT_PATTERN = re.compile(
+    r'\s+Q\s*\d+(?:\.\d+)?\s*[:.]?\s*[A-Za-z][A-Za-z0-9_ ]*\s*=',
+    re.IGNORECASE,
+)
+
+AMBIGUOUS_PLACEHOLDERS = {
+    'true/false',
+    'false/true',
+    'yes/no',
+    'no/yes',
+}
 
 _KNOWN_MAKE_PREFIXES = {
     'acura',
@@ -151,12 +171,29 @@ _MAKE_CANONICAL_OVERRIDES = {
     'bmw': 'BMW',
 }
 
+ONLINE_FIELD_PATTERNS = {
+    'lane_number': re.compile(r'^\s*(\d+(?:\.\d+)?)\b', re.IGNORECASE),
+    'street_type': re.compile(
+        r'^\s*(one[- ]way|two[- ]way|divided|undivided)\b',
+        re.IGNORECASE,
+    ),
+    'speed_limit': re.compile(
+        r'^\s*(\d+(?:\.\d+)?\s*(?:mph)?)\b',
+        re.IGNORECASE,
+    ),
+    'street_busy': re.compile(
+        r'^\s*(true|false|yes|no|high|low|above average|below average)\b',
+        re.IGNORECASE,
+    ),
+}
+
 
 def _extract_line_kvs(text: str) -> dict[str, list[str]]:
-    """Extracts all key value pairs from raw multi line response text.
+    """Extracts all key value pairs from compact or multi line response text.
 
-    Each line is scanned independently. Recognised keys are stored in lowercase
-    and may accumulate multiple matched values.
+    Recognised key markers are located across the complete response. This
+    supports both comma separated fields and compact questionnaire text such
+    as ``move_v1=stop, move_v2=straight Q23: collision_v1=rear``.
 
     Args:
         text: Raw response text containing inline ``key=value`` pairs.
@@ -165,17 +202,38 @@ def _extract_line_kvs(text: str) -> dict[str, list[str]]:
         A mapping from lowercased raw keys to lists of extracted values.
     """
 
+    source_text = str(text or '')
+    matches = list(KEY_START_PATTERN.finditer(source_text))
     values: dict[str, list[str]] = {}
 
-    for raw_line in str(text or '').splitlines():
-        line = clean_value(raw_line)
-        if '=' not in line:
-            continue
+    for index, match in enumerate(matches):
+        value_end = (
+            matches[index + 1].start()
+            if index + 1 < len(matches)
+            else len(source_text)
+        )
+        raw_value = source_text[match.end():value_end]
 
-        for match in KV_PATTERN.finditer(line):
-            key = clean_value(match.group('key'))
-            value = clean_value(match.group('value'))
-            values.setdefault(key.lower(), []).append(value)
+        # Online enrichment fields sometimes append a provenance note before
+        # the next questionnaire item. The note is not part of the field.
+        source_note = SOURCE_NOTE_PATTERN.search(raw_value)
+        if source_note:
+            raw_value = raw_value[:source_note.start()]
+
+        # Stop at an unrecognised assignment in the next numbered question.
+        # This protects the current field when a response uses a label variant
+        # that is not part of the canonical alias map.
+        next_question = NEXT_QUESTION_ASSIGNMENT_PATTERN.search(raw_value)
+        if next_question:
+            raw_value = raw_value[:next_question.start()]
+
+        # Remove the question marker belonging to the next key and the common
+        # comma delimiter between fields. Preserve punctuation inside the
+        # actual value.
+        raw_value = QUESTION_SUFFIX_PATTERN.sub('', raw_value)
+        value = clean_value(raw_value.rstrip(' ,'))
+        key = clean_value(match.group('key'))
+        values.setdefault(key.lower(), []).append(value)
 
     return values
 
@@ -194,8 +252,12 @@ def _extract_first(kvs: dict[str, list[str]], aliases: list[str]) -> str:
     for alias in aliases:
         matches = kvs.get(alias.lower(), [])
         for match in matches:
-            if clean_value(match) != 'NA':
-                return clean_value(match)
+            cleaned = clean_value(match)
+            if (
+                cleaned != 'NA'
+                and cleaned.lower() not in AMBIGUOUS_PLACEHOLDERS
+            ):
+                return cleaned
 
     return 'NA'
 
@@ -212,6 +274,27 @@ def _title_case_token(text: str) -> str:
         return _MAKE_CANONICAL_OVERRIDES[lower]
 
     return ' '.join(part.capitalize() for part in lower.split())
+
+
+def _normalise_online_lookup_value(field: str, value: Any) -> str:
+    """Keeps only the requested value from an online lookup response.
+
+    The model sometimes appended a source note or explanatory sentence to an
+    ``NA`` result. Treating the complete sentence as a field value would turn
+    an unsuccessful lookup into apparent availability.
+    """
+
+    cleaned = clean_value(value)
+    if cleaned.lower().startswith(('na.', 'n/a.', 'none.', 'unknown.')):
+        return 'NA'
+    if normalise_category(cleaned) in {'NA', 'unknown'}:
+        return 'NA'
+
+    pattern = ONLINE_FIELD_PATTERNS[field]
+    match = pattern.match(cleaned)
+    if not match:
+        return 'NA'
+    return clean_value(match.group(1))
 
 
 def _infer_make_from_model_text(model_text: Any) -> str:
@@ -330,11 +413,25 @@ def parse_response_text(text: str) -> dict[str, str]:
     for canonical_name, aliases in FIELD_ALIASES.items():
         parsed[canonical_name] = _extract_first(kvs, aliases)
 
+    # Preserve an explicit ``None`` returned for an injury question. Generic
+    # missing value handling otherwise converts this marker to ``NA`` and
+    # makes it indistinguishable from a question that was not recovered.
+    injury_none_markers = {
+        field: clean_value(parsed.get(field)).lower() == 'none'
+        for field in ['v1_injury', 'v2_injury']
+    }
+
     _derive_vehicle_company_fields(parsed)
 
     # Apply field specific normalisation before deriving helper columns.
     parsed['av_guilty'] = normalise_boolish(parsed['av_guilty'])
     parsed['v1_av'] = normalise_boolish(parsed['v1_av'])
+
+    for online_field in ONLINE_FIELD_PATTERNS:
+        parsed[online_field] = _normalise_online_lookup_value(
+            online_field,
+            parsed.get(online_field),
+        )
 
     # Derive a unified collision type from the first available collision field.
     parsed['collision_type'] = first_non_missing(
@@ -352,7 +449,9 @@ def parse_response_text(text: str) -> dict[str, str]:
     # Run a final normalisation pass so all stored values are clean and
     # consistently formatted.
     for key, value in list(parsed.items()):
-        if key in {'av_guilty', 'v1_av'}:
+        if key in injury_none_markers and injury_none_markers[key]:
+            parsed[key] = 'no_injury_marker'
+        elif key in {'av_guilty', 'v1_av'}:
             parsed[key] = normalise_boolish(value)
         else:
             parsed[key] = normalise_category(value)

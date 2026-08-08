@@ -14,6 +14,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from utils.labels import humanize_field_name, humanize_text
+from utils.normalise import is_missing
 
 
 def _format_series(series: pd.Series) -> pd.Series:
@@ -389,7 +390,11 @@ def create_taxonomy_bar_figure(df: pd.DataFrame, top_n: int = 10) -> go.Figure:
 
 
 def create_blind_spot_figure(df: pd.DataFrame, fields: list[str]) -> go.Figure:
-    """Creates a missing rate chart for the requested blind spot fields.
+    """Creates a post extraction unavailability chart for selected fields.
+
+    This figure deliberately describes what is unavailable after extraction.
+    It does not assume that an unavailable value was absent from the source
+    form or narrative.
 
     Args:
         df: Source dataframe.
@@ -404,11 +409,7 @@ def create_blind_spot_figure(df: pd.DataFrame, fields: list[str]) -> go.Figure:
 
     for field in fields:
         if field in df.columns:
-            missing = int(
-                df[field].astype(str).str.lower().isin(
-                    {'na', 'none', 'nan', 'null', ''}
-                ).sum()
-            )
+            missing = int(df[field].map(is_missing).sum())
         else:
             missing = total
 
@@ -780,7 +781,7 @@ def create_provenance_availability_figure(df: pd.DataFrame) -> go.Figure:
 
 
 def create_context_gap_figure(df: pd.DataFrame) -> go.Figure:
-    """Creates a mean score comparison across context related metrics.
+    """Compares coarse, fine report, and external context availability.
 
     Args:
         df: Source dataframe.
@@ -803,10 +804,10 @@ def create_context_gap_figure(df: pd.DataFrame) -> go.Figure:
             ),
         },
         {
-            'context_type': humanize_field_name('report_explicitness_score'),
+            'context_type': humanize_field_name('external_context_score'),
             'mean_score': float(
                 pd.to_numeric(
-                    df['report_explicitness_score'],
+                    df['external_context_score'],
                     errors='coerce',
                 ).mean()
             ),
@@ -819,7 +820,7 @@ def create_context_gap_figure(df: pd.DataFrame) -> go.Figure:
 
 
 def create_consistency_figure(df: pd.DataFrame) -> go.Figure:
-    """Creates a count chart for movement consistency status.
+    """Creates a count chart for cross field movement agreement.
 
     Args:
         df: Source dataframe.
@@ -828,19 +829,25 @@ def create_consistency_figure(df: pd.DataFrame) -> go.Figure:
         A Plotly figure.
     """
 
-    counts = df['movement_consistency_overall'].astype(str).value_counts(dropna=False).reset_index()
-    counts.columns = ['movement_consistency_overall', 'count']
-    counts['movement_consistency_overall'] = _format_series(
-        counts['movement_consistency_overall']
+    field = (
+        'movement_field_agreement'
+        if 'movement_field_agreement' in df.columns
+        else 'movement_consistency_overall'
     )
+    counts = df[field].astype(str).value_counts(dropna=False).reset_index()
+    counts.columns = [field, 'count']
+    counts[field] = _format_series(counts[field])
 
-    fig = px.bar(counts, x='movement_consistency_overall', y='count', title='')
-    fig = _update_axis_labels(fig, x='movement_consistency_overall', y='count')
+    fig = px.bar(counts, x=field, y='count', title='')
+    fig = _update_axis_labels(fig, x=field, y='count')
     return _add_bar_value_labels(fig, numeric_axis='y', value_format='.0f')
 
 
 def create_determinability_figure(df: pd.DataFrame) -> go.Figure:
-    """Creates a count chart for scenario determinability groups.
+    """Creates a count chart for internal scenario rule support groups.
+
+    Rule support measures how strongly the available extracted fields support
+    the deterministic assignment. It is not a validated accuracy estimate.
 
     Args:
         df: Source dataframe.
@@ -849,14 +856,17 @@ def create_determinability_figure(df: pd.DataFrame) -> go.Figure:
         A Plotly figure.
     """
 
-    counts = df['scenario_determinability_group'].astype(str).value_counts(dropna=False).reset_index()
-    counts.columns = ['scenario_determinability_group', 'count']
-    counts['scenario_determinability_group'] = _format_series(
-        counts['scenario_determinability_group']
+    field = (
+        'scenario_rule_support_group'
+        if 'scenario_rule_support_group' in df.columns
+        else 'scenario_determinability_group'
     )
+    counts = df[field].astype(str).value_counts(dropna=False).reset_index()
+    counts.columns = [field, 'count']
+    counts[field] = _format_series(counts[field])
 
-    fig = px.bar(counts, x='scenario_determinability_group', y='count', title='')
-    fig = _update_axis_labels(fig, x='scenario_determinability_group', y='count')
+    fig = px.bar(counts, x=field, y='count', title='')
+    fig = _update_axis_labels(fig, x=field, y='count')
     return _add_bar_value_labels(fig, numeric_axis='y', value_format='.0f')
 
 
