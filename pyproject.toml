@@ -8,4 +8,5 @@ dependencies = [
   "networkx>=3.4",
   "cairosvg>=2.7",
   "pycountry>=26.2.16",
+  "flask>=3.1.3",
 ]
