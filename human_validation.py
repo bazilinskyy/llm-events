@@ -1,4 +1,30 @@
 from __future__ import annotations
+#
+# Human validation documentation and reproducibility guide
+#
+# This module intentionally contains extensive comments because it records a
+# reviewer facing research procedure rather than only a conventional web app.
+# The comments make sampling, blinding, annotation storage, and comparison
+# behaviour explicit for coauthors, reviewers, and future maintainers.
+#
+# Core safeguards documented throughout the file:
+#
+# 1. The shared 100 report list is authoritative once created.
+# 2. Reviewer annotations are coded from the source PDFs, not from LLM output.
+# 3. LLM values remain hidden from the reviewer facing HTML.
+# 4. Ambiguous and not stated source evidence remain distinct categories.
+# 5. Reviewer 1 and Reviewer 2 annotations are stored as separate observations.
+# 6. LLM agreement is calculated separately against each reviewer.
+# 7. Human disagreement is retained for audit rather than silently overwritten.
+# 8. Q0 responsibility is an interpretation task and not a bounded extraction field.
+# 9. Sampling metadata are retained so the stratified design remains reproducible.
+# 10. Existing validation artefacts are not replaced unless the study is intentionally restarted.
+# 11. Autosave preserves incomplete work without marking a report as submitted.
+# 12. Export generation is derivative and does not change the stored reviewer answers.
+# 13. Source presence coding is kept separate from LLM extraction availability.
+# 14. Any future adjudicated reference should be additive to the original reviewer data.
+#
+
 
 """Human validation interface for the llm-events project.
 
@@ -102,6 +128,30 @@ from utils.research import derive_research_columns
 BASE_DIR = Path(__file__).resolve().parent
 
 
+# ==========================================================================
+# Developer notes for `_resolve_repo_path`
+# ==========================================================================
+# Purpose:
+#   Resolve a configured path relative to the repository root.
+#
+# Interface:
+#   Parameters: value.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Configuration is resolved once so every later path points to the same study resources.
+#   Repository relative paths are preferred because reviewer machines may use different absolute locations.
+#   Existing frozen validation artefacts take precedence over regeneration.
+#   Errors should identify the exact missing path or invalid configuration value.
+#   Backwards compatible path handling is retained for older project configurations.
+#   Do not silently fall back to a different validation sample when the configured one is unavailable.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _resolve_repo_path(value: Any) -> Path:
     """Resolve a config path relative to the llm-events repository root."""
 
@@ -110,6 +160,30 @@ def _resolve_repo_path(value: Any) -> Path:
         path = Path(common.root_dir) / path
     return path.resolve()
 
+
+# ==========================================================================
+# Developer notes for `_reviewer_from_config`
+# ==========================================================================
+# Purpose:
+#   Resolve the active reviewer label and stable internal reviewer identifier.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Configuration is resolved once so every later path points to the same study resources.
+#   Repository relative paths are preferred because reviewer machines may use different absolute locations.
+#   Existing frozen validation artefacts take precedence over regeneration.
+#   Errors should identify the exact missing path or invalid configuration value.
+#   Backwards compatible path handling is retained for older project configurations.
+#   Do not silently fall back to a different validation sample when the configured one is unavailable.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
 
 def _reviewer_from_config() -> tuple[str, str]:
     """Read the active reviewer from ``config``.
@@ -153,7 +227,38 @@ CURRENT_REVIEWER_LABEL, CURRENT_REVIEWER_ID = _reviewer_from_config()
 DATA_PATH = _resolve_repo_path(common.get_configs("data"))
 
 
+# ==========================================================================
+# Developer notes for `_resolve_input_csv`
+# ==========================================================================
+# Purpose:
+#   Locate the LLM output CSV from the configured data path.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Configuration is resolved once so every later path points to the same study resources.
+#   Repository relative paths are preferred because reviewer machines may use different absolute locations.
+#   Existing frozen validation artefacts take precedence over regeneration.
+#   Errors should identify the exact missing path or invalid configuration value.
+#   Backwards compatible path handling is retained for older project configurations.
+#   Do not silently fall back to a different validation sample when the configured one is unavailable.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _resolve_input_csv() -> Path:
+    """Locate the LLM output CSV from the configured data path.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     if DATA_PATH.is_file() and DATA_PATH.suffix.lower() == ".csv":
         return DATA_PATH.resolve()
     candidate = DATA_PATH / "Output.csv"
@@ -165,7 +270,38 @@ def _resolve_input_csv() -> Path:
     )
 
 
+# ==========================================================================
+# Developer notes for `_resolve_pdf_dir`
+# ==========================================================================
+# Purpose:
+#   Locate the directory containing the source collision report PDFs.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Configuration is resolved once so every later path points to the same study resources.
+#   Repository relative paths are preferred because reviewer machines may use different absolute locations.
+#   Existing frozen validation artefacts take precedence over regeneration.
+#   Errors should identify the exact missing path or invalid configuration value.
+#   Backwards compatible path handling is retained for older project configurations.
+#   Do not silently fall back to a different validation sample when the configured one is unavailable.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _resolve_pdf_dir() -> Path:
+    """Locate the directory containing the source collision report PDFs.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     if DATA_PATH.is_dir():
         reports = DATA_PATH / "Reports"
         return reports.resolve() if reports.exists() else DATA_PATH.resolve()
@@ -173,7 +309,38 @@ def _resolve_pdf_dir() -> Path:
     return reports.resolve() if reports.exists() else DATA_PATH.parent.resolve()
 
 
+# ==========================================================================
+# Developer notes for `_resolve_validation_list_path`
+# ==========================================================================
+# Purpose:
+#   Resolve the authoritative shared validation list path.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Configuration is resolved once so every later path points to the same study resources.
+#   Repository relative paths are preferred because reviewer machines may use different absolute locations.
+#   Existing frozen validation artefacts take precedence over regeneration.
+#   Errors should identify the exact missing path or invalid configuration value.
+#   Backwards compatible path handling is retained for older project configurations.
+#   Do not silently fall back to a different validation sample when the configured one is unavailable.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _resolve_validation_list_path() -> Path:
+    """Resolve the authoritative shared validation list path.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     try:
         configured = common.get_configs("validation_pdf_list")
     except KeyError:
@@ -600,17 +767,21 @@ HOME_TEMPLATE = """
 """ + BASE_STYLE + """
 </head>
 <body>
-<div class="topbar"><div class="brand">LLM Events · Human validation</div><div class="muted">100 shared PDFs · independent review</div></div>
+<div class="topbar"><div class="brand">LLM Events · Human validation</div><div class="muted">100 shared PDFs ·\
+ independent review</div></div>
 <div class="home">
     <div class="card">
         <h2>Validation setup</h2>
         <p><strong>Active reviewer:</strong> {{ reviewer_label }}</p>
-        <p>The two reviewers see exactly the same 100 reports, but the order is independently randomised for each reviewer. The active reviewer is selected in the project config, and LLM output or LLM-derived labels are never shown on the review pages.</p>
+        <p>The two reviewers see exactly the same 100 reports, but the order is independently randomised for each\
+ reviewer. The active reviewer is selected in the project config, and LLM output or LLM-derived labels are never shown\
+ on the review pages.</p>
         <p><strong>Data/PDF location:</strong> {{ pdf_dir }}</p>
         <p><strong>ChatGPT output CSV:</strong> {{ input_csv }}</p>
         <p><strong>Shared 100-report list:</strong> {{ validation_list }}</p>
         <p><strong>Validation set ID:</strong> <code>{{ validation_set_id }}</code></p>
-        <p class="muted">Reviewer 1 and Reviewer 2 should see the same validation set ID. The CSV/TXT filters the full Reports directory; the 100 PDFs do not need to be copied into a separate folder.</p>
+        <p class="muted">Reviewer 1 and Reviewer 2 should see the same validation set ID. The CSV/TXT filters the full\
+ Reports directory; the 100 PDFs do not need to be copied into a separate folder.</p>
         <p><strong>Validation output:</strong> {{ output_dir }}</p>
     </div>
     <div class="card">
@@ -618,11 +789,13 @@ HOME_TEMPLATE = """
         <div class="stat">{{ reviewer_progress['submitted'] }}/{{ sample_size }}</div>
         <p class="muted">submitted · {{ reviewer_progress['saved'] }} with any saved data</p>
         <div class="progress-wrap"><div class="progress-bar" style="width: {{ reviewer_progress['pct'] }}%"></div></div>
-        <p><a class="button primary" href="{{ url_for('review_report', position=reviewer_progress['next_position']) }}">Continue validation</a></p>
+        <p><a class="button primary" href="{{ url_for('review_report', position=reviewer_progress['next_position'])\
+ }}">Continue validation</a></p>
     </div>
     <div class="card">
         <h2>Exports</h2>
-        <p>Export can be run at any time. Inter-rater agreement becomes complete once annotations from both reviewers are present in the same validation database.</p>
+        <p>Export can be run at any time. Inter-rater agreement becomes complete once annotations from both reviewers\
+ are present in the same validation database.</p>
         <a class="button primary" href="{{ url_for('export_validation') }}">Generate and download validation exports</a>
     </div>
 </div>
@@ -669,28 +842,40 @@ REVIEW_TEMPLATE = """
             <div class="card">
                 <h2>A. Road user and AV mode</h2>
                 {{ select_field('road_user_type_human', 'Other road user type', road_user_options, annotation) | safe }}
-                {{ select_field('av_mode_human', 'Was the AV operating autonomously at the time?', av_mode_options, annotation) | safe }}
+                {{ select_field('av_mode_human', 'Was the AV operating autonomously at the time?', av_mode_options,\
+ annotation) | safe }}
             </div>
 
             <div class="card">
                 <h2>B. Movement evidence</h2>
-                <p class="help">Code the narrative/form-text movement separately from the page 3 movement checkbox section. Do not try to reconcile a contradiction; record what each source says.</p>
-                {{ select_field('v1_move_narrative_human', 'AV movement from narrative/form text', movement_options, annotation) | safe }}
-                {{ select_field('v2_move_narrative_human', 'Other party movement from narrative/form text', movement_options, annotation) | safe }}
-                {{ select_field('move_v1_checkbox_human', 'AV movement from page 3 checkbox section', movement_options, annotation) | safe }}
-                {{ select_field('move_v2_checkbox_human', 'Other party movement from page 3 checkbox section', movement_options, annotation) | safe }}
+                <p class="help">Code the narrative/form-text movement separately from the page 3 movement checkbox\
+ section. Do not try to reconcile a contradiction; record what each source says.</p>
+                {{ select_field('v1_move_narrative_human', 'AV movement from narrative/form text', movement_options,\
+ annotation) | safe }}
+                {{ select_field('v2_move_narrative_human', 'Other party movement from narrative/form text',\
+ movement_options, annotation) | safe }}
+                {{ select_field('move_v1_checkbox_human', 'AV movement from page 3 checkbox section', movement_options,\
+ annotation) | safe }}
+                {{ select_field('move_v2_checkbox_human', 'Other party movement from page 3 checkbox section',\
+ movement_options, annotation) | safe }}
             </div>
 
             <div class="card">
                 <h2>C. Intersection and collision</h2>
-                {{ select_field('v1_intersection_human', 'Does the report indicate that the AV was in an intersection?', boolean_options, annotation) | safe }}
-                {{ select_field('v2_intersection_human', 'Does the report indicate that the other party was in an intersection?', boolean_options, annotation) | safe }}
+                {{ select_field('v1_intersection_human', 'Does the report indicate that the AV was in an intersection?',\
+ boolean_options, annotation) | safe }}
+                {{ select_field('v2_intersection_human', 'Does the report indicate that the other party was in an\
+ intersection?', boolean_options, annotation) | safe }}
 
-                {{ checkbox_field('collision_v1_human', 'Collision type(s) marked for the AV', collision_options, annotation) | safe }}
-                {{ checkbox_field('collision_v2_human', 'Collision type(s) marked for the other party', collision_options, annotation) | safe }}
+                {{ checkbox_field('collision_v1_human', 'Collision type(s) marked for the AV', collision_options,\
+ annotation) | safe }}
+                {{ checkbox_field('collision_v2_human', 'Collision type(s) marked for the other party',\
+ collision_options, annotation) | safe }}
 
-                {{ select_field('parked_or_curbside_cue_human', 'Is there source evidence of a parked/curbside vehicle or object conflict?', cue_options, annotation) | safe }}
-                {{ select_field('obstruction_yield_blocked_cue_human', 'Is there source evidence that the AV stopped for an obstruction, yielding, blockage, or uncertainty?', cue_options, annotation) | safe }}
+                {{ select_field('parked_or_curbside_cue_human', 'Is there source evidence of a parked/curbside vehicle\
+ or object conflict?', cue_options, annotation) | safe }}
+                {{ select_field('obstruction_yield_blocked_cue_human', 'Is there source evidence that the AV stopped for\
+ an obstruction, yielding, blockage, or uncertainty?', cue_options, annotation) | safe }}
             </div>
 
             <div class="card">
@@ -701,29 +886,37 @@ REVIEW_TEMPLATE = """
 
             <div class="card">
                 <h2>E. Fine-context source availability</h2>
-                <p class="help">This section is specifically for separating information absent from the source report from information that an extraction system may have missed.</p>
+                <p class="help">This section is specifically for separating information absent from the source report\
+ from information that an extraction system may have missed.</p>
                 {{ presence_value_field('v1_lane', 'AV lane position', annotation) | safe }}
                 {{ presence_value_field('v2_lane', 'Other party lane position', annotation) | safe }}
                 {{ presence_value_field('v1_speed', 'AV pre-collision speed', annotation) | safe }}
                 {{ presence_value_field('v2_speed', 'Other party pre-collision speed', annotation) | safe }}
-                {{ presence_value_field('direction', 'Direction of travel / same-direction information', annotation) | safe }}
+                {{ presence_value_field('direction', 'Direction of travel / same-direction information', annotation) |\
+ safe }}
             </div>
 
             <div class="card">
                 <h2>F. Responsibility assessment</h2>
-                <p class="help">This is an interpretation task, unlike the extraction questions above. Judge only from the contents of the report.</p>
-                {{ select_field('av_responsibility_human', 'Which responsibility category is most supported by the report?', responsibility_options, annotation) | safe }}
+                <p class="help">This is an interpretation task, unlike the extraction questions above. Judge only from\
+ the contents of the report.</p>
+                {{ select_field('av_responsibility_human', 'Which responsibility category is most supported by the\
+ report?', responsibility_options, annotation) | safe }}
                 <div class="field">
-                    <label class="title" for="responsibility_explanation">Brief evidence supporting this judgement</label>
-                    <textarea id="responsibility_explanation" name="responsibility_explanation">{{ annotation.get('responsibility_explanation', '') }}</textarea>
+                    <label class="title" for="responsibility_explanation">Brief evidence supporting this\
+ judgement</label>
+                    <textarea id="responsibility_explanation" name="responsibility_explanation">{{\
+ annotation.get('responsibility_explanation', '') }}</textarea>
                 </div>
             </div>
 
             <div class="card">
                 <h2>G. Notes</h2>
                 <div class="field">
-                    <label class="title" for="general_notes">Optional notes about ambiguity, document quality, or unusual cases</label>
-                    <textarea id="general_notes" name="general_notes">{{ annotation.get('general_notes', '') }}</textarea>
+                    <label class="title" for="general_notes">Optional notes about ambiguity, document quality, or\
+ unusual cases</label>
+                    <textarea id="general_notes" name="general_notes">{{ annotation.get('general_notes', '')\
+ }}</textarea>
                 </div>
             </div>
         </form>
@@ -735,7 +928,8 @@ REVIEW_TEMPLATE = """
     {% endif %}
     <button class="secondary" type="button" onclick="saveOnly()">Save</button>
     <button class="primary" type="button" onclick="submitAndNext()">Submit & next</button>
-    <span class="save-status" id="save-status">{{ 'Submitted' if annotation.get('submitted_at') else 'Autosave on' }}</span>
+    <span class="save-status" id="save-status">{{ 'Submitted' if annotation.get('submitted_at') else 'Autosave on'\
+ }}</span>
 </div>
 <script>
 const form = document.getElementById('annotation-form');
@@ -791,7 +985,38 @@ function submitAndNext() {
 # ---------------------------------------------------------------------------
 
 
+# ==========================================================================
+# Developer notes for `_html_escape`
+# ==========================================================================
+# Purpose:
+#   Escape free text before inserting it into generated HTML.
+#
+# Interface:
+#   Parameters: value.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Rendered controls must never expose hidden LLM outputs or automated scenario labels to reviewers.
+#   Free text values are escaped before insertion into HTML.
+#   Control names must remain aligned with the SQLite schema and export field names.
+#   The browser interface is a data collection layer and must not reinterpret reviewer selections.
+#   Source evidence categories remain explicit so ambiguous and not stated values are not conflated.
+#   Changes to field labels should not change the stored machine readable values.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _html_escape(value: Any) -> str:
+    """Escape free text before inserting it into generated HTML.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     text = "" if value is None else str(value)
     return (
         text.replace("&", "&amp;")
@@ -802,12 +1027,43 @@ def _html_escape(value: Any) -> str:
     )
 
 
+# ==========================================================================
+# Developer notes for `select_field`
+# ==========================================================================
+# Purpose:
+#   Render one single choice annotation control for the validation form.
+#
+# Interface:
+#   Parameters: name, label, options, annotation.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Rendered controls must never expose hidden LLM outputs or automated scenario labels to reviewers.
+#   Free text values are escaped before insertion into HTML.
+#   Control names must remain aligned with the SQLite schema and export field names.
+#   The browser interface is a data collection layer and must not reinterpret reviewer selections.
+#   Source evidence categories remain explicit so ambiguous and not stated values are not conflated.
+#   Changes to field labels should not change the stored machine readable values.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def select_field(
     name: str,
     label: str,
     options: list[tuple[str, str]],
     annotation: dict[str, Any],
 ) -> str:
+    """Render one single choice annotation control for the validation form.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     current = str(annotation.get(name, "") or "")
     option_html = ['<option value="">Select…</option>']
     for value, text in options:
@@ -824,12 +1080,43 @@ def select_field(
     )
 
 
+# ==========================================================================
+# Developer notes for `checkbox_field`
+# ==========================================================================
+# Purpose:
+#   Render one multiple choice checkbox control for the validation form.
+#
+# Interface:
+#   Parameters: name, label, options, annotation.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Rendered controls must never expose hidden LLM outputs or automated scenario labels to reviewers.
+#   Free text values are escaped before insertion into HTML.
+#   Control names must remain aligned with the SQLite schema and export field names.
+#   The browser interface is a data collection layer and must not reinterpret reviewer selections.
+#   Source evidence categories remain explicit so ambiguous and not stated values are not conflated.
+#   Changes to field labels should not change the stored machine readable values.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def checkbox_field(
     name: str,
     label: str,
     options: list[tuple[str, str]],
     annotation: dict[str, Any],
 ) -> str:
+    """Render one multiple choice checkbox control for the validation form.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     current_raw = str(annotation.get(name, "") or "")
     current = {value for value in current_raw.split("|") if value}
     parts = [
@@ -849,11 +1136,42 @@ def checkbox_field(
     return "".join(parts)
 
 
+# ==========================================================================
+# Developer notes for `presence_value_field`
+# ==========================================================================
+# Purpose:
+#   Render a source presence selector together with an optional recovered value.
+#
+# Interface:
+#   Parameters: prefix, label, annotation.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Rendered controls must never expose hidden LLM outputs or automated scenario labels to reviewers.
+#   Free text values are escaped before insertion into HTML.
+#   Control names must remain aligned with the SQLite schema and export field names.
+#   The browser interface is a data collection layer and must not reinterpret reviewer selections.
+#   Source evidence categories remain explicit so ambiguous and not stated values are not conflated.
+#   Changes to field labels should not change the stored machine readable values.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def presence_value_field(
     prefix: str,
     label: str,
     annotation: dict[str, Any],
 ) -> str:
+    """Render a source presence selector together with an optional recovered value.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     presence_name = f"{prefix}_presence"
     value_name = f"{prefix}_value"
     current = str(annotation.get(presence_name, "") or "")
@@ -889,11 +1207,73 @@ app.jinja_env.globals.update(
 # ---------------------------------------------------------------------------
 
 
+# ==========================================================================
+# Developer notes for `utc_now`
+# ==========================================================================
+# Purpose:
+#   Return the current UTC timestamp in the format stored by the validation database.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   This helper isolates one repeated operation so the validation workflow remains easier to audit.
+#   Return types should stay stable because several later steps depend on exact field names and values.
+#   Missing information is preserved explicitly rather than silently imputed.
+#   Deterministic behaviour is preferred because the application supports reproducible research.
+#   Errors should fail visibly instead of silently generating a different study state.
+#   Changes here should be reflected in the README when they alter the reviewer workflow.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def utc_now() -> str:
+    """Return the current UTC timestamp in the format stored by the validation database.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+# ==========================================================================
+# Developer notes for `_pdf_index`
+# ==========================================================================
+# Purpose:
+#   Build a case insensitive lookup from PDF filename to absolute source path.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   This helper isolates one repeated operation so the validation workflow remains easier to audit.
+#   Return types should stay stable because several later steps depend on exact field names and values.
+#   Missing information is preserved explicitly rather than silently imputed.
+#   Deterministic behaviour is preferred because the application supports reproducible research.
+#   Errors should fail visibly instead of silently generating a different study state.
+#   Changes here should be reflected in the README when they alter the reviewer workflow.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _pdf_index() -> dict[str, Path]:
+    """Build a case insensitive lookup from PDF filename to absolute source path.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     if not PDF_DIR.exists():
         return {}
     index: dict[str, Path] = {}
@@ -901,6 +1281,30 @@ def _pdf_index() -> dict[str, Path]:
         index.setdefault(path.name.lower(), path.resolve())
     return index
 
+
+# ==========================================================================
+# Developer notes for `_normalise_validation_names`
+# ==========================================================================
+# Purpose:
+#   Canonicalise validation filenames for stable set comparison.
+#
+# Interface:
+#   Parameters: report_names.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Normalisation maps LLM outputs to the human coding vocabulary only for later comparison.
+#   The raw LLM response remains available elsewhere and is not modified by this helper.
+#   Missing and unknown values remain explicit rather than being forced into a substantive category.
+#   Controlled vocabularies should stay aligned with the options shown to human reviewers.
+#   New source categories require coordinated updates to sampling, exports, and analysis code.
+#   Normalisation must not add information that is absent from the extracted response.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
 
 def _normalise_validation_names(report_names: list[str]) -> list[str]:
     """Return a stable filename-only representation of a validation set."""
@@ -910,6 +1314,31 @@ def _normalise_validation_names(report_names: list[str]) -> list[str]:
         key=str.lower,
     )
 
+
+# ==========================================================================
+# Developer notes for `_validation_set_id`
+# ==========================================================================
+# Purpose:
+#   Create the short fingerprint used to identify the frozen validation set.
+#
+# Interface:
+#   Parameters: report_names.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   The shared validation list is the source of truth once it has been created.
+#   Sampling deliberately represents scenario classes and rule support levels rather than using simple random
+#   sampling.
+#   Population and sample stratum sizes are stored so inclusion probabilities remain auditable.
+#   The same source report must not appear twice in the frozen validation set.
+#   Sampling code must be deterministic for the same seed and analytical dataframe.
+#   A later rerun must not overwrite the completed study sample without an explicit restart.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
 
 def _validation_set_id(report_names: list[str]) -> str:
     """Create a short fingerprint for the exact 100-report set.
@@ -922,6 +1351,30 @@ def _validation_set_id(report_names: list[str]) -> str:
     canonical = "\n".join(name.lower() for name in _normalise_validation_names(report_names))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
 
+
+# ==========================================================================
+# Developer notes for `_read_validation_pdf_list`
+# ==========================================================================
+# Purpose:
+#   Read and validate the authoritative shared list of source PDFs.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   This helper isolates one repeated operation so the validation workflow remains easier to audit.
+#   Return types should stay stable because several later steps depend on exact field names and values.
+#   Missing information is preserved explicitly rather than silently imputed.
+#   Deterministic behaviour is preferred because the application supports reproducible research.
+#   Errors should fail visibly instead of silently generating a different study state.
+#   Changes here should be reflected in the README when they alter the reviewer workflow.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
 
 def _read_validation_pdf_list() -> list[str]:
     """Read the authoritative set of 100 PDF filenames from CSV or plain text.
@@ -973,6 +1426,30 @@ def _read_validation_pdf_list() -> list[str]:
     return cleaned
 
 
+# ==========================================================================
+# Developer notes for `_write_validation_pdf_list`
+# ==========================================================================
+# Purpose:
+#   Create the shared validation list once without overwriting an existing study record.
+#
+# Interface:
+#   Parameters: report_names.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   This helper isolates one repeated operation so the validation workflow remains easier to audit.
+#   Return types should stay stable because several later steps depend on exact field names and values.
+#   Missing information is preserved explicitly rather than silently imputed.
+#   Deterministic behaviour is preferred because the application supports reproducible research.
+#   Errors should fail visibly instead of silently generating a different study state.
+#   Changes here should be reflected in the README when they alter the reviewer workflow.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _write_validation_pdf_list(report_names: list[str]) -> None:
     """Create the shared 100-report list once and never overwrite it.
 
@@ -1007,7 +1484,38 @@ def _write_validation_pdf_list(report_names: list[str]) -> None:
         )
 
 
+# ==========================================================================
+# Developer notes for `_clean_output_input`
+# ==========================================================================
+# Purpose:
+#   Validate and prepare the LLM output table before research derivation.
+#
+# Interface:
+#   Parameters: df.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   This helper isolates one repeated operation so the validation workflow remains easier to audit.
+#   Return types should stay stable because several later steps depend on exact field names and values.
+#   Missing information is preserved explicitly rather than silently imputed.
+#   Deterministic behaviour is preferred because the application supports reproducible research.
+#   Errors should fail visibly instead of silently generating a different study state.
+#   Changes here should be reflected in the README when they alter the reviewer workflow.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _clean_output_input(df: pd.DataFrame) -> pd.DataFrame:
+    """Validate and prepare the LLM output table before research derivation.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     required = {"Report", "Output"}
     missing = required.difference(df.columns)
     if missing:
@@ -1022,7 +1530,38 @@ def _clean_output_input(df: pd.DataFrame) -> pd.DataFrame:
     return working
 
 
+# ==========================================================================
+# Developer notes for `_build_research_dataframe`
+# ==========================================================================
+# Purpose:
+#   Parse the stored LLM responses and derive the research variables used for sampling.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   This helper isolates one repeated operation so the validation workflow remains easier to audit.
+#   Return types should stay stable because several later steps depend on exact field names and values.
+#   Missing information is preserved explicitly rather than silently imputed.
+#   Deterministic behaviour is preferred because the application supports reproducible research.
+#   Errors should fail visibly instead of silently generating a different study state.
+#   Changes here should be reflected in the README when they alter the reviewer workflow.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _build_research_dataframe() -> pd.DataFrame:
+    """Parse the stored LLM responses and derive the research variables used for sampling.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     raw = pd.read_csv(INPUT_CSV)
     raw = _clean_output_input(raw)
     parsed = parse_events_dataframe(raw, text_column="Output")
@@ -1031,6 +1570,30 @@ def _build_research_dataframe() -> pd.DataFrame:
         blind_spot_fields=DEFAULT_BLIND_SPOT_FIELDS,
     )
 
+
+# ==========================================================================
+# Developer notes for `_allocate_by_sqrt_population`
+# ==========================================================================
+# Purpose:
+#   Allocate a target sample across scenario strata using square root population weights.
+#
+# Interface:
+#   Parameters: counts, target.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   This helper isolates one repeated operation so the validation workflow remains easier to audit.
+#   Return types should stay stable because several later steps depend on exact field names and values.
+#   Missing information is preserved explicitly rather than silently imputed.
+#   Deterministic behaviour is preferred because the application supports reproducible research.
+#   Errors should fail visibly instead of silently generating a different study state.
+#   Changes here should be reflected in the README when they alter the reviewer workflow.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
 
 def _allocate_by_sqrt_population(
     counts: pd.Series,
@@ -1120,7 +1683,38 @@ def _allocate_by_sqrt_population(
     return allocation
 
 
+# ==========================================================================
+# Developer notes for `_normalise_bool_for_reference`
+# ==========================================================================
+# Purpose:
+#   Convert a boolean like LLM value to the validation reference vocabulary.
+#
+# Interface:
+#   Parameters: value.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Normalisation maps LLM outputs to the human coding vocabulary only for later comparison.
+#   The raw LLM response remains available elsewhere and is not modified by this helper.
+#   Missing and unknown values remain explicit rather than being forced into a substantive category.
+#   Controlled vocabularies should stay aligned with the options shown to human reviewers.
+#   New source categories require coordinated updates to sampling, exports, and analysis code.
+#   Normalisation must not add information that is absent from the extracted response.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _normalise_bool_for_reference(value: Any) -> str:
+    """Convert a boolean like LLM value to the validation reference vocabulary.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     normalised = normalise_boolish(value)
     if normalised == "True":
         return "true"
@@ -1129,7 +1723,38 @@ def _normalise_bool_for_reference(value: Any) -> str:
     return "not_stated"
 
 
+# ==========================================================================
+# Developer notes for `_normalise_collision_set`
+# ==========================================================================
+# Purpose:
+#   Convert collision labels into a stable pipe separated reference representation.
+#
+# Interface:
+#   Parameters: value.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Normalisation maps LLM outputs to the human coding vocabulary only for later comparison.
+#   The raw LLM response remains available elsewhere and is not modified by this helper.
+#   Missing and unknown values remain explicit rather than being forced into a substantive category.
+#   Controlled vocabularies should stay aligned with the options shown to human reviewers.
+#   New source categories require coordinated updates to sampling, exports, and analysis code.
+#   Normalisation must not add information that is absent from the extracted response.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _normalise_collision_set(value: Any) -> str:
+    """Convert collision labels into a stable pipe separated reference representation.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     if is_missing(value):
         return "not_stated"
     raw = str(value)
@@ -1146,7 +1771,38 @@ def _normalise_collision_set(value: Any) -> str:
     return "|".join(sorted(set(tokens)))
 
 
+# ==========================================================================
+# Developer notes for `_normalise_movement_reference`
+# ==========================================================================
+# Purpose:
+#   Map movement output to the controlled movement vocabulary used for comparison.
+#
+# Interface:
+#   Parameters: value.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Normalisation maps LLM outputs to the human coding vocabulary only for later comparison.
+#   The raw LLM response remains available elsewhere and is not modified by this helper.
+#   Missing and unknown values remain explicit rather than being forced into a substantive category.
+#   Controlled vocabularies should stay aligned with the options shown to human reviewers.
+#   New source categories require coordinated updates to sampling, exports, and analysis code.
+#   Normalisation must not add information that is absent from the extracted response.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _normalise_movement_reference(value: Any) -> str:
+    """Map movement output to the controlled movement vocabulary used for comparison.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     token = normalise_movement(value)
     if token in {"NA", "na", "unknown", ""}:
         return "not_stated"
@@ -1154,7 +1810,38 @@ def _normalise_movement_reference(value: Any) -> str:
     return token if token in known else "other"
 
 
+# ==========================================================================
+# Developer notes for `_normalise_road_user_reference`
+# ==========================================================================
+# Purpose:
+#   Map road user output to the controlled validation vocabulary.
+#
+# Interface:
+#   Parameters: value.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Normalisation maps LLM outputs to the human coding vocabulary only for later comparison.
+#   The raw LLM response remains available elsewhere and is not modified by this helper.
+#   Missing and unknown values remain explicit rather than being forced into a substantive category.
+#   Controlled vocabularies should stay aligned with the options shown to human reviewers.
+#   New source categories require coordinated updates to sampling, exports, and analysis code.
+#   Normalisation must not add information that is absent from the extracted response.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _normalise_road_user_reference(value: Any) -> str:
+    """Map road user output to the controlled validation vocabulary.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     token = normalise_road_user(value)
     if token in {"NA", "na", "unknown", ""}:
         return "not_stated"
@@ -1162,14 +1849,76 @@ def _normalise_road_user_reference(value: Any) -> str:
     return token if token in known else "other"
 
 
+# ==========================================================================
+# Developer notes for `_normalise_mode_reference`
+# ==========================================================================
+# Purpose:
+#   Map AV operating mode output to the controlled validation vocabulary.
+#
+# Interface:
+#   Parameters: value.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Normalisation maps LLM outputs to the human coding vocabulary only for later comparison.
+#   The raw LLM response remains available elsewhere and is not modified by this helper.
+#   Missing and unknown values remain explicit rather than being forced into a substantive category.
+#   Controlled vocabularies should stay aligned with the options shown to human reviewers.
+#   New source categories require coordinated updates to sampling, exports, and analysis code.
+#   Normalisation must not add information that is absent from the extracted response.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _normalise_mode_reference(value: Any) -> str:
+    """Map AV operating mode output to the controlled validation vocabulary.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     token = normalise_mode(value)
     if token == "unknown":
         return "not_stated"
     return token
 
 
+# ==========================================================================
+# Developer notes for `_injury_reference`
+# ==========================================================================
+# Purpose:
+#   Convert extracted injury information to the validation injury categories.
+#
+# Interface:
+#   Parameters: value.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Normalisation maps LLM outputs to the human coding vocabulary only for later comparison.
+#   The raw LLM response remains available elsewhere and is not modified by this helper.
+#   Missing and unknown values remain explicit rather than being forced into a substantive category.
+#   Controlled vocabularies should stay aligned with the options shown to human reviewers.
+#   New source categories require coordinated updates to sampling, exports, and analysis code.
+#   Normalisation must not add information that is absent from the extracted response.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _injury_reference(value: Any) -> str:
+    """Convert extracted injury information to the validation injury categories.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     if is_missing(value):
         return "not_stated"
     text = str(value).strip().lower()
@@ -1185,11 +1934,74 @@ def _injury_reference(value: Any) -> str:
     return "ambiguous"
 
 
+# ==========================================================================
+# Developer notes for `_llm_available`
+# ==========================================================================
+# Purpose:
+#   Return whether an LLM extracted value is available after normalisation.
+#
+# Interface:
+#   Parameters: value.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Normalisation maps LLM outputs to the human coding vocabulary only for later comparison.
+#   The raw LLM response remains available elsewhere and is not modified by this helper.
+#   Missing and unknown values remain explicit rather than being forced into a substantive category.
+#   Controlled vocabularies should stay aligned with the options shown to human reviewers.
+#   New source categories require coordinated updates to sampling, exports, and analysis code.
+#   Normalisation must not add information that is absent from the extracted response.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _llm_available(value: Any) -> bool:
+    """Return whether an LLM extracted value is available after normalisation.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     return not is_missing(value)
 
 
+# ==========================================================================
+# Developer notes for `_manifest_row`
+# ==========================================================================
+# Purpose:
+#   Create one hidden manifest row containing sampling metadata and LLM comparison fields.
+#
+# Interface:
+#   Parameters: row, validation_id.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   The shared validation list is the source of truth once it has been created.
+#   Sampling deliberately represents scenario classes and rule support levels rather than using simple random
+#   sampling.
+#   Population and sample stratum sizes are stored so inclusion probabilities remain auditable.
+#   The same source report must not appear twice in the frozen validation set.
+#   Sampling code must be deterministic for the same seed and analytical dataframe.
+#   A later rerun must not overwrite the completed study sample without an explicit restart.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _manifest_row(row: pd.Series, validation_id: str) -> dict[str, Any]:
+    """Create one hidden manifest row containing sampling metadata and LLM comparison fields.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     return {
         "validation_id": validation_id,
         "row_id": row.get("row_id"),
@@ -1225,6 +2037,31 @@ def _manifest_row(row: pd.Series, validation_id: str) -> dict[str, Any]:
         "direction_llm_available": _llm_available(row.get("direction")),
     }
 
+
+# ==========================================================================
+# Developer notes for `_manifest_from_shared_list`
+# ==========================================================================
+# Purpose:
+#   Reconstruct the hidden manifest from the frozen shared PDF list.
+#
+# Interface:
+#   Parameters: research_df, report_names.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   The shared validation list is the source of truth once it has been created.
+#   Sampling deliberately represents scenario classes and rule support levels rather than using simple random
+#   sampling.
+#   Population and sample stratum sizes are stored so inclusion probabilities remain auditable.
+#   The same source report must not appear twice in the frozen validation set.
+#   Sampling code must be deterministic for the same seed and analytical dataframe.
+#   A later rerun must not overwrite the completed study sample without an explicit restart.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
 
 def _manifest_from_shared_list(research_df: pd.DataFrame, report_names: list[str]) -> pd.DataFrame:
     """Build the hidden LLM manifest from the shared fixed PDF-name list."""
@@ -1303,7 +2140,39 @@ def _manifest_from_shared_list(research_df: pd.DataFrame, report_names: list[str
     return manifest
 
 
+# ==========================================================================
+# Developer notes for `_sample_validation_reports`
+# ==========================================================================
+# Purpose:
+#   Create the stratified 100 report validation sample when no frozen list exists.
+#
+# Interface:
+#   Parameters: research_df.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   The shared validation list is the source of truth once it has been created.
+#   Sampling deliberately represents scenario classes and rule support levels rather than using simple random
+#   sampling.
+#   Population and sample stratum sizes are stored so inclusion probabilities remain auditable.
+#   The same source report must not appear twice in the frozen validation set.
+#   Sampling code must be deterministic for the same seed and analytical dataframe.
+#   A later rerun must not overwrite the completed study sample without an explicit restart.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _sample_validation_reports(research_df: pd.DataFrame) -> pd.DataFrame:
+    """Create the stratified 100 report validation sample when no frozen list exists.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     pdf_lookup = _pdf_index()
     if not pdf_lookup:
         raise RuntimeError(
@@ -1416,7 +2285,39 @@ def _sample_validation_reports(research_df: pd.DataFrame) -> pd.DataFrame:
     return manifest.sort_values("validation_id").reset_index(drop=True)
 
 
+# ==========================================================================
+# Developer notes for `_build_reviewer_orders`
+# ==========================================================================
+# Purpose:
+#   Create deterministic presentation orders for the configured reviewer identifiers.
+#
+# Interface:
+#   Parameters: manifest.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   The shared validation list is the source of truth once it has been created.
+#   Sampling deliberately represents scenario classes and rule support levels rather than using simple random
+#   sampling.
+#   Population and sample stratum sizes are stored so inclusion probabilities remain auditable.
+#   The same source report must not appear twice in the frozen validation set.
+#   Sampling code must be deterministic for the same seed and analytical dataframe.
+#   A later rerun must not overwrite the completed study sample without an explicit restart.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _build_reviewer_orders(manifest: pd.DataFrame) -> pd.DataFrame:
+    """Create deterministic presentation orders for the configured reviewer identifiers.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     rows: list[dict[str, Any]] = []
     ids = manifest["validation_id"].tolist()
     for reviewer_id, seed in REVIEWER_ORDER_SEEDS.items():
@@ -1441,6 +2342,31 @@ def _build_reviewer_orders(manifest: pd.DataFrame) -> pd.DataFrame:
         raise RuntimeError("Reviewer orders unexpectedly have the same sequence.")
     return orders
 
+
+# ==========================================================================
+# Developer notes for `_initialise_manifest_and_orders`
+# ==========================================================================
+# Purpose:
+#   Initialise the frozen validation manifest, set identifier, and reviewer order files.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   The shared validation list is the source of truth once it has been created.
+#   Sampling deliberately represents scenario classes and rule support levels rather than using simple random
+#   sampling.
+#   Population and sample stratum sizes are stored so inclusion probabilities remain auditable.
+#   The same source report must not appear twice in the frozen validation set.
+#   Sampling code must be deterministic for the same seed and analytical dataframe.
+#   A later rerun must not overwrite the completed study sample without an explicit restart.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
 
 def _initialise_manifest_and_orders() -> None:
     """Initialise the hidden manifest from the shared list and reviewer orders.
@@ -1492,15 +2418,81 @@ def _initialise_manifest_and_orders() -> None:
 
     expected_orders = _build_reviewer_orders(manifest)
     if ORDERS_PATH.exists():
+        # Once reviewer_orders.csv has been created and used for a study, it is
+        # part of the frozen validation record. Do not reject it merely because
+        # a later version of the code would generate a different deterministic
+        # sequence. Instead, verify that it is internally valid and contains
+        # exactly the same validation set as the manifest, then preserve it.
         orders = pd.read_csv(ORDERS_PATH)
+
+        required_columns = {"reviewer_id", "position", "validation_id"}
+        missing_columns = required_columns.difference(orders.columns)
+        if missing_columns:
+            raise RuntimeError(
+                "Existing reviewer_orders.csv is missing required columns: "
+                + ", ".join(sorted(missing_columns))
+            )
+
+        manifest_ids = manifest["validation_id"].astype(str).tolist()
+        manifest_id_set = set(manifest_ids)
+
+        reviewer_sequences: dict[str, list[str]] = {}
         for reviewer in REVIEWERS:
-            existing_order = orders.loc[orders["reviewer_id"].eq(reviewer)].sort_values("position")
-            expected_order = expected_orders.loc[expected_orders["reviewer_id"].eq(reviewer)].sort_values("position")
-            if existing_order["validation_id"].astype(str).tolist() != expected_order["validation_id"].astype(str).tolist():
+            existing_order = (
+                orders.loc[orders["reviewer_id"].astype(str).eq(reviewer)]
+                .sort_values("position")
+                .copy()
+            )
+
+            if len(existing_order) != len(manifest_ids):
                 raise RuntimeError(
-                    "Existing reviewer order does not match the deterministic "
-                    "order derived from the shared validation list."
+                    f"Existing reviewer order for {reviewer} contains "
+                    f"{len(existing_order)} rows, but {len(manifest_ids)} are required."
                 )
+
+            positions = existing_order["position"].tolist()
+            expected_positions = list(range(1, len(manifest_ids) + 1))
+            if positions != expected_positions:
+                raise RuntimeError(
+                    f"Existing reviewer order for {reviewer} does not contain "
+                    f"positions 1 through {len(manifest_ids)} exactly once."
+                )
+
+            sequence = existing_order["validation_id"].astype(str).tolist()
+            if len(sequence) != len(set(sequence)):
+                raise RuntimeError(
+                    f"Existing reviewer order for {reviewer} contains duplicate validation IDs."
+                )
+
+            if set(sequence) != manifest_id_set:
+                raise RuntimeError(
+                    f"Existing reviewer order for {reviewer} does not contain "
+                    "the same validation IDs as the validation manifest."
+                )
+
+            reviewer_sequences[reviewer] = sequence
+
+        if len(REVIEWERS) >= 2:
+            first_sequence = reviewer_sequences[REVIEWERS[0]]
+            second_sequence = reviewer_sequences[REVIEWERS[1]]
+            if first_sequence == second_sequence:
+                # Preserve the study record exactly as it was used.
+                #
+                # A different presentation order was the intended design, but
+                # an existing reviewer_orders.csv may come from a completed
+                # study in which both reviewers happened to use the same
+                # sequence. That does not invalidate the annotations and must
+                # not be "fixed" retrospectively. The important integrity check
+                # is that both reviewers coded the same frozen validation set.
+                print(
+                    "WARNING: Reviewer 1 and Reviewer 2 have the same "
+                    "presentation order in the existing reviewer_orders.csv. "
+                    "The order is being preserved because it is part of the "
+                    "completed validation record."
+                )
+
+        # Keep the frozen order exactly as it is. The freshly generated
+        # expected_orders variable is used only when no order file exists.
     else:
         expected_orders.to_csv(ORDERS_PATH, index=False)
 
@@ -1510,13 +2502,75 @@ def _initialise_manifest_and_orders() -> None:
 # ---------------------------------------------------------------------------
 
 
+# ==========================================================================
+# Developer notes for `_db_connection`
+# ==========================================================================
+# Purpose:
+#   Open a SQLite connection configured for dictionary style row access.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   SQLite stores reviewer work locally and must preserve previously submitted annotations.
+#   Reviewer identity and validation identifier together form the logical annotation key.
+#   Autosave and final submission use the same field schema but different completion semantics.
+#   Database initialisation is idempotent so restarting the application does not erase progress.
+#   Timestamps are stored in UTC to avoid reviewer machine timezone differences.
+#   Any schema change should remain compatible with already collected reviewer annotations.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _db_connection() -> sqlite3.Connection:
+    """Open a SQLite connection configured for dictionary style row access.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     connection = sqlite3.connect(DB_PATH)
     connection.row_factory = sqlite3.Row
     return connection
 
 
+# ==========================================================================
+# Developer notes for `_initialise_database`
+# ==========================================================================
+# Purpose:
+#   Create the annotation database schema without deleting existing reviewer work.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   SQLite stores reviewer work locally and must preserve previously submitted annotations.
+#   Reviewer identity and validation identifier together form the logical annotation key.
+#   Autosave and final submission use the same field schema but different completion semantics.
+#   Database initialisation is idempotent so restarting the application does not erase progress.
+#   Timestamps are stored in UTC to avoid reviewer machine timezone differences.
+#   Any schema change should remain compatible with already collected reviewer annotations.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _initialise_database() -> None:
+    """Create the annotation database schema without deleting existing reviewer work.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     columns_sql = ",\n".join(f'"{field}" TEXT' for field in ANNOTATION_FIELDS)
     with _db_connection() as connection:
@@ -1537,7 +2591,38 @@ def _initialise_database() -> None:
         connection.commit()
 
 
+# ==========================================================================
+# Developer notes for `_load_annotation`
+# ==========================================================================
+# Purpose:
+#   Load one reviewer's saved annotation for a validation report.
+#
+# Interface:
+#   Parameters: reviewer_id, validation_id.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   SQLite stores reviewer work locally and must preserve previously submitted annotations.
+#   Reviewer identity and validation identifier together form the logical annotation key.
+#   Autosave and final submission use the same field schema but different completion semantics.
+#   Database initialisation is idempotent so restarting the application does not erase progress.
+#   Timestamps are stored in UTC to avoid reviewer machine timezone differences.
+#   Any schema change should remain compatible with already collected reviewer annotations.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _load_annotation(reviewer_id: str, validation_id: str) -> dict[str, Any]:
+    """Load one reviewer's saved annotation for a validation report.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     with _db_connection() as connection:
         row = connection.execute(
             "SELECT * FROM annotations WHERE reviewer_id=? AND validation_id=?",
@@ -1548,7 +2633,38 @@ def _load_annotation(reviewer_id: str, validation_id: str) -> dict[str, Any]:
     return dict(row)
 
 
+# ==========================================================================
+# Developer notes for `_request_annotation_values`
+# ==========================================================================
+# Purpose:
+#   Convert submitted form fields into the canonical annotation dictionary.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   SQLite stores reviewer work locally and must preserve previously submitted annotations.
+#   Reviewer identity and validation identifier together form the logical annotation key.
+#   Autosave and final submission use the same field schema but different completion semantics.
+#   Database initialisation is idempotent so restarting the application does not erase progress.
+#   Timestamps are stored in UTC to avoid reviewer machine timezone differences.
+#   Any schema change should remain compatible with already collected reviewer annotations.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _request_annotation_values() -> dict[str, str]:
+    """Convert submitted form fields into the canonical annotation dictionary.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     values: dict[str, str] = {}
     for field in ANNOTATION_FIELDS:
         if field in MULTI_VALUE_FIELDS:
@@ -1559,6 +2675,30 @@ def _request_annotation_values() -> dict[str, str]:
     return values
 
 
+# ==========================================================================
+# Developer notes for `_save_annotation`
+# ==========================================================================
+# Purpose:
+#   Insert or update one reviewer annotation while preserving submission metadata.
+#
+# Interface:
+#   Parameters: reviewer_id, validation_id, values, submit, started_at.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   SQLite stores reviewer work locally and must preserve previously submitted annotations.
+#   Reviewer identity and validation identifier together form the logical annotation key.
+#   Autosave and final submission use the same field schema but different completion semantics.
+#   Database initialisation is idempotent so restarting the application does not erase progress.
+#   Timestamps are stored in UTC to avoid reviewer machine timezone differences.
+#   Any schema change should remain compatible with already collected reviewer annotations.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _save_annotation(
     reviewer_id: str,
     validation_id: str,
@@ -1567,6 +2707,13 @@ def _save_annotation(
     submit: bool,
     started_at: str | None,
 ) -> None:
+    """Insert or update one reviewer annotation while preserving submission metadata.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     now = utc_now()
     existing = _load_annotation(reviewer_id, validation_id)
     started = (
@@ -1620,7 +2767,38 @@ def _save_annotation(
         connection.commit()
 
 
+# ==========================================================================
+# Developer notes for `_validate_submission`
+# ==========================================================================
+# Purpose:
+#   Check that all required annotation fields are complete before submission.
+#
+# Interface:
+#   Parameters: values.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   SQLite stores reviewer work locally and must preserve previously submitted annotations.
+#   Reviewer identity and validation identifier together form the logical annotation key.
+#   Autosave and final submission use the same field schema but different completion semantics.
+#   Database initialisation is idempotent so restarting the application does not erase progress.
+#   Timestamps are stored in UTC to avoid reviewer machine timezone differences.
+#   Any schema change should remain compatible with already collected reviewer annotations.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _validate_submission(values: dict[str, str]) -> list[str]:
+    """Check that all required annotation fields are complete before submission.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     errors = []
     for field in REQUIRED_ON_SUBMIT:
         if not values.get(field, "").strip():
@@ -1636,15 +2814,109 @@ def _validate_submission(values: dict[str, str]) -> list[str]:
     return errors
 
 
+# ==========================================================================
+# Developer notes for `_orders_dataframe`
+# ==========================================================================
+# Purpose:
+#   Load the recorded reviewer order table from disk.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   This helper isolates one repeated operation so the validation workflow remains easier to audit.
+#   Return types should stay stable because several later steps depend on exact field names and values.
+#   Missing information is preserved explicitly rather than silently imputed.
+#   Deterministic behaviour is preferred because the application supports reproducible research.
+#   Errors should fail visibly instead of silently generating a different study state.
+#   Changes here should be reflected in the README when they alter the reviewer workflow.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _orders_dataframe() -> pd.DataFrame:
+    """Load the recorded reviewer order table from disk.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     return pd.read_csv(ORDERS_PATH)
 
 
+# ==========================================================================
+# Developer notes for `_manifest_dataframe`
+# ==========================================================================
+# Purpose:
+#   Load the hidden validation manifest from disk.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   The shared validation list is the source of truth once it has been created.
+#   Sampling deliberately represents scenario classes and rule support levels rather than using simple random
+#   sampling.
+#   Population and sample stratum sizes are stored so inclusion probabilities remain auditable.
+#   The same source report must not appear twice in the frozen validation set.
+#   Sampling code must be deterministic for the same seed and analytical dataframe.
+#   A later rerun must not overwrite the completed study sample without an explicit restart.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _manifest_dataframe() -> pd.DataFrame:
+    """Load the hidden validation manifest from disk.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     return pd.read_csv(MANIFEST_PATH)
 
 
+# ==========================================================================
+# Developer notes for `_validation_id_at`
+# ==========================================================================
+# Purpose:
+#   Resolve the validation identifier shown at a reviewer position.
+#
+# Interface:
+#   Parameters: reviewer_id, position.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   This helper isolates one repeated operation so the validation workflow remains easier to audit.
+#   Return types should stay stable because several later steps depend on exact field names and values.
+#   Missing information is preserved explicitly rather than silently imputed.
+#   Deterministic behaviour is preferred because the application supports reproducible research.
+#   Errors should fail visibly instead of silently generating a different study state.
+#   Changes here should be reflected in the README when they alter the reviewer workflow.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _validation_id_at(reviewer_id: str, position: int) -> str:
+    """Resolve the validation identifier shown at a reviewer position.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     orders = _orders_dataframe()
     row = orders.loc[
         orders["reviewer_id"].eq(reviewer_id)
@@ -1655,7 +2927,38 @@ def _validation_id_at(reviewer_id: str, position: int) -> str:
     return str(row.iloc[0]["validation_id"])
 
 
+# ==========================================================================
+# Developer notes for `_report_name_for_validation_id`
+# ==========================================================================
+# Purpose:
+#   Resolve the source PDF filename for one validation identifier.
+#
+# Interface:
+#   Parameters: validation_id.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   This helper isolates one repeated operation so the validation workflow remains easier to audit.
+#   Return types should stay stable because several later steps depend on exact field names and values.
+#   Missing information is preserved explicitly rather than silently imputed.
+#   Deterministic behaviour is preferred because the application supports reproducible research.
+#   Errors should fail visibly instead of silently generating a different study state.
+#   Changes here should be reflected in the README when they alter the reviewer workflow.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _report_name_for_validation_id(validation_id: str) -> str:
+    """Resolve the source PDF filename for one validation identifier.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     manifest = _manifest_dataframe()
     row = manifest.loc[manifest["validation_id"].eq(validation_id)]
     if row.empty:
@@ -1664,7 +2967,38 @@ def _report_name_for_validation_id(validation_id: str) -> str:
     return source
 
 
+# ==========================================================================
+# Developer notes for `_progress`
+# ==========================================================================
+# Purpose:
+#   Summarise saved and submitted progress for the active reviewer.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   This helper isolates one repeated operation so the validation workflow remains easier to audit.
+#   Return types should stay stable because several later steps depend on exact field names and values.
+#   Missing information is preserved explicitly rather than silently imputed.
+#   Deterministic behaviour is preferred because the application supports reproducible research.
+#   Errors should fail visibly instead of silently generating a different study state.
+#   Changes here should be reflected in the README when they alter the reviewer workflow.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _progress() -> dict[str, dict[str, Any]]:
+    """Summarise saved and submitted progress for the active reviewer.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     orders = _orders_dataframe()
     result: dict[str, dict[str, Any]] = {}
     with _db_connection() as connection:
@@ -1704,7 +3038,39 @@ def _progress() -> dict[str, dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
+# ==========================================================================
+# Developer notes for `_cohen_kappa`
+# ==========================================================================
+# Purpose:
+#   Calculate unweighted Cohen's kappa for two categorical coding series.
+#
+# Interface:
+#   Parameters: left, right.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Reviewer 1 and Reviewer 2 remain separate observations throughout the agreement analysis.
+#   Exact agreement is reported together with Cohen's kappa because prevalence affects kappa.
+#   LLM agreement is calculated separately for each human reviewer and should not be averaged into one accuracy
+#   value.
+#   Disagreement records are retained for audit and possible later adjudication.
+#   A human disagreement is not automatically treated as an LLM error.
+#   Any later adjudicated reference must be stored separately from the original independent coding.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _cohen_kappa(left: pd.Series, right: pd.Series) -> float | None:
+    """Calculate unweighted Cohen's kappa for two categorical coding series.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     paired = pd.DataFrame({"left": left, "right": right}).dropna()
     paired = paired.loc[
         paired["left"].astype(str).ne("")
@@ -1726,7 +3092,39 @@ def _cohen_kappa(left: pd.Series, right: pd.Series) -> float | None:
     return (observed - expected) / (1.0 - expected)
 
 
+# ==========================================================================
+# Developer notes for `_human_annotations_dataframe`
+# ==========================================================================
+# Purpose:
+#   Export submitted human annotations from SQLite as a dataframe.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Reviewer 1 and Reviewer 2 remain separate observations throughout the agreement analysis.
+#   Exact agreement is reported together with Cohen's kappa because prevalence affects kappa.
+#   LLM agreement is calculated separately for each human reviewer and should not be averaged into one accuracy
+#   value.
+#   Disagreement records are retained for audit and possible later adjudication.
+#   A human disagreement is not automatically treated as an LLM error.
+#   Any later adjudicated reference must be stored separately from the original independent coding.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _human_annotations_dataframe() -> pd.DataFrame:
+    """Export submitted human annotations from SQLite as a dataframe.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     with _db_connection() as connection:
         df = pd.read_sql_query(
             "SELECT * FROM annotations ORDER BY reviewer_id, validation_id",
@@ -1735,7 +3133,39 @@ def _human_annotations_dataframe() -> pd.DataFrame:
     return df
 
 
+# ==========================================================================
+# Developer notes for `_human_field_evidence`
+# ==========================================================================
+# Purpose:
+#   Convert reviewer annotations to a long field evidence table.
+#
+# Interface:
+#   Parameters: annotations.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Reviewer 1 and Reviewer 2 remain separate observations throughout the agreement analysis.
+#   Exact agreement is reported together with Cohen's kappa because prevalence affects kappa.
+#   LLM agreement is calculated separately for each human reviewer and should not be averaged into one accuracy
+#   value.
+#   Disagreement records are retained for audit and possible later adjudication.
+#   A human disagreement is not automatically treated as an LLM error.
+#   Any later adjudicated reference must be stored separately from the original independent coding.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _human_field_evidence(annotations: pd.DataFrame) -> pd.DataFrame:
+    """Convert reviewer annotations to a long field evidence table.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     rows = []
     for _, row in annotations.iterrows():
         for field in ANNOTATION_FIELDS:
@@ -1751,7 +3181,39 @@ def _human_field_evidence(annotations: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+# ==========================================================================
+# Developer notes for `_interrater_table`
+# ==========================================================================
+# Purpose:
+#   Calculate human to human agreement and preserve field level disagreements.
+#
+# Interface:
+#   Parameters: annotations.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Reviewer 1 and Reviewer 2 remain separate observations throughout the agreement analysis.
+#   Exact agreement is reported together with Cohen's kappa because prevalence affects kappa.
+#   LLM agreement is calculated separately for each human reviewer and should not be averaged into one accuracy
+#   value.
+#   Disagreement records are retained for audit and possible later adjudication.
+#   A human disagreement is not automatically treated as an LLM error.
+#   Any later adjudicated reference must be stored separately from the original independent coding.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _interrater_table(annotations: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Calculate human to human agreement and preserve field level disagreements.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     submitted = annotations.loc[
         annotations["submitted_at"].fillna("").astype(str).ne("")
     ].copy()
@@ -1824,10 +3286,42 @@ def _interrater_table(annotations: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataF
     return pd.DataFrame(rows), pd.DataFrame(disagreement_rows)
 
 
+# ==========================================================================
+# Developer notes for `_llm_vs_humans_table`
+# ==========================================================================
+# Purpose:
+#   Compare the LLM output separately with each human reviewer.
+#
+# Interface:
+#   Parameters: annotations, manifest.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Reviewer 1 and Reviewer 2 remain separate observations throughout the agreement analysis.
+#   Exact agreement is reported together with Cohen's kappa because prevalence affects kappa.
+#   LLM agreement is calculated separately for each human reviewer and should not be averaged into one accuracy
+#   value.
+#   Disagreement records are retained for audit and possible later adjudication.
+#   A human disagreement is not automatically treated as an LLM error.
+#   Any later adjudicated reference must be stored separately from the original independent coding.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _llm_vs_humans_table(
     annotations: pd.DataFrame,
     manifest: pd.DataFrame,
 ) -> pd.DataFrame:
+    """Compare the LLM output separately with each human reviewer.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     mappings = {
         "road_user_type_human": "road_user_type_llm",
         "av_mode_human": "av_mode_llm",
@@ -1878,7 +3372,38 @@ def _llm_vs_humans_table(
     return pd.DataFrame(rows)
 
 
+# ==========================================================================
+# Developer notes for `_as_bool`
+# ==========================================================================
+# Purpose:
+#   Normalise common truthy values used by source availability comparisons.
+#
+# Interface:
+#   Parameters: value.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Normalisation maps LLM outputs to the human coding vocabulary only for later comparison.
+#   The raw LLM response remains available elsewhere and is not modified by this helper.
+#   Missing and unknown values remain explicit rather than being forced into a substantive category.
+#   Controlled vocabularies should stay aligned with the options shown to human reviewers.
+#   New source categories require coordinated updates to sampling, exports, and analysis code.
+#   Normalisation must not add information that is absent from the extracted response.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _as_bool(value: Any) -> bool:
+    """Normalise common truthy values used by source availability comparisons.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     if isinstance(value, bool):
         return value
     if value is None:
@@ -1887,10 +3412,42 @@ def _as_bool(value: Any) -> bool:
     return text in {"true", "1", "yes", "y"}
 
 
+# ==========================================================================
+# Developer notes for `_source_presence_vs_llm`
+# ==========================================================================
+# Purpose:
+#   Compare human source presence coding with LLM extraction availability.
+#
+# Interface:
+#   Parameters: annotations, manifest.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Reviewer 1 and Reviewer 2 remain separate observations throughout the agreement analysis.
+#   Exact agreement is reported together with Cohen's kappa because prevalence affects kappa.
+#   LLM agreement is calculated separately for each human reviewer and should not be averaged into one accuracy
+#   value.
+#   Disagreement records are retained for audit and possible later adjudication.
+#   A human disagreement is not automatically treated as an LLM error.
+#   Any later adjudicated reference must be stored separately from the original independent coding.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _source_presence_vs_llm(
     annotations: pd.DataFrame,
     manifest: pd.DataFrame,
 ) -> pd.DataFrame:
+    """Compare human source presence coding with LLM extraction availability.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     mappings = {
         "v1_lane_presence": "v1_lane_llm_available",
         "v2_lane_presence": "v2_lane_llm_available",
@@ -1940,7 +3497,38 @@ def _source_presence_vs_llm(
     return pd.DataFrame(rows)
 
 
+# ==========================================================================
+# Developer notes for `_generate_exports`
+# ==========================================================================
+# Purpose:
+#   Generate the validation CSV outputs and package them into a reproducible ZIP archive.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Exports are derivative artefacts; the SQLite database remains the primary local record of reviewer input.
+#   Human annotations, disagreements, agreement metrics, and LLM comparisons are exported separately.
+#   Generated files must preserve reviewer identifiers and validation identifiers for auditability.
+#   Source presence analyses distinguish source coding from extraction availability.
+#   Packaging the outputs must not modify the reviewer annotations used to create them.
+#   A later adjudication file should be additive rather than replacing these original exports.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def _generate_exports() -> list[Path]:
+    """Generate the validation CSV outputs and package them into a reproducible ZIP archive.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     annotations = _human_annotations_dataframe()
     manifest = _manifest_dataframe()
 
@@ -1982,8 +3570,39 @@ def _generate_exports() -> list[Path]:
 # ---------------------------------------------------------------------------
 
 
+# ==========================================================================
+# Developer notes for `home`
+# ==========================================================================
+# Purpose:
+#   Render the validation landing page and active reviewer progress.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Flask routes expose only the information needed for the requested validation action.
+#   The review route must keep the hidden manifest and LLM outputs out of the rendered page.
+#   Report filenames are resolved through the frozen manifest rather than accepting arbitrary file paths.
+#   Submitted annotations are validated before they are marked complete.
+#   Autosave should never convert an incomplete form into a submitted report.
+#   Export actions must preserve the underlying reviewer database and source records.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 @app.route("/")
 def home() -> str:
+    """Render the validation landing page and active reviewer progress.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     reviewer_progress = _progress()[CURRENT_REVIEWER_ID]
     return render_template_string(
         HOME_TEMPLATE,
@@ -1999,8 +3618,39 @@ def home() -> str:
     )
 
 
+# ==========================================================================
+# Developer notes for `serve_pdf`
+# ==========================================================================
+# Purpose:
+#   Serve an authorised source PDF from the configured report directory.
+#
+# Interface:
+#   Parameters: report_name.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Flask routes expose only the information needed for the requested validation action.
+#   The review route must keep the hidden manifest and LLM outputs out of the rendered page.
+#   Report filenames are resolved through the frozen manifest rather than accepting arbitrary file paths.
+#   Submitted annotations are validated before they are marked complete.
+#   Autosave should never convert an incomplete form into a submitted report.
+#   Export actions must preserve the underlying reviewer database and source records.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 @app.route("/pdf/<path:report_name>")
 def serve_pdf(report_name: str) -> Response:
+    """Serve an authorised source PDF from the configured report directory.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     pdf_lookup = _pdf_index()
     path = pdf_lookup.get(Path(report_name).name.lower())
     if path is None or not path.exists():
@@ -2008,8 +3658,39 @@ def serve_pdf(report_name: str) -> Response:
     return send_from_directory(path.parent, path.name, mimetype="application/pdf")
 
 
+# ==========================================================================
+# Developer notes for `review_report`
+# ==========================================================================
+# Purpose:
+#   Render and process the main source report annotation form.
+#
+# Interface:
+#   Parameters: position.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Flask routes expose only the information needed for the requested validation action.
+#   The review route must keep the hidden manifest and LLM outputs out of the rendered page.
+#   Report filenames are resolved through the frozen manifest rather than accepting arbitrary file paths.
+#   Submitted annotations are validated before they are marked complete.
+#   Autosave should never convert an incomplete form into a submitted report.
+#   Export actions must preserve the underlying reviewer database and source records.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 @app.route("/review/<int:position>", methods=["GET", "POST"])
 def review_report(position: int) -> str | Response:
+    """Render and process the main source report annotation form.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     reviewer_id = CURRENT_REVIEWER_ID
     if position < 1 or position > SAMPLE_SIZE:
         abort(404)
@@ -2063,8 +3744,39 @@ def review_report(position: int) -> str | Response:
     )
 
 
+# ==========================================================================
+# Developer notes for `autosave_report`
+# ==========================================================================
+# Purpose:
+#   Persist an in progress annotation without marking the report as submitted.
+#
+# Interface:
+#   Parameters: position.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Flask routes expose only the information needed for the requested validation action.
+#   The review route must keep the hidden manifest and LLM outputs out of the rendered page.
+#   Report filenames are resolved through the frozen manifest rather than accepting arbitrary file paths.
+#   Submitted annotations are validated before they are marked complete.
+#   Autosave should never convert an incomplete form into a submitted report.
+#   Export actions must preserve the underlying reviewer database and source records.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 @app.route("/autosave/<int:position>", methods=["POST"])
 def autosave_report(position: int) -> Response:
+    """Persist an in progress annotation without marking the report as submitted.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     reviewer_id = CURRENT_REVIEWER_ID
     if not (1 <= position <= SAMPLE_SIZE):
         abort(404)
@@ -2080,8 +3792,39 @@ def autosave_report(position: int) -> Response:
     return jsonify({"ok": True, "saved_at": utc_now()})
 
 
+# ==========================================================================
+# Developer notes for `export_validation`
+# ==========================================================================
+# Purpose:
+#   Generate the current validation exports and return the ZIP archive.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Flask routes expose only the information needed for the requested validation action.
+#   The review route must keep the hidden manifest and LLM outputs out of the rendered page.
+#   Report filenames are resolved through the frozen manifest rather than accepting arbitrary file paths.
+#   Submitted annotations are validated before they are marked complete.
+#   Autosave should never convert an incomplete form into a submitted report.
+#   Export actions must preserve the underlying reviewer database and source records.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 @app.route("/export")
 def export_validation() -> Response:
+    """Generate the current validation exports and return the ZIP archive.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     _generate_exports()
     return send_file(
         EXPORT_ZIP_PATH,
@@ -2090,8 +3833,39 @@ def export_validation() -> Response:
     )
 
 
+# ==========================================================================
+# Developer notes for `status`
+# ==========================================================================
+# Purpose:
+#   Return a compact JSON status summary for the validation interface.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   Flask routes expose only the information needed for the requested validation action.
+#   The review route must keep the hidden manifest and LLM outputs out of the rendered page.
+#   Report filenames are resolved through the frozen manifest rather than accepting arbitrary file paths.
+#   Submitted annotations are validated before they are marked complete.
+#   Autosave should never convert an incomplete form into a submitted report.
+#   Export actions must preserve the underlying reviewer database and source records.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 @app.route("/status")
 def status() -> Response:
+    """Return a compact JSON status summary for the validation interface.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     return jsonify(
         {
             "sample_size": SAMPLE_SIZE,
@@ -2115,7 +3889,38 @@ def status() -> Response:
 # ---------------------------------------------------------------------------
 
 
+# ==========================================================================
+# Developer notes for `initialise_validation`
+# ==========================================================================
+# Purpose:
+#   Initialise all validation artefacts required before starting the Flask application.
+#
+# Interface:
+#   Parameters: none.
+#   The documented return value is the contract used by downstream validation code.
+#
+# Implementation and research safeguards:
+#   This helper isolates one repeated operation so the validation workflow remains easier to audit.
+#   Return types should stay stable because several later steps depend on exact field names and values.
+#   Missing information is preserved explicitly rather than silently imputed.
+#   Deterministic behaviour is preferred because the application supports reproducible research.
+#   Errors should fail visibly instead of silently generating a different study state.
+#   Changes here should be reflected in the README when they alter the reviewer workflow.
+#
+# Maintenance guidance:
+#   Keep stored field names stable unless the database schema, exports, and analysis code are updated together.
+#   Do not add hidden heuristics that change reviewer answers, validation membership, or comparison categories.
+#   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
+# ==========================================================================
+
 def initialise_validation() -> None:
+    """Initialise all validation artefacts required before starting the Flask application.
+
+    The helper is intentionally deterministic where study state or comparison
+    outputs depend on it. Missing information is preserved explicitly rather
+    than being inferred from unrelated fields.
+    """
+
     if not INPUT_CSV.exists():
         raise RuntimeError(
             f"Input CSV not found: {INPUT_CSV}. If common.get_configs(\"data\") "

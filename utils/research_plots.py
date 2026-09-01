@@ -85,10 +85,10 @@ def _apply_uniform_horizontal_bar_density(
     bargap: float = 0.35,
     row_slot_px: int = 58,
     min_height: int = 650,
-    margin_top: int = 50,
-    margin_right: int = 140,
-    margin_bottom: int = 80,
-    margin_left: int = 80,
+    margin_top: int = 0,
+    margin_right: int = 0,
+    margin_bottom: int = 0,
+    margin_left: int = 0,
 ) -> go.Figure:
     """Applies a consistent visual bar density to horizontal bar charts.
 
@@ -141,7 +141,7 @@ def _to_list(values: object) -> list[object]:
 
     if hasattr(values, 'tolist'):
         try:
-            return list(values.tolist())
+            return list(values.tolist())  # type: ignore
         except Exception:
             pass
 
@@ -149,7 +149,7 @@ def _to_list(values: object) -> list[object]:
         return list(values)
 
     try:
-        return list(values)
+        return list(values)  # type: ignore
     except TypeError:
         return [values]
 
@@ -213,10 +213,10 @@ def _add_bar_value_labels(
             else:
                 labels.append(format(float(numeric_value), value_format))
 
-        trace.text = labels
-        trace.texttemplate = '%{text}'
-        trace.textposition = textposition
-        trace.cliponaxis = False
+        trace.text = labels  # type: ignore
+        trace.texttemplate = '%{text}'  # type: ignore
+        trace.textposition = textposition  # type: ignore
+        trace.cliponaxis = False  # type: ignore
 
     if textposition == 'outside':
         max_value = _get_numeric_trace_max(fig, numeric_axis)
@@ -308,11 +308,11 @@ def _add_stacked_bar_segment_labels(
 
             cumulative[category] = base_value + y_value
 
-        trace.text = labels
-        trace.texttemplate = '%{text}'
-        trace.textposition = 'inside'
-        trace.insidetextanchor = 'middle'
-        trace.cliponaxis = False
+        trace.text = labels  # type: ignore
+        trace.texttemplate = '%{text}'  # type: ignore
+        trace.textposition = 'inside'  # type: ignore
+        trace.insidetextanchor = 'middle'  # type: ignore
+        trace.cliponaxis = False  # type: ignore
 
     if totals:
         max_total = max(totals.values())
@@ -479,7 +479,8 @@ def create_accountability_by_taxonomy_figure(
     # Keep the overall section order visually similar to the existing figure:
     # smaller sections at the top and larger sections at the bottom.
     blame_order_top_to_bottom = (
-        blame_totals.sort_values(['count', 'blame_group'], ascending=[True, True])
+        blame_totals.sort_values(['count', 'blame_group'],
+                                 ascending=[True, True])  # type: ignore
         ['blame_group']
         .tolist()
     )
@@ -570,7 +571,7 @@ def create_accountability_by_taxonomy_figure(
             'xref': 'x',
             'yref': 'y',
             'x': scenario_label_x,
-            'y': float(row.y),
+            'y': float(row.y),  # type: ignore
             'text': str(row.scenario_class),
             'showarrow': False,
             'xanchor': 'right',
@@ -652,7 +653,7 @@ def create_accountability_by_taxonomy_figure(
         uniformtext_mode='hide',
         # The labels live inside the plot area, so only a modest margin is
         # needed and the exported figure no longer clips the left side.
-        margin=dict(t=20, r=40, b=40, l=20),
+        margin=dict(t=0, r=0, b=0, l=0),
     )
     fig.update_xaxes(
         title_text='Count',

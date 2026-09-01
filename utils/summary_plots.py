@@ -104,7 +104,7 @@ def _format_location_label(row: pd.Series) -> str:
         row.get('city'),
         county,
         row.get('zipcode'),
-    ])
+    ])  # type: ignore
     return ', '.join(parts)
 
 
@@ -350,7 +350,7 @@ def create_accident_location_map_figure(
     )
     fig.update_layout(
         title='',
-        margin=dict(l=20, r=20, t=20, b=20),
+        margin=dict(l=0, r=0, t=0, b=0),
     )
     return fig, location_df
 
@@ -587,7 +587,7 @@ def _log_figure_values(plot_name: str, fig: go.Figure) -> None:
     """
 
     _log_info(f"Plot values for {plot_name}")
-    _log_info(f"trace_count={len(fig.data)}")
+    _log_info(f"trace_count={len(fig.data)}")  # type: ignore
 
     for index, trace in enumerate(fig.data, start=1):
         trace_name = getattr(trace, 'name', '') or f'trace_{index}'
@@ -633,7 +633,7 @@ def create_histogram_figure(df: pd.DataFrame, field: str) -> go.Figure:
     fig.update_layout(
         uniformtext_minsize=8,
         uniformtext_mode='hide',
-        margin=dict(t=40),
+        margin=dict(t=0),
     )
     return fig
 

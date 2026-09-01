@@ -14,7 +14,7 @@ Post extraction unavailability must not be interpreted as proof that a field was
 
 If you use this work for academic work, please cite:
 
-> Alam, M. S., Zhang, L., Li, J., Dou, F., Bazilinskyy, P. (2026). Collision Patterns and Reporting Blind Spots in 971 California Autonomous Vehicle Crash Reports.
+> Alam, M. S., Zhang, L., Li, J., Dou, F., Bazilinskyy, P. (2026). Collision Patterns and Evidence Availability in 971 California Autonomous Vehicle Collision Reports.
 
 The code is open source and free to use. It is intended primarily for academic research, but other uses are welcome. Contributions, forks, and pull requests are encouraged in the spirit of open science.
 
@@ -44,12 +44,24 @@ llm-events/
 │       └── ...
 ├── _output/
 ├── _validation/
+├── validation_results/
+│   └── complete/
+│       ├── human_annotations.csv
+│       ├── human_field_evidence.csv
+│       ├── human_disagreements.csv
+│       ├── interrater_agreement.csv
+│       ├── llm_vs_humans.csv
+│       ├── reviewer_orders.csv
+│       ├── validation_sample_manifest.csv
+│       ├── validation_set_id.txt
+│       ├── validation_100.csv
+│       └── validation.sqlite3
 └── figures/
 ```
 
 `data/Output.csv` contains the LLM responses used by the analysis pipeline. `data/Reports/` contains the original California DMV PDF reports. `data/validation_100.csv` is the shared list of PDF filenames used for the two human reviewers.
 
-The `_output/` and `_validation/` directories are generated automatically.
+The `_output/` and `_validation/` directories are generated automatically. For the completed study, the frozen human validation artefacts should also be preserved under `validation_results/complete/` so that the exact validation sample, independent annotations, agreement outputs, and recorded reviewer order remain auditable.
 
 ## Getting started
 
@@ -341,7 +353,7 @@ The main outputs are written to `_output/`, with final figure copies optionally 
 
 `human_validation.py` provides a browser based interface for independently checking the LLM extraction against the original California DMV PDFs.
 
-Two humans review **the same fixed set of 100 reports**, but the reports are presented in a different deterministic random order for each reviewer.
+Two humans independently reviewed **the same fixed set of 100 reports** using the original source PDFs. The completed validation exports record the same nominal presentation sequence for both reviewers. The study therefore does not claim different reviewer presentation orders; independence rests on separate coding and blinding to the LLM output, automated scenario labels, and the other reviewer's responses.
 
 The review interface does not display the LLM response or the LLM derived scenario labels.
 
@@ -396,7 +408,7 @@ Medium rule support:  30
 Low rule support:     15
 ```
 
-The sample is drawn only from records that can be matched to a PDF in the report directory.
+The sample is drawn only from records that can be matched to a PDF in the report directory. The completed sample contains 100 reports, corresponding to 10.3% of the 971 report corpus, and includes all eight scenario classes with 55 high support, 30 medium support, and 15 low support reports.
 
 If the validation list already exists, it is treated as the source of truth and is not replaced.
 
@@ -427,7 +439,7 @@ _validation/validation_set_id.txt
 
 The home page also displays this identifier.
 
-Reviewer 1 and Reviewer 2 should see the **same validation set ID**. This provides a simple check that both are using the same 100 reports even though the presentation orders differ.
+Reviewer 1 and Reviewer 2 should see the **same validation set ID**. For the completed study the frozen validation set ID is `6d23c2baa7387f94`. This provides a simple check that both reviewers used the same 100 source reports.
 
 ### Starting the validation interface
 
@@ -464,15 +476,11 @@ The Flask development server is intended for local validation work. It should no
 
 ### Reviewer ordering
 
-Both reviewers receive the same 100 validation IDs.
+Both reviewers used the same 100 validation IDs.
 
-Reviewer 1 and Reviewer 2 use separate deterministic random seeds, producing different report sequences while preserving the same underlying set.
+For the completed study, `reviewer_orders.csv` records the same nominal sequence for Reviewer 1 and Reviewer 2. This file is part of the frozen study record and should **not** be regenerated or overwritten.
 
-The order files are written to:
-
-```text
-_validation/reviewer_orders.csv
-```
+The reviewer order does not determine independence of the coding. The validation interface did not display the LLM output, the automated scenario label, rule support, or the other reviewer's annotations. Any future rerun that uses a different ordering should be documented as a new validation run rather than substituted for the completed study record.
 
 ### What the reviewers code
 
@@ -515,7 +523,7 @@ Reviewers independently assign a responsibility category based only on the repor
 
 The review page does not show the LLM output, the LLM scenario class, rule support, movement agreement status, or the other reviewer's annotations.
 
-`Output.csv` is currently used internally by the validation application to reconstruct hidden sampling metadata and to create LLM versus human comparison exports. It is not rendered in the reviewer interface.
+`Output.csv` may be used internally by the validation application to reconstruct hidden sampling metadata and to create LLM versus human comparison exports. It is not rendered in the reviewer interface.
 
 Reviewers should therefore perform the task only through the validation interface and should not inspect `Output.csv` while coding.
 
@@ -553,7 +561,7 @@ _validation/
 
 `validation_sample_manifest.csv` stores the hidden validation metadata needed for later analysis.
 
-`reviewer_orders.csv` stores the two deterministic presentation orders.
+`reviewer_orders.csv` stores the recorded presentation sequence for each reviewer. In the completed study, both reviewers have the same nominal sequence.
 
 `human_annotations.csv` stores one wide annotation record per reviewer and validation report.
 
@@ -565,9 +573,30 @@ _validation/
 
 `llm_vs_humans.csv` compares the LLM output separately with each human reviewer for the principal coded variables.
 
-`source_presence_vs_llm.csv` separates source availability and extraction outcomes, including cases where information was present but missed, absent with correct abstention, or absent despite an extracted value.
+`source_presence_vs_llm.csv` summarises source availability coding and LLM extraction outcomes for the human reviewed sample. Because the two reviewers can disagree about whether information is clearly present or ambiguous, this output should not be treated as a single adjudicated gold standard unless a separate adjudication step is completed.
 
 `validation_exports.zip` packages the principal validation outputs.
+
+### Completed validation results
+
+Both reviewers completed all 100 reports. Exact agreement is reported together with Cohen's kappa because kappa is affected by category prevalence.
+
+| Variable | Human 1 vs Human 2 | LLM vs Human 1 | LLM vs Human 2 |
+| --- | ---: | ---: | ---: |
+| Road user type | 79.0% (κ = 0.58) | 78.0% (κ = 0.56) | 99.0% (κ = 0.97) |
+| AV operating mode | 100.0% (κ = 1.00) | 100.0% (κ = 1.00) | 100.0% (κ = 1.00) |
+| AV narrative movement | 56.0% (κ = 0.42) | 56.0% (κ = 0.43) | 96.0% (κ = 0.94) |
+| Other party narrative movement | 54.0% (κ = 0.43) | 51.0% (κ = 0.39) | 92.0% (κ = 0.89) |
+| AV checkbox movement | 94.0% (κ = 0.92) | 98.0% (κ = 0.97) | 96.0% (κ = 0.95) |
+| Other party checkbox movement | 94.0% (κ = 0.93) | 97.0% (κ = 0.96) | 97.0% (κ = 0.96) |
+| AV intersection status | 74.0% (κ = 0.57) | 77.0% (κ = 0.62) | 97.0% (κ = 0.95) |
+| Other party intersection status | 71.0% (κ = 0.56) | 74.0% (κ = 0.61) | 97.0% (κ = 0.95) |
+| AV collision type | 87.0% (κ = 0.83) | 92.0% (κ = 0.90) | 95.0% (κ = 0.93) |
+| Other party collision type | 86.0% (κ = 0.82) | 92.0% (κ = 0.89) | 94.0% (κ = 0.92) |
+| AV responsibility attribution | 94.0% (κ = 0.85) | 94.0% (κ = 0.85) | 100.0% (κ = 1.00) |
+| Derived scenario class | 75.0% (κ = 0.71) | 76.0% (κ = 0.72) | 88.0% (κ = 0.86) |
+
+The two human coding sets are retained separately. Neither reviewer is treated as the sole gold standard for disputed fields, and reviewer specific LLM agreement values should not be averaged into a single extraction accuracy estimate. A future adjudicated reference, if created, should be stored separately from the original independent annotations.
 
 ### Separate reviewer computers
 
@@ -575,9 +604,42 @@ If the two reviewers work on separate computers, each machine creates its own lo
 
 Each reviewer should return their validation output to the study coordinator after finishing.
 
-Cross reviewer agreement requires the two independent annotation sets to be brought together for analysis. Do not replace either reviewer's original independent responses during this process. Any later adjudicated reference should be stored separately from the original Reviewer 1 and Reviewer 2 coding.
+Cross reviewer agreement requires the two independent annotation sets to be brought together for analysis. Do not replace either reviewer's original independent responses during this process. Any later adjudicated reference should be stored separately from the original Reviewer 1 and Reviewer 2 coding. For the completed paper analysis, the immutable reviewer exports and validation metadata should be copied to `validation_results/complete/` before any adjudication work begins.
 
 ## Results
+
+The figure sections below include **all figure images generated by `analysis.py` under the current default configuration**. The pipeline currently exports 23 PNG figures: five overview figures, five configured categorical histograms, and thirteen research figures. The accident location map is generated only when at least one report location can be geocoded successfully. If `histogram_fields` is changed in the configuration, the pipeline will additionally generate one histogram image for each configured field.
+
+### Paper level results
+
+The analytical corpus contains 971 collision reports. The principal scenario distribution is:
+
+| Scenario class | Count | Share |
+| --- | ---: | ---: |
+| AV stopped rear end | 270 | 27.8% |
+| Other or ambiguous | 206 | 21.2% |
+| Intersection lateral conflict | 180 | 18.5% |
+| Lane change or merge conflict | 157 | 16.2% |
+| Curbside or parked vehicle conflict | 116 | 11.9% |
+| Vulnerable road user interaction | 17 | 1.8% |
+| Turn across path conflict | 16 | 1.6% |
+| Low speed stop or obstruction case | 9 | 0.9% |
+
+Reported responsibility attribution is descriptive rather than a legal or causal fault determination. The other road user is the largest attribution group, followed by AV primary, environmental or road conditions, and unclear attribution.
+
+Movement representations are contradictory in 457 reports, or 47.1% of the corpus. Excluding those reports leaves 514 cases. AV stopped rear end remains the leading class at 31.1%, while lane change or merge conflict falls from 16.2% to 7.4%. The total variation distance from the full distribution is 0.09. Restricting the analysis further to the 326 reports with exact or compatible movement evidence produces a larger shift, with total variation distance 0.30.
+
+The 206 `other_or_ambiguous` reports were examined separately. All 206 have zero specific scenario rules firing. Rule support is medium in 184 cases and low in 22. This residual category is heterogeneous and should not be interpreted simply as a set of globally incomplete reports.
+
+### Numerical reporting convention
+
+To match the manuscript, reported values use the following precision:
+
+* percentages: one decimal place;
+* Cohen's kappa and comparable unitless statistics: two decimal places;
+* total variation distance: two decimal places;
+* percentage point changes: one decimal place;
+* counts: integers.
 
 ### Overview figures
 
@@ -591,7 +653,7 @@ Accident overview Sankey diagram showing the flow of parsed accident attributes 
 
 [![Accident 5W1H Sankey diagram](figures/accident_5w1h_sankey.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accident_5w1h_sankey.html)
 
-Accident 5W1H Sankey diagram showing the flow across who, where, what, when, and why storyline dimensions.
+Accident 5W1H Sankey diagram showing the flow across Who, Where, What, When, and Why. For the paper figure, the Where stage uses the reader facing labels `Intersection` and `Road segment` rather than the ambiguous `intersection roadway` wording.
 
 #### Accident overview sunburst diagram
 
@@ -637,25 +699,31 @@ Histogram of blame groups extracted from the accident reports.
 
 Histogram of scenario classes derived from the accident reports.
 
+#### Histogram of grouped main factor
+
+[![Histogram of grouped main factor](figures/main_factor_grouped.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/main_factor_grouped.html)
+
+Histogram of the grouped main contributing factor extracted from the report responses.
+
 ### Research figures
 
 #### Taxonomy overview
 
 [![Taxonomy overview](figures/taxonomy_overview.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/taxonomy_overview.html)
 
-Bar chart showing the most frequent scenario classes in the empirical accident subset.
+Bar chart showing the frequency of the eight scenario classes in the 971 report corpus. This is Figure 3 in the manuscript.
 
 #### Post extraction unavailability
 
 [![Blind spots missingness](figures/blind_spots_missingness.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/blind_spots_missingness.html)
 
-Bar chart showing unavailable values after extraction across selected context fields. The chart does not identify whether the source report, the form design, or the extraction process accounts for an unavailable value.
+Bar chart showing unavailable values after extraction across selected context fields. The chart does not identify whether the source report, the form design, or the extraction process accounts for an unavailable value. Displayed percentages follow the manuscript convention of one decimal place.
 
 #### Accountability by taxonomy
 
 [![Accountability by taxonomy](figures/accountability_by_taxonomy.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accountability_by_taxonomy.html)
 
-Chart showing how blame assignments vary across the most common scenario classes.
+Grouped horizontal bar chart showing the percentage of reports within each scenario assigned to each responsibility attribution group. The groups are shown side by side with distinct colours and a legend. This is Figure 4 in the manuscript and is intentionally complementary to Figure 3: Figure 3 shows scenario frequency, whereas Figure 4 shows within scenario attribution composition.
 
 #### Report completeness
 
@@ -735,8 +803,9 @@ For human validation in particular, preserve:
 data/validation_100.csv
 _validation/validation_set_id.txt
 _validation/reviewer_orders.csv
+validation_results/complete/
 ```
 
-The shared validation list defines the exact source reports selected for human review. The validation set ID confirms the report set, while reviewer order records document that the two reviewers received the same reports in different orders.
+The shared validation list defines the exact source reports selected for human review. The validation set ID confirms the report set. For the completed study, `reviewer_orders.csv` records the same nominal presentation sequence for both reviewers and must not be regenerated merely to create different orders retrospectively.
 
-Original Reviewer 1 and Reviewer 2 annotations should always be retained even if disagreements are later adjudicated.
+Original Reviewer 1 and Reviewer 2 annotations should always be retained even if disagreements are later adjudicated. Any adjudicated reference should be stored separately, for example under `validation_results/adjudicated/`. The completed reviewer specific LLM agreement values should remain separate rather than being averaged into a single accuracy number.

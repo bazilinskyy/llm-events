@@ -1,4 +1,31 @@
 from __future__ import annotations
+#
+# Research module documentation and reproducibility guide
+#
+# This module intentionally contains extensive comments because it defines the
+# research facing transformations used in the manuscript. The documentation
+# distinguishes source fields, derived categories, diagnostics, sensitivity
+# analyses, and exported presentation artefacts.
+#
+# Core principles used throughout this file:
+#
+# 1. Keep original extracted fields separate from derived research variables.
+# 2. Preserve missing values rather than filling them with plausible categories.
+# 3. Treat post extraction unavailability separately from source absence.
+# 4. Keep online enrichment separate from information contained in the DMV report.
+# 5. Apply scenario rules deterministically and preserve the declared priority.
+# 6. Retain all candidate scenario rules so overlap remains auditable.
+# 7. Keep movement contradictions visible and test sensitivity to them.
+# 8. Treat automated ablations as stability checks rather than accuracy estimates.
+# 9. Use human validation for claims about extraction agreement with source coding.
+# 10. Keep responsibility attribution descriptive rather than legal or causal fault.
+# 11. Preserve counts and denominators behind every reported percentage.
+# 12. Keep presentation precision separate from full precision calculations.
+# 13. Maintain backwards compatible aliases only when they do not obscure semantics.
+# 14. Export enough row level information for scenario and availability audits.
+# 15. Update the README and manuscript whenever a research definition changes.
+#
+
 
 """Research feature engineering, summaries, and export helpers.
 
@@ -146,6 +173,31 @@ SOURCE_COMPARE_FIELDS = [
 ]
 
 
+# ==========================================================================
+# Developer notes for `_available_count`
+# ==========================================================================
+# Purpose:
+#   Counts non missing values across a set of fields for one row.
+#
+# Interface:
+#   Parameters: row, fields.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper isolates repeated logic so the main research pipeline remains easier to audit.
+#   Return types and labels should remain stable because downstream code may depend on them.
+#   Missing information should remain distinguishable from valid zero or negative values.
+#   The implementation should avoid mutating caller owned data unless mutation is documented.
+#   Deterministic behaviour is preferred throughout the reproducible analysis workflow.
+#   Any behavioural change should be checked against the corresponding manuscript results.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _available_count(row: pd.Series, fields: list[str]) -> int:
     """Counts non missing values across a set of fields for one row.
 
@@ -159,6 +211,31 @@ def _available_count(row: pd.Series, fields: list[str]) -> int:
 
     return sum(0 if is_missing(row.get(field)) else 1 for field in fields)
 
+
+# ==========================================================================
+# Developer notes for `_score_rate`
+# ==========================================================================
+# Purpose:
+#   Calculates a completion rate across a set of fields.
+#
+# Interface:
+#   Parameters: row, fields.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper isolates repeated logic so the main research pipeline remains easier to audit.
+#   Return types and labels should remain stable because downstream code may depend on them.
+#   Missing information should remain distinguishable from valid zero or negative values.
+#   The implementation should avoid mutating caller owned data unless mutation is documented.
+#   Deterministic behaviour is preferred throughout the reproducible analysis workflow.
+#   Any behavioural change should be checked against the corresponding manuscript results.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _score_rate(row: pd.Series, fields: list[str]) -> float:
     """Calculates a completion rate across a set of fields.
@@ -176,6 +253,31 @@ def _score_rate(row: pd.Series, fields: list[str]) -> float:
     return _available_count(row, fields) / len(fields)
 
 
+# ==========================================================================
+# Developer notes for `_any_source_available`
+# ==========================================================================
+# Purpose:
+#   Returns whether at least one original field in a group is available.
+#
+# Interface:
+#   Parameters: row, fields.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper isolates repeated logic so the main research pipeline remains easier to audit.
+#   Return types and labels should remain stable because downstream code may depend on them.
+#   Missing information should remain distinguishable from valid zero or negative values.
+#   The implementation should avoid mutating caller owned data unless mutation is documented.
+#   Deterministic behaviour is preferred throughout the reproducible analysis workflow.
+#   Any behavioural change should be checked against the corresponding manuscript results.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _any_source_available(row: pd.Series, fields: list[str]) -> bool:
     """Returns whether at least one original field in a group is available."""
 
@@ -184,6 +286,31 @@ def _any_source_available(row: pd.Series, fields: list[str]) -> bool:
         for field in fields
     )
 
+
+# ==========================================================================
+# Developer notes for `_normalise_intersection`
+# ==========================================================================
+# Purpose:
+#   Normalises two intersection flags into a single context label.
+#
+# Interface:
+#   Parameters: v1_value, v2_value.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper isolates repeated logic so the main research pipeline remains easier to audit.
+#   Return types and labels should remain stable because downstream code may depend on them.
+#   Missing information should remain distinguishable from valid zero or negative values.
+#   The implementation should avoid mutating caller owned data unless mutation is documented.
+#   Deterministic behaviour is preferred throughout the reproducible analysis workflow.
+#   Any behavioural change should be checked against the corresponding manuscript results.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _normalise_intersection(v1_value: Any, v2_value: Any) -> str:
     """Normalises two intersection flags into a single context label.
@@ -204,6 +331,31 @@ def _normalise_intersection(v1_value: Any, v2_value: Any) -> str:
         return 'non_intersection'
     return 'unknown'
 
+
+# ==========================================================================
+# Developer notes for `_derive_blame_group`
+# ==========================================================================
+# Purpose:
+#   Derives a coarse blame grouping from blame and factor fields.
+#
+# Interface:
+#   Parameters: av_guilty, main_factor.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper derives research facing variables from already extracted source fields.
+#   Derived labels must remain traceable to the original fields used to create them.
+#   Missing values are preserved explicitly rather than replaced with plausible defaults.
+#   Changes to category semantics should be reflected in the manuscript and README.
+#   The transformation must remain deterministic for the same parsed input dataframe.
+#   Downstream plots and tables may rely on the exact category labels returned here.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _derive_blame_group(av_guilty: Any, main_factor: Any) -> str:
     """Derives a coarse blame grouping from blame and factor fields.
@@ -235,6 +387,31 @@ def _derive_blame_group(av_guilty: Any, main_factor: Any) -> str:
     return 'unclear'
 
 
+# ==========================================================================
+# Developer notes for `_derive_road_user_vulnerability_group`
+# ==========================================================================
+# Purpose:
+#   Maps road user types into broad vulnerability groups.
+#
+# Interface:
+#   Parameters: road_user_type.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper derives research facing variables from already extracted source fields.
+#   Derived labels must remain traceable to the original fields used to create them.
+#   Missing values are preserved explicitly rather than replaced with plausible defaults.
+#   Changes to category semantics should be reflected in the manuscript and README.
+#   The transformation must remain deterministic for the same parsed input dataframe.
+#   Downstream plots and tables may rely on the exact category labels returned here.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _derive_road_user_vulnerability_group(road_user_type: Any) -> str:
     """Maps road user types into broad vulnerability groups.
 
@@ -254,6 +431,31 @@ def _derive_road_user_vulnerability_group(road_user_type: Any) -> str:
         return 'object'
     return 'unknown_or_other'
 
+
+# ==========================================================================
+# Developer notes for `_party_injury_status`
+# ==========================================================================
+# Purpose:
+#   Classifies one party's injury field without inferring severity.
+#
+# Interface:
+#   Parameters: value.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper isolates repeated logic so the main research pipeline remains easier to audit.
+#   Return types and labels should remain stable because downstream code may depend on them.
+#   Missing information should remain distinguishable from valid zero or negative values.
+#   The implementation should avoid mutating caller owned data unless mutation is documented.
+#   Deterministic behaviour is preferred throughout the reproducible analysis workflow.
+#   Any behavioural change should be checked against the corresponding manuscript results.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _party_injury_status(value: Any) -> str:
     """Classifies one party's injury field without inferring severity.
@@ -301,6 +503,31 @@ def _party_injury_status(value: Any) -> str:
     return 'unclear'
 
 
+# ==========================================================================
+# Developer notes for `_derive_reported_injury_status`
+# ==========================================================================
+# Purpose:
+#   Combines party fields into a conservative report level injury status.
+#
+# Interface:
+#   Parameters: v1_injury, v2_injury.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper derives research facing variables from already extracted source fields.
+#   Derived labels must remain traceable to the original fields used to create them.
+#   Missing values are preserved explicitly rather than replaced with plausible defaults.
+#   Changes to category semantics should be reflected in the manuscript and README.
+#   The transformation must remain deterministic for the same parsed input dataframe.
+#   Downstream plots and tables may rely on the exact category labels returned here.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _derive_reported_injury_status(v1_injury: Any, v2_injury: Any) -> str:
     """Combines party fields into a conservative report level injury status."""
 
@@ -321,6 +548,31 @@ def _derive_reported_injury_status(v1_injury: Any, v2_injury: Any) -> str:
     return 'unclear'
 
 
+# ==========================================================================
+# Developer notes for `_derive_harm_scope_group`
+# ==========================================================================
+# Purpose:
+#   Provides a backwards compatible coarse harm label.
+#
+# Interface:
+#   Parameters: v1_injury, v2_injury.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper derives research facing variables from already extracted source fields.
+#   Derived labels must remain traceable to the original fields used to create them.
+#   Missing values are preserved explicitly rather than replaced with plausible defaults.
+#   Changes to category semantics should be reflected in the manuscript and README.
+#   The transformation must remain deterministic for the same parsed input dataframe.
+#   Downstream plots and tables may rely on the exact category labels returned here.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _derive_harm_scope_group(v1_injury: Any, v2_injury: Any) -> str:
     """Provides a backwards compatible coarse harm label."""
 
@@ -331,6 +583,31 @@ def _derive_harm_scope_group(v1_injury: Any, v2_injury: Any) -> str:
         return 'no_reported_bodily_harm'
     return status
 
+
+# ==========================================================================
+# Developer notes for `_derive_environment_friction_profile`
+# ==========================================================================
+# Purpose:
+#   Builds a coarse environment condition profile.
+#
+# Interface:
+#   Parameters: weather, light, surface, condition.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper derives research facing variables from already extracted source fields.
+#   Derived labels must remain traceable to the original fields used to create them.
+#   Missing values are preserved explicitly rather than replaced with plausible defaults.
+#   Changes to category semantics should be reflected in the manuscript and README.
+#   The transformation must remain deterministic for the same parsed input dataframe.
+#   Downstream plots and tables may rely on the exact category labels returned here.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _derive_environment_friction_profile(
     weather: Any,
@@ -376,6 +653,31 @@ def _derive_environment_friction_profile(
     return 'nominal'
 
 
+# ==========================================================================
+# Developer notes for `_derive_where_group`
+# ==========================================================================
+# Purpose:
+#   Builds a coarse ``where`` category for the 5W1H Sankey.
+#
+# Interface:
+#   Parameters: row.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper derives research facing variables from already extracted source fields.
+#   Derived labels must remain traceable to the original fields used to create them.
+#   Missing values are preserved explicitly rather than replaced with plausible defaults.
+#   Changes to category semantics should be reflected in the manuscript and README.
+#   The transformation must remain deterministic for the same parsed input dataframe.
+#   Downstream plots and tables may rely on the exact category labels returned here.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _derive_where_group(row: pd.Series) -> str:
     """Builds a coarse ``where`` category for the 5W1H Sankey."""
 
@@ -395,6 +697,31 @@ def _derive_where_group(row: pd.Series) -> str:
         return 'named_location'
     return 'unknown'
 
+
+# ==========================================================================
+# Developer notes for `_parse_hour_from_time_text`
+# ==========================================================================
+# Purpose:
+#   Extracts an hour from a free text time field when possible.
+#
+# Interface:
+#   Parameters: value.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper isolates repeated logic so the main research pipeline remains easier to audit.
+#   Return types and labels should remain stable because downstream code may depend on them.
+#   Missing information should remain distinguishable from valid zero or negative values.
+#   The implementation should avoid mutating caller owned data unless mutation is documented.
+#   Deterministic behaviour is preferred throughout the reproducible analysis workflow.
+#   Any behavioural change should be checked against the corresponding manuscript results.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _parse_hour_from_time_text(value: Any) -> int | None:
     """Extracts an hour from a free text time field when possible."""
@@ -432,6 +759,31 @@ def _parse_hour_from_time_text(value: Any) -> int | None:
     return None
 
 
+# ==========================================================================
+# Developer notes for `_derive_when_group`
+# ==========================================================================
+# Purpose:
+#   Builds a coarse ``when`` category using time and lighting cues.
+#
+# Interface:
+#   Parameters: time_value, light_value.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper derives research facing variables from already extracted source fields.
+#   Derived labels must remain traceable to the original fields used to create them.
+#   Missing values are preserved explicitly rather than replaced with plausible defaults.
+#   Changes to category semantics should be reflected in the manuscript and README.
+#   The transformation must remain deterministic for the same parsed input dataframe.
+#   Downstream plots and tables may rely on the exact category labels returned here.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _derive_when_group(time_value: Any, light_value: Any) -> str:
     """Builds a coarse ``when`` category using time and lighting cues."""
 
@@ -455,6 +807,31 @@ def _derive_when_group(time_value: Any, light_value: Any) -> str:
     return 'unknown'
 
 
+# ==========================================================================
+# Developer notes for `_derive_report_period`
+# ==========================================================================
+# Purpose:
+#   Groups report years into broad periods for descriptive sensitivity.
+#
+# Interface:
+#   Parameters: year_value.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper derives research facing variables from already extracted source fields.
+#   Derived labels must remain traceable to the original fields used to create them.
+#   Missing values are preserved explicitly rather than replaced with plausible defaults.
+#   Changes to category semantics should be reflected in the manuscript and README.
+#   The transformation must remain deterministic for the same parsed input dataframe.
+#   Downstream plots and tables may rely on the exact category labels returned here.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _derive_report_period(year_value: Any) -> str:
     """Groups report years into broad periods for descriptive sensitivity."""
 
@@ -469,6 +846,31 @@ def _derive_report_period(year_value: Any) -> str:
     return '2023_2026'
 
 
+# ==========================================================================
+# Developer notes for `_derive_why_group`
+# ==========================================================================
+# Purpose:
+#   Builds a coarse ``why`` category from factor and blame cues.
+#
+# Interface:
+#   Parameters: row.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper derives research facing variables from already extracted source fields.
+#   Derived labels must remain traceable to the original fields used to create them.
+#   Missing values are preserved explicitly rather than replaced with plausible defaults.
+#   Changes to category semantics should be reflected in the manuscript and README.
+#   The transformation must remain deterministic for the same parsed input dataframe.
+#   Downstream plots and tables may rely on the exact category labels returned here.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _derive_why_group(row: pd.Series) -> str:
     """Builds a coarse ``why`` category from factor and blame cues."""
 
@@ -481,6 +883,31 @@ def _derive_why_group(row: pd.Series) -> str:
         return blame
     return 'unclear'
 
+
+# ==========================================================================
+# Developer notes for `_derive_how_group`
+# ==========================================================================
+# Purpose:
+#   Builds a coarse ``how`` interaction category from movement cues.
+#
+# Interface:
+#   Parameters: row.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper derives research facing variables from already extracted source fields.
+#   Derived labels must remain traceable to the original fields used to create them.
+#   Missing values are preserved explicitly rather than replaced with plausible defaults.
+#   Changes to category semantics should be reflected in the manuscript and README.
+#   The transformation must remain deterministic for the same parsed input dataframe.
+#   Downstream plots and tables may rely on the exact category labels returned here.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _derive_how_group(row: pd.Series) -> str:
     """Builds a coarse ``how`` interaction category from movement cues."""
@@ -496,6 +923,31 @@ def _derive_how_group(row: pd.Series) -> str:
         return f'av_{av_move}'
     return f'{av_move}_vs_{other_move}'
 
+
+# ==========================================================================
+# Developer notes for `_scenario_candidates`
+# ==========================================================================
+# Purpose:
+#   Returns every scenario rule supported by a row.
+#
+# Interface:
+#   Parameters: row, source, use_explanation.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Scenario rules are deterministic research rules rather than learned model predictions.
+#   Rule priority is explicit so overlapping candidate rules can be audited.
+#   All candidate rules should remain available even when one primary class is selected.
+#   The fallback `other_or_ambiguous` class means that no specific rule fired.
+#   Sensitivity variants must not silently redefine the baseline taxonomy.
+#   Any change to rule order or trigger logic should be documented in the manuscript.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _scenario_candidates(
     row: pd.Series,
@@ -615,6 +1067,31 @@ def _scenario_candidates(
     return candidates
 
 
+# ==========================================================================
+# Developer notes for `_select_primary_scenario`
+# ==========================================================================
+# Purpose:
+#   Selects the first candidate according to the declared priority.
+#
+# Interface:
+#   Parameters: candidates.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Scenario rules are deterministic research rules rather than learned model predictions.
+#   Rule priority is explicit so overlapping candidate rules can be audited.
+#   All candidate rules should remain available even when one primary class is selected.
+#   The fallback `other_or_ambiguous` class means that no specific rule fired.
+#   Sensitivity variants must not silently redefine the baseline taxonomy.
+#   Any change to rule order or trigger logic should be documented in the manuscript.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _select_primary_scenario(
     candidates: list[tuple[str, str, str]],
 ) -> tuple[str, str, str]:
@@ -626,6 +1103,31 @@ def _select_primary_scenario(
             return by_class[scenario_class]
     return 'other_or_ambiguous', 'no_rule_fired', 'insufficient_or_mixed_evidence'
 
+
+# ==========================================================================
+# Developer notes for `_derive_scenario_assignment`
+# ==========================================================================
+# Purpose:
+#   Assigns the primary scenario while preserving explicit rule priority.
+#
+# Interface:
+#   Parameters: row, source, use_explanation.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Scenario rules are deterministic research rules rather than learned model predictions.
+#   Rule priority is explicit so overlapping candidate rules can be audited.
+#   All candidate rules should remain available even when one primary class is selected.
+#   The fallback `other_or_ambiguous` class means that no specific rule fired.
+#   Sensitivity variants must not silently redefine the baseline taxonomy.
+#   Any change to rule order or trigger logic should be documented in the manuscript.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _derive_scenario_assignment(
     row: pd.Series,
@@ -644,6 +1146,31 @@ def _derive_scenario_assignment(
     )
 
 
+# ==========================================================================
+# Developer notes for `_movement_field_agreement`
+# ==========================================================================
+# Purpose:
+#   Compares two movement fields using exact and compatible categories.
+#
+# Interface:
+#   Parameters: value_a, value_b.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Agreement metrics are descriptive diagnostics and should be interpreted with their denominators.
+#   Cohen's kappa is reported with exact agreement because prevalence can affect kappa.
+#   Automated stability comparisons are not substitutes for independent human validation.
+#   Contradictory movement evidence is retained for sensitivity analysis rather than discarded silently.
+#   Compatible movement pairs are declared explicitly so the comparison remains reproducible.
+#   Any new agreement category should be propagated to summary and export tables.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _movement_field_agreement(value_a: Any, value_b: Any) -> str:
     """Compares two movement fields using exact and compatible categories."""
 
@@ -661,6 +1188,31 @@ def _movement_field_agreement(value_a: Any, value_b: Any) -> str:
     return 'contradictory'
 
 
+# ==========================================================================
+# Developer notes for `_overall_movement_agreement`
+# ==========================================================================
+# Purpose:
+#   Combines party specific movement agreement into one report label.
+#
+# Interface:
+#   Parameters: av_status, other_status.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Agreement metrics are descriptive diagnostics and should be interpreted with their denominators.
+#   Cohen's kappa is reported with exact agreement because prevalence can affect kappa.
+#   Automated stability comparisons are not substitutes for independent human validation.
+#   Contradictory movement evidence is retained for sensitivity analysis rather than discarded silently.
+#   Compatible movement pairs are declared explicitly so the comparison remains reproducible.
+#   Any new agreement category should be propagated to summary and export tables.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _overall_movement_agreement(av_status: str, other_status: str) -> str:
     """Combines party specific movement agreement into one report label."""
 
@@ -675,6 +1227,31 @@ def _overall_movement_agreement(av_status: str, other_status: str) -> str:
         return 'both_sources_missing'
     return 'one_or_more_sources_missing'
 
+
+# ==========================================================================
+# Developer notes for `_derive_scenario_rule_support_score`
+# ==========================================================================
+# Purpose:
+#   Scores internal rule support without claiming classification accuracy.
+#
+# Interface:
+#   Parameters: row.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Scenario rules are deterministic research rules rather than learned model predictions.
+#   Rule priority is explicit so overlapping candidate rules can be audited.
+#   All candidate rules should remain available even when one primary class is selected.
+#   The fallback `other_or_ambiguous` class means that no specific rule fired.
+#   Sensitivity variants must not silently redefine the baseline taxonomy.
+#   Any change to rule order or trigger logic should be documented in the manuscript.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _derive_scenario_rule_support_score(row: pd.Series) -> float:
     """Scores internal rule support without claiming classification accuracy."""
@@ -692,6 +1269,31 @@ def _derive_scenario_rule_support_score(row: pd.Series) -> float:
     return max(0.0, min(float(score), 1.0))
 
 
+# ==========================================================================
+# Developer notes for `_derive_scenario_rule_support_group`
+# ==========================================================================
+# Purpose:
+#   Buckets internal rule support into high, medium, and low groups.
+#
+# Interface:
+#   Parameters: row.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Scenario rules are deterministic research rules rather than learned model predictions.
+#   Rule priority is explicit so overlapping candidate rules can be audited.
+#   All candidate rules should remain available even when one primary class is selected.
+#   The fallback `other_or_ambiguous` class means that no specific rule fired.
+#   Sensitivity variants must not silently redefine the baseline taxonomy.
+#   Any change to rule order or trigger logic should be documented in the manuscript.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _derive_scenario_rule_support_group(row: pd.Series) -> str:
     """Buckets internal rule support into high, medium, and low groups."""
 
@@ -703,11 +1305,61 @@ def _derive_scenario_rule_support_group(row: pd.Series) -> str:
     return 'low'
 
 
+# ==========================================================================
+# Developer notes for `_derive_scenario_determinability_group`
+# ==========================================================================
+# Purpose:
+#   Backwards compatible alias for the scenario rule support group.
+#
+# Interface:
+#   Parameters: row.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Scenario rules are deterministic research rules rather than learned model predictions.
+#   Rule priority is explicit so overlapping candidate rules can be audited.
+#   All candidate rules should remain available even when one primary class is selected.
+#   The fallback `other_or_ambiguous` class means that no specific rule fired.
+#   Sensitivity variants must not silently redefine the baseline taxonomy.
+#   Any change to rule order or trigger logic should be documented in the manuscript.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _derive_scenario_determinability_group(row: pd.Series) -> str:
     """Backwards compatible alias for the scenario rule support group."""
 
     return _derive_scenario_rule_support_group(row)
 
+
+# ==========================================================================
+# Developer notes for `_derive_intersection_detail_quality`
+# ==========================================================================
+# Purpose:
+#   Assesses whether intersection context is well specified.
+#
+# Interface:
+#   Parameters: row.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper derives research facing variables from already extracted source fields.
+#   Derived labels must remain traceable to the original fields used to create them.
+#   Missing values are preserved explicitly rather than replaced with plausible defaults.
+#   Changes to category semantics should be reflected in the manuscript and README.
+#   The transformation must remain deterministic for the same parsed input dataframe.
+#   Downstream plots and tables may rely on the exact category labels returned here.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _derive_intersection_detail_quality(row: pd.Series) -> str:
     """Assesses whether intersection context is well specified.
@@ -737,6 +1389,31 @@ def _derive_intersection_detail_quality(row: pd.Series) -> str:
     return 'not_intersection_focused'
 
 
+# ==========================================================================
+# Developer notes for `_derive_stopped_av_subtype`
+# ==========================================================================
+# Purpose:
+#   Creates a more specific subtype for stopped AV cases.
+#
+# Interface:
+#   Parameters: row.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper derives research facing variables from already extracted source fields.
+#   Derived labels must remain traceable to the original fields used to create them.
+#   Missing values are preserved explicitly rather than replaced with plausible defaults.
+#   Changes to category semantics should be reflected in the manuscript and README.
+#   The transformation must remain deterministic for the same parsed input dataframe.
+#   Downstream plots and tables may rely on the exact category labels returned here.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _derive_stopped_av_subtype(row: pd.Series) -> str:
     """Creates a more specific subtype for stopped AV cases.
 
@@ -762,6 +1439,31 @@ def _derive_stopped_av_subtype(row: pd.Series) -> str:
     return 'other_stopped_case'
 
 
+# ==========================================================================
+# Developer notes for `_derive_blame_explicitness_group`
+# ==========================================================================
+# Purpose:
+#   Rates how explicit the blame related evidence is.
+#
+# Interface:
+#   Parameters: row.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper derives research facing variables from already extracted source fields.
+#   Derived labels must remain traceable to the original fields used to create them.
+#   Missing values are preserved explicitly rather than replaced with plausible defaults.
+#   Changes to category semantics should be reflected in the manuscript and README.
+#   The transformation must remain deterministic for the same parsed input dataframe.
+#   Downstream plots and tables may rely on the exact category labels returned here.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _derive_blame_explicitness_group(row: pd.Series) -> str:
     """Rates how explicit the blame related evidence is.
 
@@ -782,6 +1484,31 @@ def _derive_blame_explicitness_group(row: pd.Series) -> str:
     return 'weak'
 
 
+# ==========================================================================
+# Developer notes for `_derive_blame_conflict_reason`
+# ==========================================================================
+# Purpose:
+#   Flags explicit conflicts between blame and factor fields.
+#
+# Interface:
+#   Parameters: row.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper derives research facing variables from already extracted source fields.
+#   Derived labels must remain traceable to the original fields used to create them.
+#   Missing values are preserved explicitly rather than replaced with plausible defaults.
+#   Changes to category semantics should be reflected in the manuscript and README.
+#   The transformation must remain deterministic for the same parsed input dataframe.
+#   Downstream plots and tables may rely on the exact category labels returned here.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _derive_blame_conflict_reason(row: pd.Series) -> str:
     """Flags explicit conflicts between blame and factor fields.
 
@@ -800,6 +1527,31 @@ def _derive_blame_conflict_reason(row: pd.Series) -> str:
         return 'non_av_guilty_conflicts_with_factor'
     return 'none'
 
+
+# ==========================================================================
+# Developer notes for `_derive_blame_confidence_alignment`
+# ==========================================================================
+# Purpose:
+#   Compares reported confidence with available blame evidence.
+#
+# Interface:
+#   Parameters: row.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper derives research facing variables from already extracted source fields.
+#   Derived labels must remain traceable to the original fields used to create them.
+#   Missing values are preserved explicitly rather than replaced with plausible defaults.
+#   Changes to category semantics should be reflected in the manuscript and README.
+#   The transformation must remain deterministic for the same parsed input dataframe.
+#   Downstream plots and tables may rely on the exact category labels returned here.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _derive_blame_confidence_alignment(row: pd.Series) -> str:
     """Compares reported confidence with available blame evidence.
@@ -822,6 +1574,31 @@ def _derive_blame_confidence_alignment(row: pd.Series) -> str:
         return 'low_confidence_strong_evidence'
     return 'aligned_or_unclear'
 
+
+# ==========================================================================
+# Developer notes for `_derive_blame_evidence_strength`
+# ==========================================================================
+# Purpose:
+#   Summarises blame evidence strength into a categorical label.
+#
+# Interface:
+#   Parameters: row.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper derives research facing variables from already extracted source fields.
+#   Derived labels must remain traceable to the original fields used to create them.
+#   Missing values are preserved explicitly rather than replaced with plausible defaults.
+#   Changes to category semantics should be reflected in the manuscript and README.
+#   The transformation must remain deterministic for the same parsed input dataframe.
+#   Downstream plots and tables may rely on the exact category labels returned here.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _derive_blame_evidence_strength(row: pd.Series) -> str:
     """Summarises blame evidence strength into a categorical label.
@@ -847,6 +1624,31 @@ def _derive_blame_evidence_strength(row: pd.Series) -> str:
     return 'very_weak'
 
 
+# ==========================================================================
+# Developer notes for `_derive_external_enrichment_group`
+# ==========================================================================
+# Purpose:
+#   Buckets the amount of externally enriched information.
+#
+# Interface:
+#   Parameters: row.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper derives research facing variables from already extracted source fields.
+#   Derived labels must remain traceable to the original fields used to create them.
+#   Missing values are preserved explicitly rather than replaced with plausible defaults.
+#   Changes to category semantics should be reflected in the manuscript and README.
+#   The transformation must remain deterministic for the same parsed input dataframe.
+#   Downstream plots and tables may rely on the exact category labels returned here.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _derive_external_enrichment_group(row: pd.Series) -> str:
     """Buckets the amount of externally enriched information.
 
@@ -864,6 +1666,31 @@ def _derive_external_enrichment_group(row: pd.Series) -> str:
         return 'partial'
     return 'rich'
 
+
+# ==========================================================================
+# Developer notes for `_derive_report_explicitness_score`
+# ==========================================================================
+# Purpose:
+#   Calculates a weighted explicitness score for a report.
+#
+# Interface:
+#   Parameters: row.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper derives research facing variables from already extracted source fields.
+#   Derived labels must remain traceable to the original fields used to create them.
+#   Missing values are preserved explicitly rather than replaced with plausible defaults.
+#   Changes to category semantics should be reflected in the manuscript and README.
+#   The transformation must remain deterministic for the same parsed input dataframe.
+#   Downstream plots and tables may rely on the exact category labels returned here.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _derive_report_explicitness_score(row: pd.Series) -> float:
     """Calculates a weighted explicitness score for a report.
@@ -892,6 +1719,31 @@ def _derive_report_explicitness_score(row: pd.Series) -> float:
     return numerator / denominator if denominator else 0.0
 
 
+# ==========================================================================
+# Developer notes for `_derive_initial_movement_inconsistency_diagnosis`
+# ==========================================================================
+# Purpose:
+#   Provides a first pass diagnosis for movement inconsistency.
+#
+# Interface:
+#   Parameters: row.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Agreement metrics are descriptive diagnostics and should be interpreted with their denominators.
+#   Cohen's kappa is reported with exact agreement because prevalence can affect kappa.
+#   Automated stability comparisons are not substitutes for independent human validation.
+#   Contradictory movement evidence is retained for sensitivity analysis rather than discarded silently.
+#   Compatible movement pairs are declared explicitly so the comparison remains reproducible.
+#   Any new agreement category should be propagated to summary and export tables.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _derive_initial_movement_inconsistency_diagnosis(row: pd.Series) -> str:
     """Provides a first pass diagnosis for movement inconsistency.
 
@@ -911,6 +1763,31 @@ def _derive_initial_movement_inconsistency_diagnosis(row: pd.Series) -> str:
         return 'ambiguous_scenario_context'
     return 'cross_field_movement_disagreement'
 
+
+# ==========================================================================
+# Developer notes for `derive_research_columns`
+# ==========================================================================
+# Purpose:
+#   Derives research facing columns from parsed event data.
+#
+# Interface:
+#   Parameters: parsed_df, blind_spot_fields.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper derives research facing variables from already extracted source fields.
+#   Derived labels must remain traceable to the original fields used to create them.
+#   Missing values are preserved explicitly rather than replaced with plausible defaults.
+#   Changes to category semantics should be reflected in the manuscript and README.
+#   The transformation must remain deterministic for the same parsed input dataframe.
+#   Downstream plots and tables may rely on the exact category labels returned here.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def derive_research_columns(
     parsed_df: pd.DataFrame,
@@ -1078,7 +1955,7 @@ def derive_research_columns(
             'narrative_field_rate',
             'online_field_rate',
         ]
-    ].idxmax(axis=1).str.replace('_field_rate', '', regex=False)
+    ].idxmax(axis=1).str.replace('_field_rate', '', regex=False)  # type: ignore
 
     for field in blind_spot_fields:
         if field in df.columns:
@@ -1140,7 +2017,7 @@ def derive_research_columns(
     # makes rule overlap and rule ordering visible to sensitivity analyses.
     candidate_lists = df.apply(_scenario_candidates, axis=1)
     df['scenario_candidate_rules'] = candidate_lists.map(
-        lambda candidates: '|'.join(candidate[0] for candidate in candidates)
+        lambda candidates: '|'.join(candidate[0] for candidate in candidates)  # type: ignore
         if candidates
         else 'none'
     )
@@ -1319,6 +2196,31 @@ def derive_research_columns(
     return df
 
 
+# ==========================================================================
+# Developer notes for `_missingness_table`
+# ==========================================================================
+# Purpose:
+#   Builds a missingness summary table for the requested fields.
+#
+# Interface:
+#   Parameters: df, fields.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Availability refers to whether a value is present after extraction unless stated otherwise.
+#   Post extraction unavailability must not be interpreted as proof of source absence.
+#   Report context and online enrichment are kept separate to avoid conflating provenance.
+#   Derived categories are not counted as source evidence for availability scores.
+#   Missingness calculations should retain the original denominator used in the paper.
+#   Human source coding is required to distinguish absence, ambiguity, and extraction failure.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _missingness_table(df: pd.DataFrame, fields: list[str]) -> pd.DataFrame:
     """Builds a missingness summary table for the requested fields.
 
@@ -1358,6 +2260,31 @@ def _missingness_table(df: pd.DataFrame, fields: list[str]) -> pd.DataFrame:
     )
 
 
+# ==========================================================================
+# Developer notes for `_top_counts`
+# ==========================================================================
+# Purpose:
+#   Returns top category counts and shares for one field.
+#
+# Interface:
+#   Parameters: df, field, top_n.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Summary tables are derived from the frozen analytical dataframe without changing row membership.
+#   Counts are retained alongside shares so percentages can be independently reproduced.
+#   Sorting is deterministic to make repeated runs and manuscript checks easy to compare.
+#   Empty inputs return schema compatible dataframes rather than fabricated values.
+#   Reported percentages should be formatted later without reducing stored numerical precision.
+#   The output column names are part of the downstream export and plotting interface.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _top_counts(df: pd.DataFrame, field: str, top_n: int) -> pd.DataFrame:
     """Returns top category counts and shares for one field.
 
@@ -1375,6 +2302,31 @@ def _top_counts(df: pd.DataFrame, field: str, top_n: int) -> pd.DataFrame:
     counts['share'] = counts['count'] / max(len(df), 1)
     return counts
 
+
+# ==========================================================================
+# Developer notes for `_field_provenance_table`
+# ==========================================================================
+# Purpose:
+#   Builds a field level provenance availability table.
+#
+# Interface:
+#   Parameters: df.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Availability refers to whether a value is present after extraction unless stated otherwise.
+#   Post extraction unavailability must not be interpreted as proof of source absence.
+#   Report context and online enrichment are kept separate to avoid conflating provenance.
+#   Derived categories are not counted as source evidence for availability scores.
+#   Missingness calculations should retain the original denominator used in the paper.
+#   Human source coding is required to distinguish absence, ambiguity, and extraction failure.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _field_provenance_table(df: pd.DataFrame) -> pd.DataFrame:
     """Builds a field level provenance availability table.
@@ -1411,6 +2363,31 @@ def _field_provenance_table(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+# ==========================================================================
+# Developer notes for `_provenance_summary_table`
+# ==========================================================================
+# Purpose:
+#   Aggregates provenance availability to a summary table.
+#
+# Interface:
+#   Parameters: field_provenance.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Availability refers to whether a value is present after extraction unless stated otherwise.
+#   Post extraction unavailability must not be interpreted as proof of source absence.
+#   Report context and online enrichment are kept separate to avoid conflating provenance.
+#   Derived categories are not counted as source evidence for availability scores.
+#   Missingness calculations should retain the original denominator used in the paper.
+#   Human source coding is required to distinguish absence, ambiguity, and extraction failure.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _provenance_summary_table(field_provenance: pd.DataFrame) -> pd.DataFrame:
     """Aggregates provenance availability to a summary table.
 
@@ -1436,6 +2413,31 @@ def _provenance_summary_table(field_provenance: pd.DataFrame) -> pd.DataFrame:
     )
     return summary.sort_values('provenance').reset_index(drop=True)
 
+
+# ==========================================================================
+# Developer notes for `_score_summary_table`
+# ==========================================================================
+# Purpose:
+#   Builds descriptive statistics for core numeric research metrics.
+#
+# Interface:
+#   Parameters: df.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Summary tables are derived from the frozen analytical dataframe without changing row membership.
+#   Counts are retained alongside shares so percentages can be independently reproduced.
+#   Sorting is deterministic to make repeated runs and manuscript checks easy to compare.
+#   Empty inputs return schema compatible dataframes rather than fabricated values.
+#   Reported percentages should be formatted later without reducing stored numerical precision.
+#   The output column names are part of the downstream export and plotting interface.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _score_summary_table(df: pd.DataFrame) -> pd.DataFrame:
     """Builds descriptive statistics for core numeric research metrics.
@@ -1473,6 +2475,31 @@ def _score_summary_table(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+# ==========================================================================
+# Developer notes for `_distribution_table`
+# ==========================================================================
+# Purpose:
+#   Returns a full distribution table for a field when available.
+#
+# Interface:
+#   Parameters: df, field.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Summary tables are derived from the frozen analytical dataframe without changing row membership.
+#   Counts are retained alongside shares so percentages can be independently reproduced.
+#   Sorting is deterministic to make repeated runs and manuscript checks easy to compare.
+#   Empty inputs return schema compatible dataframes rather than fabricated values.
+#   Reported percentages should be formatted later without reducing stored numerical precision.
+#   The output column names are part of the downstream export and plotting interface.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _distribution_table(df: pd.DataFrame, field: str) -> pd.DataFrame:
     """Returns a full distribution table for a field when available.
 
@@ -1492,6 +2519,31 @@ def _distribution_table(df: pd.DataFrame, field: str) -> pd.DataFrame:
         )
     return pd.DataFrame(columns=[field, 'count', 'share'])
 
+
+# ==========================================================================
+# Developer notes for `_grouped_scenario_table`
+# ==========================================================================
+# Purpose:
+#   Builds scenario counts and within group shares.
+#
+# Interface:
+#   Parameters: df, group_field.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Scenario rules are deterministic research rules rather than learned model predictions.
+#   Rule priority is explicit so overlapping candidate rules can be audited.
+#   All candidate rules should remain available even when one primary class is selected.
+#   The fallback `other_or_ambiguous` class means that no specific rule fired.
+#   Sensitivity variants must not silently redefine the baseline taxonomy.
+#   Any change to rule order or trigger logic should be documented in the manuscript.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _grouped_scenario_table(
     df: pd.DataFrame,
@@ -1515,6 +2567,31 @@ def _grouped_scenario_table(
         ascending=[True, False, True],
     ).reset_index(drop=True)
 
+
+# ==========================================================================
+# Developer notes for `_taxonomy_sensitivity_table`
+# ==========================================================================
+# Purpose:
+#   Summarises scenario distributions under alternative specifications.
+#
+# Interface:
+#   Parameters: df.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Scenario rules are deterministic research rules rather than learned model predictions.
+#   Rule priority is explicit so overlapping candidate rules can be audited.
+#   All candidate rules should remain available even when one primary class is selected.
+#   The fallback `other_or_ambiguous` class means that no specific rule fired.
+#   Sensitivity variants must not silently redefine the baseline taxonomy.
+#   Any change to rule order or trigger logic should be documented in the manuscript.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _taxonomy_sensitivity_table(df: pd.DataFrame) -> pd.DataFrame:
     """Summarises scenario distributions under alternative specifications."""
@@ -1587,6 +2664,31 @@ def _taxonomy_sensitivity_table(df: pd.DataFrame) -> pd.DataFrame:
     ).reset_index(drop=True)
 
 
+# ==========================================================================
+# Developer notes for `_cohen_kappa`
+# ==========================================================================
+# Purpose:
+#   Calculates unweighted Cohen kappa for two categorical series.
+#
+# Interface:
+#   Parameters: left, right.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Agreement metrics are descriptive diagnostics and should be interpreted with their denominators.
+#   Cohen's kappa is reported with exact agreement because prevalence can affect kappa.
+#   Automated stability comparisons are not substitutes for independent human validation.
+#   Contradictory movement evidence is retained for sensitivity analysis rather than discarded silently.
+#   Compatible movement pairs are declared explicitly so the comparison remains reproducible.
+#   Any new agreement category should be propagated to summary and export tables.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _cohen_kappa(left: pd.Series, right: pd.Series) -> float:
     """Calculates unweighted Cohen kappa for two categorical series."""
 
@@ -1606,6 +2708,31 @@ def _cohen_kappa(left: pd.Series, right: pd.Series) -> float:
         return 1.0 if observed >= 1.0 else 0.0
     return (observed - expected) / (1.0 - expected)
 
+
+# ==========================================================================
+# Developer notes for `_taxonomy_agreement_table`
+# ==========================================================================
+# Purpose:
+#   Compares baseline taxonomy with automated sensitivity variants.
+#
+# Interface:
+#   Parameters: df.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Scenario rules are deterministic research rules rather than learned model predictions.
+#   Rule priority is explicit so overlapping candidate rules can be audited.
+#   All candidate rules should remain available even when one primary class is selected.
+#   The fallback `other_or_ambiguous` class means that no specific rule fired.
+#   Sensitivity variants must not silently redefine the baseline taxonomy.
+#   Any change to rule order or trigger logic should be documented in the manuscript.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _taxonomy_agreement_table(df: pd.DataFrame) -> pd.DataFrame:
     """Compares baseline taxonomy with automated sensitivity variants."""
@@ -1644,6 +2771,31 @@ def _taxonomy_agreement_table(df: pd.DataFrame) -> pd.DataFrame:
         })
     return pd.DataFrame(rows, columns=columns)
 
+
+# ==========================================================================
+# Developer notes for `_manufacturer_leave_one_out_table`
+# ==========================================================================
+# Purpose:
+#   Summarises taxonomy after excluding each dominant manufacturer.
+#
+# Interface:
+#   Parameters: df, top_n.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Summary tables are derived from the frozen analytical dataframe without changing row membership.
+#   Counts are retained alongside shares so percentages can be independently reproduced.
+#   Sorting is deterministic to make repeated runs and manuscript checks easy to compare.
+#   Empty inputs return schema compatible dataframes rather than fabricated values.
+#   Reported percentages should be formatted later without reducing stored numerical precision.
+#   The output column names are part of the downstream export and plotting interface.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _manufacturer_leave_one_out_table(
     df: pd.DataFrame,
@@ -1696,6 +2848,31 @@ def _manufacturer_leave_one_out_table(
         ascending=[True, False, True],
     ).reset_index(drop=True)
 
+
+# ==========================================================================
+# Developer notes for `_corpus_manifest_table`
+# ==========================================================================
+# Purpose:
+#   Builds a report manifest with amendment and duplicate indicators.
+#
+# Interface:
+#   Parameters: df.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Summary tables are derived from the frozen analytical dataframe without changing row membership.
+#   Counts are retained alongside shares so percentages can be independently reproduced.
+#   Sorting is deterministic to make repeated runs and manuscript checks easy to compare.
+#   Empty inputs return schema compatible dataframes rather than fabricated values.
+#   Reported percentages should be formatted later without reducing stored numerical precision.
+#   The output column names are part of the downstream export and plotting interface.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _corpus_manifest_table(df: pd.DataFrame) -> pd.DataFrame:
     """Builds a report manifest with amendment and duplicate indicators."""
@@ -1754,6 +2931,31 @@ def _corpus_manifest_table(df: pd.DataFrame) -> pd.DataFrame:
     manifest['included_in_analysis'] = True
     return manifest.sort_values('row_id').reset_index(drop=True)
 
+
+# ==========================================================================
+# Developer notes for `_data_availability_table`
+# ==========================================================================
+# Purpose:
+#   Builds a pipeline level availability summary table.
+#
+# Interface:
+#   Parameters: research_df, filtered_df.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Availability refers to whether a value is present after extraction unless stated otherwise.
+#   Post extraction unavailability must not be interpreted as proof of source absence.
+#   Report context and online enrichment are kept separate to avoid conflating provenance.
+#   Derived categories are not counted as source evidence for availability scores.
+#   Missingness calculations should retain the original denominator used in the paper.
+#   Human source coding is required to distinguish absence, ambiguity, and extraction failure.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _data_availability_table(
     research_df: pd.DataFrame,
@@ -1825,6 +3027,31 @@ def _data_availability_table(
     ]
     return pd.DataFrame(rows)
 
+
+# ==========================================================================
+# Developer notes for `_retained_vs_dropped_comparison`
+# ==========================================================================
+# Purpose:
+#   Compares included and excluded parsed rows on key quality metrics.
+#
+# Interface:
+#   Parameters: research_df, filtered_df.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper isolates repeated logic so the main research pipeline remains easier to audit.
+#   Return types and labels should remain stable because downstream code may depend on them.
+#   Missing information should remain distinguishable from valid zero or negative values.
+#   The implementation should avoid mutating caller owned data unless mutation is documented.
+#   Deterministic behaviour is preferred throughout the reproducible analysis workflow.
+#   Any behavioural change should be checked against the corresponding manuscript results.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _retained_vs_dropped_comparison(
     research_df: pd.DataFrame,
@@ -1936,6 +3163,31 @@ def _retained_vs_dropped_comparison(
     return pd.DataFrame(rows)
 
 
+# ==========================================================================
+# Developer notes for `_compare_field`
+# ==========================================================================
+# Purpose:
+#   Compares two field values using field aware normalisation.
+#
+# Interface:
+#   Parameters: field, left, right.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper isolates repeated logic so the main research pipeline remains easier to audit.
+#   Return types and labels should remain stable because downstream code may depend on them.
+#   Missing information should remain distinguishable from valid zero or negative values.
+#   The implementation should avoid mutating caller owned data unless mutation is documented.
+#   Deterministic behaviour is preferred throughout the reproducible analysis workflow.
+#   Any behavioural change should be checked against the corresponding manuscript results.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _compare_field(field: str, left: Any, right: Any) -> bool:
     """Compares two field values using field aware normalisation.
 
@@ -1952,6 +3204,31 @@ def _compare_field(field: str, left: Any, right: Any) -> bool:
         return normalise_boolish(left) == normalise_boolish(right)
     return normalise_category(left) == normalise_category(right)
 
+
+# ==========================================================================
+# Developer notes for `_build_source_disagreement_tables`
+# ==========================================================================
+# Purpose:
+#   Builds row and field level disagreement audits across source texts.
+#
+# Interface:
+#   Parameters: research_df, blind_spot_fields.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Agreement metrics are descriptive diagnostics and should be interpreted with their denominators.
+#   Cohen's kappa is reported with exact agreement because prevalence can affect kappa.
+#   Automated stability comparisons are not substitutes for independent human validation.
+#   Contradictory movement evidence is retained for sensitivity analysis rather than discarded silently.
+#   Compatible movement pairs are declared explicitly so the comparison remains reproducible.
+#   Any new agreement category should be propagated to summary and export tables.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _build_source_disagreement_tables(
     research_df: pd.DataFrame,
@@ -1975,6 +3252,31 @@ def _build_source_disagreement_tables(
     _ = blind_spot_fields
     return pd.DataFrame(), pd.DataFrame()
 
+
+# ==========================================================================
+# Developer notes for `_build_movement_inconsistency_audit`
+# ==========================================================================
+# Purpose:
+#   Builds a focused audit for movement inconsistency cases.
+#
+# Interface:
+#   Parameters: research_df, source_disagreement_detail.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Agreement metrics are descriptive diagnostics and should be interpreted with their denominators.
+#   Cohen's kappa is reported with exact agreement because prevalence can affect kappa.
+#   Automated stability comparisons are not substitutes for independent human validation.
+#   Contradictory movement evidence is retained for sensitivity analysis rather than discarded silently.
+#   Compatible movement pairs are declared explicitly so the comparison remains reproducible.
+#   Any new agreement category should be propagated to summary and export tables.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _build_movement_inconsistency_audit(
     research_df: pd.DataFrame,
@@ -2014,6 +3316,32 @@ def _build_movement_inconsistency_audit(
         working['movement_source_disagreement'] = 0
         working['disagreement_count'] = 0
         working['source_stability_group'] = 'unknown'
+
+    # ==========================================================================
+    # Developer notes for `diagnose`
+    # ==========================================================================
+    # Purpose:
+    #   Classifies the most likely movement inconsistency cause.
+    #
+    # Interface:
+    #   Parameters: row.
+    #   The documented return value is the downstream contract; local temporaries are implementation details.
+    #
+    # Research and reproducibility notes:
+    #   This helper isolates repeated logic so the main research pipeline remains easier to audit.
+    #   Return types and labels should remain stable because downstream code may depend on them.
+    #   Missing information should remain distinguishable from valid zero or negative values.
+    #   The implementation should avoid mutating caller owned data unless mutation is documented.
+    #   Deterministic behaviour is preferred throughout the reproducible analysis workflow.
+    #   Any behavioural change should be checked against the corresponding manuscript results.
+    #
+    # Maintenance guidance:
+    #   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+    #   updated.
+    #   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain
+    #   explicit.
+    #   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+    # ==========================================================================
 
     def diagnose(row: pd.Series) -> str:
         """Classifies the most likely movement inconsistency cause."""
@@ -2073,6 +3401,31 @@ def _build_movement_inconsistency_audit(
     )
 
 
+# ==========================================================================
+# Developer notes for `_build_blame_evidence_table`
+# ==========================================================================
+# Purpose:
+#   Builds detailed and summary tables for blame evidence strength.
+#
+# Interface:
+#   Parameters: research_df.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Summary tables are derived from the frozen analytical dataframe without changing row membership.
+#   Counts are retained alongside shares so percentages can be independently reproduced.
+#   Sorting is deterministic to make repeated runs and manuscript checks easy to compare.
+#   Empty inputs return schema compatible dataframes rather than fabricated values.
+#   Reported percentages should be formatted later without reducing stored numerical precision.
+#   The output column names are part of the downstream export and plotting interface.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _build_blame_evidence_table(
     research_df: pd.DataFrame,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -2118,6 +3471,31 @@ def _build_blame_evidence_table(
     )
 
 
+# ==========================================================================
+# Developer notes for `_build_taxonomy_assignment_table`
+# ==========================================================================
+# Purpose:
+#   Builds a review table for scenario class assignments.
+#
+# Interface:
+#   Parameters: research_df.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Scenario rules are deterministic research rules rather than learned model predictions.
+#   Rule priority is explicit so overlapping candidate rules can be audited.
+#   All candidate rules should remain available even when one primary class is selected.
+#   The fallback `other_or_ambiguous` class means that no specific rule fired.
+#   Sensitivity variants must not silently redefine the baseline taxonomy.
+#   Any change to rule order or trigger logic should be documented in the manuscript.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _build_taxonomy_assignment_table(research_df: pd.DataFrame) -> pd.DataFrame:
     """Builds a review table for scenario class assignments.
 
@@ -2162,6 +3540,31 @@ def _build_taxonomy_assignment_table(research_df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+# ==========================================================================
+# Developer notes for `_build_other_or_ambiguous_review`
+# ==========================================================================
+# Purpose:
+#   Builds a prioritised review queue for ambiguous scenario rows.
+#
+# Interface:
+#   Parameters: research_df, source_disagreement_detail.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper isolates repeated logic so the main research pipeline remains easier to audit.
+#   Return types and labels should remain stable because downstream code may depend on them.
+#   Missing information should remain distinguishable from valid zero or negative values.
+#   The implementation should avoid mutating caller owned data unless mutation is documented.
+#   Deterministic behaviour is preferred throughout the reproducible analysis workflow.
+#   Any behavioural change should be checked against the corresponding manuscript results.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def _build_other_or_ambiguous_review(
     research_df: pd.DataFrame,
     source_disagreement_detail: pd.DataFrame,
@@ -2193,6 +3596,32 @@ def _build_other_or_ambiguous_review(
         working['disagreement_count'] = 0
         working['disagreement_fields'] = 'none'
         working['source_stability_group'] = 'unknown'
+
+    # ==========================================================================
+    # Developer notes for `priority`
+    # ==========================================================================
+    # Purpose:
+    #   Assigns review priority for an ambiguous row.
+    #
+    # Interface:
+    #   Parameters: row.
+    #   The documented return value is the downstream contract; local temporaries are implementation details.
+    #
+    # Research and reproducibility notes:
+    #   This helper isolates repeated logic so the main research pipeline remains easier to audit.
+    #   Return types and labels should remain stable because downstream code may depend on them.
+    #   Missing information should remain distinguishable from valid zero or negative values.
+    #   The implementation should avoid mutating caller owned data unless mutation is documented.
+    #   Deterministic behaviour is preferred throughout the reproducible analysis workflow.
+    #   Any behavioural change should be checked against the corresponding manuscript results.
+    #
+    # Maintenance guidance:
+    #   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+    #   updated.
+    #   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain
+    #   explicit.
+    #   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+    # ==========================================================================
 
     def priority(row: pd.Series) -> str:
         """Assigns review priority for an ambiguous row."""
@@ -2245,6 +3674,31 @@ def _build_other_or_ambiguous_review(
         .reset_index(drop=True)
     )
 
+
+# ==========================================================================
+# Developer notes for `_build_field_contradiction_report`
+# ==========================================================================
+# Purpose:
+#   Builds a combined contradiction report across several signals.
+#
+# Interface:
+#   Parameters: research_df, source_disagreement_detail.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   This helper isolates repeated logic so the main research pipeline remains easier to audit.
+#   Return types and labels should remain stable because downstream code may depend on them.
+#   Missing information should remain distinguishable from valid zero or negative values.
+#   The implementation should avoid mutating caller owned data unless mutation is documented.
+#   Deterministic behaviour is preferred throughout the reproducible analysis workflow.
+#   Any behavioural change should be checked against the corresponding manuscript results.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def _build_field_contradiction_report(
     research_df: pd.DataFrame,
@@ -2300,6 +3754,31 @@ def _build_field_contradiction_report(
         .reset_index(drop=True)
     )
 
+
+# ==========================================================================
+# Developer notes for `build_research_summary`
+# ==========================================================================
+# Purpose:
+#   Builds run level summary metadata and export tables.
+#
+# Interface:
+#   Parameters: research_df, filtered_research_df, filter_report, blind_spot_fields, taxonomy_top_n.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Summary tables are derived from the frozen analytical dataframe without changing row membership.
+#   Counts are retained alongside shares so percentages can be independently reproduced.
+#   Sorting is deterministic to make repeated runs and manuscript checks easy to compare.
+#   Empty inputs return schema compatible dataframes rather than fabricated values.
+#   Reported percentages should be formatted later without reducing stored numerical precision.
+#   The output column names are part of the downstream export and plotting interface.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def build_research_summary(
     research_df: pd.DataFrame,
@@ -2830,6 +4309,31 @@ def build_research_summary(
     return summary, tables
 
 
+# ==========================================================================
+# Developer notes for `export_research_tables`
+# ==========================================================================
+# Purpose:
+#   Exports each research table to CSV.
+#
+# Interface:
+#   Parameters: tables, output_dir.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Summary tables are derived from the frozen analytical dataframe without changing row membership.
+#   Counts are retained alongside shares so percentages can be independently reproduced.
+#   Sorting is deterministic to make repeated runs and manuscript checks easy to compare.
+#   Empty inputs return schema compatible dataframes rather than fabricated values.
+#   Reported percentages should be formatted later without reducing stored numerical precision.
+#   The output column names are part of the downstream export and plotting interface.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
+
 def export_research_tables(tables: dict[str, pd.DataFrame], output_dir: Any) -> None:
     """Exports each research table to CSV.
 
@@ -2843,6 +4347,31 @@ def export_research_tables(tables: dict[str, pd.DataFrame], output_dir: Any) -> 
     for name, table in tables.items():
         table.to_csv(base_dir / f'{name}.csv', index=False)
 
+
+# ==========================================================================
+# Developer notes for `create_validation_sample`
+# ==========================================================================
+# Purpose:
+#   Creates a stratified validation sample for manual review.
+#
+# Interface:
+#   Parameters: df, sample_size, seed, include_text.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Validation sampling must preserve the frozen study sample once it has been created.
+#   Sampling metadata are retained so the stratified design remains auditable.
+#   The sample should include major scenario classes and high, medium, and low rule support cases.
+#   Reviewer facing validation should be based on source PDFs rather than prefilled LLM outputs.
+#   Original reviewer annotations must remain separate from any later adjudicated reference.
+#   Sampling changes should be treated as a new validation run rather than rewriting the completed study.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def create_validation_sample(
     df: pd.DataFrame,
@@ -2877,12 +4406,12 @@ def create_validation_sample(
         sample = (
             working.groupby('scenario_class', group_keys=False)
             .apply(
-                lambda group: group.sample(
-                    min(len(group), per_group),
+                lambda group: group.sample(  # type: ignore
+                    min(len(group), per_group),  # type: ignore
                     random_state=seed,
                 ),
-                include_groups=False,
-            )
+                include_groups=False,  # type: ignore
+            )  # type: ignore
             .reset_index(drop=True)
         )
         if len(sample) < sample_size:
@@ -2945,6 +4474,31 @@ def create_validation_sample(
     result['adjudicated_blame_group'] = ''
     return result.sort_values('row_id').reset_index(drop=True)
 
+
+# ==========================================================================
+# Developer notes for `format_research_markdown`
+# ==========================================================================
+# Purpose:
+#   Formats a Markdown run report from the summary dictionary.
+#
+# Interface:
+#   Parameters: summary, config.
+#   The documented return value is the downstream contract; local temporaries are implementation details.
+#
+# Research and reproducibility notes:
+#   Export helpers write derivative artefacts and must not modify the analytical dataframe.
+#   Output filenames are treated as reproducibility interfaces for the README and paper workflow.
+#   Tables should preserve enough information to audit counts, denominators, and rule assignments.
+#   Existing raw source data are never overwritten by a research export.
+#   Any new exported table should have a stable schema and a clear analytical purpose.
+#   Formatting for presentation is kept separate from the underlying full precision values.
+#
+# Maintenance guidance:
+#   Keep field names and category labels stable unless every dependent table, plot, and manuscript statement is
+#   updated.
+#   Do not introduce hidden heuristics merely to reproduce a desired result; analytical rules must remain explicit.
+#   When behaviour changes, rerun the relevant sensitivity checks before updating reported values.
+# ==========================================================================
 
 def format_research_markdown(summary: dict[str, Any], config: Any) -> str:
     """Formats a Markdown run report from the summary dictionary.

@@ -260,11 +260,11 @@ def build_sankey_figure(
 
     layout_kwargs: dict[str, Any] = {
         'title': '',
-        'margin': dict(l=40, r=40, b=40, t=20),
+        'margin': dict(l=0, r=0, b=0, t=0),
     }
     if show_stage_headers:
         layout_kwargs['annotations'] = _build_stage_annotations(plot_fields)
-        layout_kwargs['margin'] = dict(l=40, r=40, b=40, t=100)
+        layout_kwargs['margin'] = dict(l=0, r=0, b=0, t=0)
 
     fig.update_layout(**layout_kwargs)
     return fig
