@@ -647,37 +647,37 @@ To match the manuscript, reported values use the following precision:
 
 ### Overview figures
 
-All figures are clickable: each image opens its interactive HTML version (Plotly is embedded in the HTML so it renders on htmlpreview).
+All figures are clickable: each image opens its interactive HTML version (Plotly is embedded in the HTML so it renders on htmlpreview). The figures share one colour palette. Grey always marks missing, unknown or residual ("Other") categories, and count charts are labelled with the number of reports and their share.
 
 #### Accident overview Sankey diagram
 
 [![Accident overview Sankey diagram](figures/accident_overview_sankey.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accident_overview_sankey.html)
 
-Accident overview Sankey diagram showing the flow of parsed accident attributes across the selected plot fields.
+Accident overview Sankey diagram showing the flow of parsed accident attributes across the selected plot fields. Each flow is coloured by the scenario class the reports end in, so every path can be followed to its outcome.
 
 #### Accident 5W1H Sankey diagram
 
 [![Accident 5W1H Sankey diagram](figures/accident_5w1h_sankey.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accident_5w1h_sankey.html)
 
-Accident 5W1H Sankey diagram showing the flow across Who, Where, What, When, and Why. For the paper figure, the Where stage uses the reader facing labels `Intersection` and `Road segment` rather than the ambiguous `intersection roadway` wording.
+Accident 5W1H Sankey diagram showing the flow across Who, Where, What, When, and Why, with flows coloured by the Why stage. For the paper figure, the Where stage uses the reader facing labels `Intersection` and `Road segment` rather than the ambiguous `intersection roadway` wording.
 
 #### Accident overview sunburst diagram
 
 [![Accident overview sunburst diagram](figures/accident_overview_sunburst.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accident_overview_sunburst.html)
 
-Accident overview sunburst diagram showing the hierarchical distribution of accident attributes across the selected plot fields.
+Accident overview sunburst diagram with three rings read from the centre: scenario class, then blame group, then collision group. Colours follow the scenario class.
 
 #### Accident transition graph
 
 [![Accident transition graph](figures/accident_transition_graph.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accident_transition_graph.html)
 
-Accident transition graph showing connections between consecutive accident attributes across the selected plot fields.
+Accident transition graph with one column per stage. Node size shows the number of reports, line width shows the number of reports moving between consecutive stages, and transitions involving under 1% of reports are hidden.
 
 #### Accident location map
 
 [![Accident location map](figures/accident_location_map.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accident_location_map.html)
 
-Accident location map showing geocoded accident report locations derived from questionnaire address fields.
+Accident location map showing geocoded report locations derived from questionnaire address fields. Each marker is one location, with its area proportional to the number of reports there.
 
 ### Histogram figures
 
@@ -709,7 +709,7 @@ Histogram of scenario classes derived from the accident reports.
 
 [![Histogram of grouped main factor](figures/main_factor_grouped.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/main_factor_grouped.html)
 
-Histogram of the grouped main contributing factor extracted from the report responses.
+Histogram of the grouped main contributing factor extracted from the report responses. Free text factors with fewer than five reports are combined into one "Other" bar.
 
 ### Research figures
 
@@ -723,7 +723,7 @@ Bar chart showing the frequency of the eight scenario classes in the 971 report 
 
 [![Blind spots missingness](figures/blind_spots_missingness.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/blind_spots_missingness.html)
 
-Bar chart showing unavailable values after extraction across selected context fields. The chart does not identify whether the source report, the form design, or the extraction process accounts for an unavailable value. Displayed percentages follow the manuscript convention of one decimal place.
+Bar chart showing unavailable values after extraction across selected context fields. The chart does not identify whether the source report, the form design, or the extraction process accounts for an unavailable value. Report fields and online enrichment fields are coloured separately because their unavailability has different causes. Displayed percentages follow the manuscript convention of one decimal place.
 
 #### Accountability by taxonomy
 
@@ -741,7 +741,7 @@ Figure showing report completeness scores across the parsed accident reports.
 
 [![Taxonomy by road user](figures/taxonomy_by_road_user.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/taxonomy_by_road_user.html)
 
-Chart showing how scenario classes vary by road user type.
+Heatmap of the number of reports by scenario class and other road user group (vehicle, cyclist, pedestrian, other or object, unknown).
 
 #### Provenance availability
 

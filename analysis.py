@@ -74,6 +74,8 @@ from utils.research import (
 )
 from utils.sankey import apply_plot_filters, build_overview_summary, resolve_plot_fields
 import utils.summary_plots as summary_plots
+from utils.figure_design import GRID as FIGURE_GRID, MISSING_COLOUR as FIGURE_MISSING_COLOUR, SERIES as FIGURE_SERIES
+
 
 DEFAULT_PLOT_FIELDS = [
     'road_user_type',
@@ -1315,8 +1317,10 @@ def _create_accountability_by_taxonomy_figure(
 
     observed_attributions = working['blame_group'].drop_duplicates().tolist()
     attribution_order = [
-        value for value in FIGURE4_ATTRIBUTION_ORDER
-        if value in observed_attributions
+        observed
+        for wanted in FIGURE4_ATTRIBUTION_ORDER
+        for observed in observed_attributions
+        if observed.lower() == wanted
     ]
     attribution_order.extend(
         sorted(
@@ -1347,9 +1351,6 @@ def _create_accountability_by_taxonomy_figure(
         counts['count'] / scenario_totals.where(scenario_totals.gt(0), 1)
     ) * 100.0
 
-    counts['scenario_label'] = counts['scenario_class'].map(
-        _figure4_display_label
-    )
     counts['attribution_label'] = counts['blame_group'].map(
         _figure4_display_label
     )
@@ -1357,8 +1358,12 @@ def _create_accountability_by_taxonomy_figure(
     # Figure 3 places the largest scenario at the top of the horizontal chart.
     # Plotly categorical arrays are ordered bottom to top, so reverse the
     # descending frequency order here to match Figure 3 visually.
+    scenario_n = working['scenario_class'].value_counts()
+    counts['scenario_label'] = counts['scenario_class'].map(
+        lambda value: f'{_figure4_display_label(value)} (n = {int(scenario_n.get(value, 0)):,})'
+    )
     scenario_label_order = [
-        _figure4_display_label(value)
+        f'{_figure4_display_label(value)} (n = {int(scenario_n.get(value, 0)):,})'
         for value in reversed(top_scenarios)
     ]
     attribution_label_order = [
@@ -1366,10 +1371,17 @@ def _create_accountability_by_taxonomy_figure(
         for value in attribution_order
     ]
 
-    palette = px.colors.qualitative.Plotly
+    fixed_colours = {
+        'other_road_user': FIGURE_SERIES[0],
+        'av_primary': FIGURE_SERIES[1],
+        'environment_or_conditions': FIGURE_SERIES[2],
+        'unclear': FIGURE_MISSING_COLOUR,
+    }
     attribution_colour_map = {
-        label: palette[index % len(palette)]
-        for index, label in enumerate(attribution_label_order)
+        _figure4_display_label(value): fixed_colours.get(
+            value.lower(), FIGURE_SERIES[(3 + index) % len(FIGURE_SERIES)]
+        )
+        for index, value in enumerate(attribution_order)
     }
 
     try:
@@ -1413,6 +1425,9 @@ def _create_accountability_by_taxonomy_figure(
             'Count=%{customdata[0]:.0f}<extra></extra>'
         )
 
+    # Horizontal grouped bars draw the first trace at the bottom of each group; reverse so bars run top to
+    # bottom in legend order.
+    fig.data = tuple(reversed(fig.data))
     figure_height = max(650, 88 * len(top_scenarios) + 150)
 
     fig.update_layout(
@@ -1434,11 +1449,13 @@ def _create_accountability_by_taxonomy_figure(
         range=[0, 110],
         ticksuffix='%',
         showgrid=True,
+        gridcolor=FIGURE_GRID,
         zeroline=True,
         automargin=True,
     )
+    fig.update_layout(plot_bgcolor='#ffffff', paper_bgcolor='#ffffff')
     fig.update_yaxes(
-        title_text='Scenario class',
+        title_text='',
         categoryorder='array',
         categoryarray=scenario_label_order,
         # Reserve the top strip of the existing canvas for the manual legend.

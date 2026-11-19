@@ -19,9 +19,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-import networkx as nx
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 
 from utils.labels import humanize_field_name, humanize_text
@@ -43,6 +41,18 @@ from utils.research_plots import (
     create_taxonomy_by_road_user_figure,
 )
 from utils.sankey import build_sankey_figure
+from utils.figure_design import (
+    MISSING_COLOUR,
+    PRIMARY,
+    SERIES,
+    TEXT,
+    TEXT_SECONDARY,
+    apply_base_layout,
+    count_bar_figure,
+    is_missing_label,
+    with_alpha,
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -291,66 +301,43 @@ def create_accident_location_map_figure(
     *,
     cache_path: Path,
 ) -> tuple[go.Figure, pd.DataFrame]:
-    """Creates a Plotly accident point map from questionnaire location fields."""
+    """Creates a map of geocoded report locations, one marker per location sized by its number of reports."""
 
     location_df = _build_location_points_dataframe(df, cache_path=cache_path)
     if location_df.empty:
         return go.Figure(), location_df
 
-    hover_data = location_df[
-        ['row_id', 'source_report', 'resolved_location', 'location_query']
-    ].fillna('NA')
-
-    fig = go.Figure(
-        data=[
-            go.Scattergeo(
-                lat=location_df['latitude'],
-                lon=location_df['longitude'],
-                mode='markers',
-                text=location_df['location_label'].fillna('Unknown location'),
-                customdata=hover_data.to_numpy(),
-                marker=dict(
-                    size=9,
-                    color='red',
-                    opacity=0.85,
-                    line=dict(width=0.8, color='white'),
-                ),
-                hovertemplate=(
-                    '<b>%{text}</b><br><br>'
-                    'Row ID: %{customdata[0]}<br>'
-                    'Source report: %{customdata[1]}<br>'
-                    'Resolved location: %{customdata[2]}<br>'
-                    'Query used: %{customdata[3]}<extra></extra>'
-                ),
-            )
-        ]
+    grouped = (
+        location_df.assign(resolved=location_df['resolved_location'].fillna('Unknown location'))
+        .groupby(['latitude', 'longitude'], as_index=False)
+        .agg(reports=('row_id', 'size'), place=('resolved', 'first'))
+        .sort_values('reports', ascending=False)
     )
+    max_reports = max(int(grouped['reports'].max()), 1)
+    sizes = 7 + 38 * (grouped['reports'] / max_reports) ** 0.5
+
+    fig = go.Figure(go.Scattergeo(
+        lat=grouped['latitude'], lon=grouped['longitude'], mode='markers',
+        text=grouped['place'], customdata=grouped[['reports']].to_numpy(),
+        marker=dict(size=sizes, color=with_alpha(PRIMARY, 0.6), line=dict(width=1, color='#ffffff'),
+                    sizemode='diameter'),
+        hovertemplate='<b>%{text}</b><br>%{customdata[0]:,} reports<extra></extra>',
+    ))
     fig.update_geos(
-        fitbounds='locations',
-        visible=True,
-        scope='usa',
-        resolution=50,
-        showland=True,
-        landcolor='#E7D8B1',
-        showocean=True,
-        oceancolor='#9EC9FF',
-        showlakes=True,
-        lakecolor='#9EC9FF',
-        showcountries=True,
-        countrycolor='#777777',
-        countrywidth=0.8,
-        showsubunits=True,
-        subunitcolor='#888888',
-        subunitwidth=0.8,
-        showcoastlines=True,
-        coastlinecolor='#555555',
-        coastlinewidth=1.2,
-        bgcolor='#9EC9FF',
-        showframe=False,
+        fitbounds='locations', scope='usa', resolution=50,
+        showland=True, landcolor='#f4f3ef', showocean=True, oceancolor='#e4eef9', showlakes=True,
+        lakecolor='#e4eef9', showsubunits=True, subunitcolor='#c9c8c2', subunitwidth=0.8,
+        showcoastlines=True, coastlinecolor='#a8a7a1', coastlinewidth=0.8, showcountries=False,
+        bgcolor='#e4eef9', showframe=False,
     )
     fig.update_layout(
-        title='',
-        margin=dict(l=0, r=0, t=0, b=0),
+        title='', margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor='#ffffff', showlegend=False,
+        annotations=[dict(
+            text=(f'{len(location_df):,} geocoded reports at {len(grouped):,} locations<br>'
+                  f'Marker area is proportional to reports (largest: {max_reports:,})'),
+            x=0.98, y=0.98, xref='paper', yref='paper', xanchor='right', yanchor='top', align='right',
+            showarrow=False, bgcolor='rgba(255,255,255,0.85)', font=dict(color=TEXT),
+        )],
     )
     return fig, location_df
 
@@ -600,129 +587,139 @@ def _log_figure_values(plot_name: str, fig: go.Figure) -> None:
 
 
 def create_histogram_figure(df: pd.DataFrame, field: str) -> go.Figure:
-    """Creates a bar chart style histogram for a categorical field.
-
-    Args:
-        df: Source dataframe.
-        field: Field name to plot.
-
-    Returns:
-        A Plotly figure.
-    """
+    """Creates a horizontal count chart for a categorical field, folding long tails into "Other"."""
 
     counts = _safe_counts(df, field)
-    fig = px.bar(counts, x=field, y='count', title='', text='count')
-
-    max_count = int(counts['count'].max()) if not counts.empty else 0
-    y_upper = max(max_count + 1, int(max_count * 1.12), 1)
-
-    fig.update_traces(
-        texttemplate='%{text:,}',
-        textposition='outside',
-        cliponaxis=False,
-    )
-    fig.update_xaxes(
-        title_text=humanize_field_name(field),
-        automargin=True,
-    )
-    fig.update_yaxes(
-        title_text=humanize_field_name('count'),
-        range=[0, y_upper],
-        automargin=True,
-    )
-    fig.update_layout(
-        uniformtext_minsize=8,
-        uniformtext_mode='hide',
-        margin=dict(t=0),
-    )
-    return fig
+    # Fields with many one-off free text values (for example the main factor) keep only categories with at
+    # least five reports; the rest fold into "Other (k categories)".
+    min_count = 5 if len(counts) > 15 else 1
+    return count_bar_figure(counts[field].tolist(), counts['count'].tolist(), total=len(df), max_bars=10,
+                            min_count=min_count, category_title='')
 
 
 def create_sunburst_figure(df: pd.DataFrame, plot_fields: list[str]) -> go.Figure:
-    """Creates a sunburst chart across the ordered plot fields.
+    """Creates a three ring sunburst read from the outcome inward: scenario, then the two preceding stages.
 
-    Args:
-        df: Source dataframe.
-        plot_fields: Ordered categorical fields for the sunburst path.
-
-    Returns:
-        A Plotly figure.
+    The configured fields run from road user to scenario class; the sunburst reverses them and keeps three rings
+    so labels stay legible. Colours follow the inner ring (scenario class) in fixed palette order.
     """
 
-    working = df.copy()
-    formatted_fields: list[str] = []
+    path_fields = list(reversed(plot_fields))[:3]
+    working = df[path_fields].copy()
+    for field in path_fields:
+        working[field] = working[field].astype(str).map(humanize_text)
+    grouped = working.groupby(path_fields).size().reset_index(name='count')
 
-    for field in plot_fields:
-        label = humanize_field_name(field)
-        working[label] = working[field].astype(str).map(humanize_text)
-        formatted_fields.append(label)
+    order = working[path_fields[0]].value_counts().index.tolist()
+    colour_for = {}
+    slot = 0
+    for label in order:
+        if is_missing_label(label) or label.lower().startswith('other'):
+            colour_for[label] = MISSING_COLOUR
+        else:
+            colour_for[label] = SERIES[slot % len(SERIES)]
+            slot += 1
 
-    fig = px.sunburst(working, path=formatted_fields, title='')
+    ids, labels, parents, values, colours = [], [], [], [], []
+    for depth in range(len(path_fields)):
+        level = grouped.groupby(path_fields[:depth + 1])['count'].sum().reset_index()
+        for _, row in level.iterrows():
+            keys = [str(row[f]) for f in path_fields[:depth + 1]]
+            ids.append(' / '.join(keys))
+            labels.append(keys[-1])
+            parents.append(' / '.join(keys[:-1]))
+            values.append(int(row['count']))
+            base = colour_for.get(keys[0], MISSING_COLOUR)
+            colours.append(base if depth == 0 else with_alpha(base, 0.75 if depth == 1 else 0.5))
+
+    fig = go.Figure(go.Sunburst(
+        ids=ids, labels=labels, parents=parents, values=values, branchvalues='total',
+        marker=dict(colors=colours, line=dict(color='#ffffff', width=1.5)),
+        insidetextorientation='radial', sort=False,
+        hovertemplate='%{id}<br>%{value:,} reports (%{percentRoot:.1%})<extra></extra>',
+    ))
+    rings = ' → '.join(humanize_field_name(f) for f in path_fields)
+    fig.update_layout(
+        title='', margin=dict(l=0, r=0, t=40, b=0), uniformtext=dict(minsize=11, mode='hide'),
+        annotations=[dict(text=f'Rings from centre: {rings}', x=0.5, y=1.0, xref='paper', yref='paper',
+                          showarrow=False, yanchor='bottom', font=dict(color=TEXT_SECONDARY))],
+    )
     return fig
 
 
 def create_transition_graph_figure(
     df: pd.DataFrame,
     plot_fields: list[str],
+    *,
+    max_categories: int = 6,
+    min_share: float = 0.01,
 ) -> go.Figure:
-    """Creates a network style transition graph between consecutive fields.
+    """Creates a layered transition graph: one column per stage, edges sized by number of reports.
 
-    Args:
-        df: Source dataframe.
-        plot_fields: Ordered categorical fields defining transitions.
-
-    Returns:
-        A Plotly figure. Returns an empty figure when no graph nodes exist.
+    Each stage keeps its largest categories (the rest fold into "Other"); nodes are sized by count and edges
+    below ``min_share`` of reports are hidden to keep the main transitions readable.
     """
 
-    graph = nx.DiGraph()
-
-    for left, right in zip(plot_fields[:-1], plot_fields[1:]):
-        grouped = df.groupby([left, right]).size().reset_index(name='count')
-        for _, row in grouped.iterrows():
-            source = f"{humanize_field_name(left)}: {humanize_text(row[left])}"
-            target = f"{humanize_field_name(right)}: {humanize_text(row[right])}"
-            graph.add_edge(source, target, weight=int(row['count']))
-
-    if not graph.nodes:
+    if len(plot_fields) < 2 or df.empty:
         return go.Figure()
+    working = df[plot_fields].copy()
+    stage_order: dict[str, list[str]] = {}
+    for field in plot_fields:
+        values = working[field].astype(str).map(humanize_text)
+        counts = values.value_counts()
+        keep = [v for v in counts.index if not is_missing_label(v)][:max_categories]
+        values = values.where(values.isin(keep) | values.map(is_missing_label), 'Other')
+        values = values.where(~values.map(is_missing_label), 'Unknown')
+        working[field] = values
+        counts = values.value_counts()
+        ordered = [v for v in counts.index if v not in ('Other', 'Unknown')]
+        stage_order[field] = ordered + [v for v in ('Other', 'Unknown') if v in counts.index]
 
-    positions = nx.spring_layout(graph, seed=42)
+    total = len(working)
+    positions: dict[tuple[str, str], tuple[float, float]] = {}
+    node_counts: dict[tuple[str, str], int] = {}
+    for x, field in enumerate(plot_fields):
+        labels = stage_order[field]
+        counts = working[field].value_counts()
+        for i, label in enumerate(labels):
+            y = 1 - (i + 0.5) / max(len(labels), 1)
+            positions[(field, label)] = (x, y)
+            node_counts[(field, label)] = int(counts.get(label, 0))
 
-    edge_x: list[float] = []
-    edge_y: list[float] = []
-    for source, target in graph.edges():
-        x0, y0 = positions[source]
-        x1, y1 = positions[target]
-        edge_x += [x0, x1, None]
-        edge_y += [y0, y1, None]
-
-    edge_trace = go.Scatter(
-        x=edge_x,
-        y=edge_y,
-        line=dict(width=1),
-        hoverinfo='none',
-        mode='lines',
-    )
-
-    node_x = [positions[node][0] for node in graph.nodes()]
-    node_y = [positions[node][1] for node in graph.nodes()]
-    node_text = list(graph.nodes())
-
-    node_trace = go.Scatter(
-        x=node_x,
-        y=node_y,
-        mode='markers+text',
-        text=node_text,
-        textposition='top center',
-        hoverinfo='text',
-        marker=dict(size=14),
-    )
-
-    fig = go.Figure(data=[edge_trace, node_trace])
-    fig.update_layout(title='', showlegend=False)
-    fig.update_xaxes(visible=False)
-    fig.update_yaxes(visible=False)
+    fig = go.Figure()
+    max_edge = 1
+    edges = []
+    for left, right in zip(plot_fields[:-1], plot_fields[1:]):
+        grouped = working.groupby([left, right]).size()
+        for (a, b), n in grouped.items():
+            if n / total >= min_share:
+                edges.append(((left, a), (right, b), int(n)))
+                max_edge = max(max_edge, int(n))
+    for source, target, n in sorted(edges, key=lambda e: e[2]):
+        (x0, y0), (x1, y1) = positions[source], positions[target]
+        fig.add_trace(go.Scatter(
+            x=[x0, x1], y=[y0, y1], mode='lines', hoverinfo='text',
+            text=[f'{source[1]} → {target[1]}: {n:,} reports'] * 2,
+            line=dict(width=1 + 14 * n / max_edge, color=with_alpha(PRIMARY, 0.12 + 0.45 * n / max_edge)),
+            showlegend=False,
+        ))
+    max_node = max(node_counts.values()) or 1
+    keys = list(positions)
+    fig.add_trace(go.Scatter(
+        x=[positions[k][0] for k in keys], y=[positions[k][1] for k in keys], mode='markers+text',
+        marker=dict(size=[8 + 34 * (node_counts[k] / max_node) ** 0.5 for k in keys],
+                    color=[MISSING_COLOUR if k[1] in ('Other', 'Unknown') else PRIMARY for k in keys],
+                    line=dict(width=1.5, color='#ffffff')),
+        text=[f'{k[1]} ({node_counts[k]:,})' for k in keys], textposition='middle right',
+        textfont=dict(color=TEXT, size=13), hovertemplate='%{text}<extra></extra>', showlegend=False,
+    ))
+    for x, field in enumerate(plot_fields):
+        fig.add_annotation(x=x, y=1.04, text=f'<b>{humanize_field_name(field)}</b>', showarrow=False,
+                           yanchor='bottom', font=dict(color=TEXT))
+    apply_base_layout(fig, height=900)
+    fig.update_xaxes(visible=False, range=[-0.45, len(plot_fields) - 1 + 1.3])
+    fig.update_yaxes(visible=False, range=[-0.03, 1.1])
+    fig.update_layout(margin=dict(l=10, r=10, t=10, b=10))
     return fig
 
 
@@ -838,13 +835,13 @@ def create_all_plots(
     # Keep the main overview Sankey on the original taxonomy style fields.
     # The dedicated 5W1H Sankey below handles the story style dimensions.
     overview_sankey_fields = list(plot_fields)
-    overview_sankey_width = max(1400, 220 * len(overview_sankey_fields))
+    overview_sankey_width = max(1800, 300 * len(overview_sankey_fields))
     sankey_fig = build_sankey_figure(
         filtered_df,
         overview_sankey_fields,
         min_count=min_count,
         max_categories=max_categories,
-        show_stage_headers=False,
+        show_stage_headers=True,
     )
     manifest['plots']['accident_overview_sankey'] = _save_logged_figure(
         sankey_fig,

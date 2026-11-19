@@ -205,6 +205,8 @@ def _run_image_worker(
 
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    # Remove any earlier export first, so a failed run cannot be reported as success because of a stale file.
+    out_path.unlink(missing_ok=True)
 
     with tempfile.TemporaryDirectory() as tmpdir:
         json_path = Path(tmpdir) / "figure.json"

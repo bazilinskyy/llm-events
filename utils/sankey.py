@@ -19,6 +19,8 @@ import plotly.graph_objects as go
 
 from utils.labels import humanize_field_name, humanize_text
 from utils.normalise import is_missing, normalise_category
+from utils.figure_design import MISSING_COLOUR, SERIES, TEXT, TEXT_SECONDARY, is_missing_label, with_alpha
+
 
 logger = logging.getLogger(__name__)
 
@@ -162,14 +164,14 @@ def _build_stage_annotations(plot_fields: list[str]) -> list[dict[str, Any]]:
         annotations.append(
             dict(
                 x=x,
-                y=1.03,
+                y=0.945,
                 xref='paper',
                 yref='paper',
                 text=f'<b>{humanize_field_name(field)}</b>',
                 showarrow=False,
                 xanchor=xanchor,
                 yanchor='bottom',
-                font=dict(size=14),
+                font=dict(size=16, color=TEXT),
             )
         )
 
@@ -209,22 +211,46 @@ def build_sankey_figure(
             'Other',
         )
 
+    # Colour every link by the final-stage category its reports end in, so flows can be followed to the outcome.
+    final_field = plot_fields[-1]
+    final_values = working[final_field].map(normalise_category)
+    final_order = final_values.value_counts().index.tolist()
+    final_colour: dict[str, str] = {}
+    slot = 0
+    for value in final_order:
+        label = humanize_text(value)
+        if is_missing_label(label) or label.lower().startswith('other') or slot >= len(SERIES):
+            final_colour[value] = MISSING_COLOUR
+        else:
+            final_colour[value] = SERIES[slot]
+            slot += 1
+    working['_final'] = final_values
+
     node_labels: list[str] = []
+    node_colours: list[str] = []
     node_map: dict[str, int] = {}
     link_source: list[int] = []
     link_target: list[int] = []
     link_value: list[int] = []
+    link_colour: list[str] = []
 
     def get_node_id(stage: str, value: str) -> int:
         key = f'{stage}|{value}'
         if key not in node_map:
             node_map[key] = len(node_labels)
-            node_labels.append(humanize_text(value))
+            label = humanize_text(value)
+            node_labels.append(label)
+            if stage == final_field:
+                node_colours.append(final_colour.get(value, MISSING_COLOUR))
+            elif is_missing_label(label):
+                node_colours.append(MISSING_COLOUR)
+            else:
+                node_colours.append(TEXT_SECONDARY)
         return node_map[key]
 
     for left, right in zip(plot_fields[:-1], plot_fields[1:]):
         grouped = (
-            working.groupby([left, right], dropna=False)
+            working.groupby([left, right, '_final'], dropna=False)
             .size()
             .reset_index(name='count')
         )
@@ -240,31 +266,38 @@ def build_sankey_figure(
             link_source.append(s)
             link_target.append(t)
             link_value.append(int(row['count']))
+            link_colour.append(with_alpha(final_colour.get(row['_final'], MISSING_COLOUR), 0.38))
 
-    sankey_domain = dict(x=[0.02, 0.98], y=[0.05, 0.98])
+    sankey_domain = dict(x=[0.0, 1.0], y=[0.0, 1.0])
     if show_stage_headers:
-        sankey_domain = dict(x=[0.02, 0.98], y=[0.06, 0.95])
+        sankey_domain = dict(x=[0.0, 1.0], y=[0.0, 0.93])
 
     fig = go.Figure(
         go.Sankey(
             arrangement='snap',
             domain=sankey_domain,
-            node=dict(pad=16, thickness=18, label=node_labels),
+            node=dict(pad=18, thickness=16, label=node_labels, color=node_colours,
+                      line=dict(width=0),
+                      hovertemplate='%{label}<br>%{value:,} reports<extra></extra>'),
             link=dict(
                 source=link_source,
                 target=link_target,
                 value=link_value,
+                color=link_colour,
+                hovertemplate='%{source.label} → %{target.label}<br>%{value:,} reports<extra></extra>',
             ),
+            textfont=dict(color=TEXT),
         )
     )
 
     layout_kwargs: dict[str, Any] = {
         'title': '',
-        'margin': dict(l=0, r=0, b=0, t=0),
+        'margin': dict(l=10, r=10, b=10, t=10),
+        'paper_bgcolor': '#ffffff',
     }
     if show_stage_headers:
         layout_kwargs['annotations'] = _build_stage_annotations(plot_fields)
-        layout_kwargs['margin'] = dict(l=0, r=0, b=0, t=0)
+        layout_kwargs['margin'] = dict(l=10, r=10, b=10, t=10)
 
     fig.update_layout(**layout_kwargs)
     return fig

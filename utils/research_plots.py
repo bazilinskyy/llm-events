@@ -8,13 +8,74 @@ axis titles, and a few repeated aggregation patterns across figures.
 """
 
 import common
-import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
 from utils.labels import humanize_field_name, humanize_text
 from utils.normalise import is_missing
+
+from utils.figure_design import (
+    GRID,
+    MISSING_COLOUR,
+    PRIMARY,
+    SEQUENTIAL_BLUES,
+    SERIES,
+    TEXT,
+    TEXT_SECONDARY,
+    apply_base_layout,
+    count_bar_figure,
+    horizontal_bar_height,
+    rate_bar_figure,
+)
+
+ONLINE_ENRICHMENT_FIELDS = {'lane_number', 'street_type', 'speed_limit', 'street_busy'}
+BLIND_SPOT_LABELS = {
+    'v1_lane': 'AV lane',
+    'v2_lane': 'Other party lane',
+    'v1_speed': 'AV speed',
+    'v2_speed': 'Other party speed',
+    'v1_intersection': 'AV intersection involvement',
+    'v2_intersection': 'Other party intersection involvement',
+    'direction': 'Direction of travel',
+    'lane_number': 'Number of lanes',
+    'street_type': 'Street type',
+    'street_busy': 'Street busyness',
+    'speed_limit': 'Speed limit',
+    'q0_confidence': 'Responsibility confidence',
+    'v1_damage_desc': 'AV damage description',
+    'v2_damage_desc': 'Other party damage description',
+}
+PROVENANCE_LABELS = {
+    'form_field_rate': 'Bounded form fields',
+    'checkbox_field_rate': 'Checkbox fields',
+    'narrative_field_rate': 'Narrative fields',
+    'online_field_rate': 'Online enrichment fields',
+}
+CONTEXT_SCORE_LABELS = {
+    'coarse_context_score': 'Coarse report context',
+    'fine_context_score': 'Fine report context',
+    'external_context_score': 'External (online) context',
+}
+ROAD_USER_GROUP_ORDER = ['Vehicle', 'Cyclist', 'Pedestrian', 'Other or object', 'Unknown']
+
+
+def _sentence_label(value: object) -> str:
+    """Returns the display label used across figures for a category value."""
+
+    return humanize_text(value)
+
+
+def _road_user_group(value: object) -> str:
+    """Groups detailed road user values into the categories shown in figures."""
+
+    text = str(value).strip().lower()
+    if text in {'vehicle', 'cyclist', 'pedestrian'}:
+        return text.capitalize()
+    if is_missing(value) or text in {'unknown', 'na', 'nan', ''}:
+        return 'Unknown'
+    return 'Other or object'
+
 
 
 def _format_series(series: pd.Series) -> pd.Series:
@@ -338,95 +399,33 @@ def _add_stacked_bar_segment_labels(
 
 
 def create_taxonomy_bar_figure(df: pd.DataFrame, top_n: int = 10) -> go.Figure:
-    """Creates a horizontal bar chart for the most common scenario classes.
+    """Creates a horizontal bar chart of scenario classes, labelled with count and share."""
 
-    Args:
-        df: Source dataframe.
-        top_n: Maximum number of scenario classes to display.
-
-    Returns:
-        A Plotly figure.
-    """
-
-    def _sentence_case_preserve_abbreviations(value: str) -> str:
-        text = humanize_text(value)
-        if text == 'NA':
-            return text
-
-        words = text.split()
-        if not words:
-            return text
-
-        formatted_words: list[str] = []
-        for index, word in enumerate(words):
-            if word.isupper():
-                formatted_words.append(word)
-            elif index == 0:
-                formatted_words.append(word.capitalize())
-            else:
-                formatted_words.append(word.lower())
-
-        return ' '.join(formatted_words)
-
-    counts = _top_counts(df, 'scenario_class', top_n)
-    counts['scenario_class'] = counts['scenario_class'].map(
-        _sentence_case_preserve_abbreviations
-    )
-
-    fig = px.bar(
-        counts,
-        x='count',
-        y='scenario_class',
-        orientation='h',
-        title='',
-    )
-    fig.update_layout(yaxis={'categoryorder': 'total ascending'})
-    fig = _apply_uniform_horizontal_bar_density(
-        fig,
-        n_bars=len(counts),
-    )
-    fig = _update_axis_labels(fig, x='count', y='scenario_class')
-    return _add_bar_value_labels(fig, numeric_axis='x', value_format='.0f')
-
+    counts = df['scenario_class'].astype(str).value_counts()
+    labels = [_sentence_label(value) for value in counts.index]
+    return count_bar_figure(labels, counts.tolist(), total=len(df), max_bars=max(top_n, 1),
+                            category_title='')
 
 def create_blind_spot_figure(df: pd.DataFrame, fields: list[str]) -> go.Figure:
     """Creates a post extraction unavailability chart for selected fields.
 
-    This figure deliberately describes what is unavailable after extraction.
-    It does not assume that an unavailable value was absent from the source
-    form or narrative.
-
-    Args:
-        df: Source dataframe.
-        fields: Ordered list of fields to evaluate for missingness.
-
-    Returns:
-        A Plotly figure.
+    This figure describes what is unavailable after extraction. It does not assume that an unavailable value was
+    absent from the source form or narrative. Report fields and online enrichment fields are coloured separately
+    because their unavailability has different causes.
     """
 
-    rows = []
     total = max(len(df), 1)
-
+    rows = []
     for field in fields:
-        if field in df.columns:
-            missing = int(df[field].map(is_missing).sum())
-        else:
-            missing = total
-
-        rows.append({
-            'field': humanize_field_name(field),
-            'missing_rate': missing / total,
-        })
-
-    frame = pd.DataFrame(rows).sort_values('missing_rate', ascending=True)
-    fig = px.bar(frame, x='missing_rate', y='field', orientation='h', title='')
-    fig = _apply_uniform_horizontal_bar_density(
-        fig,
-        n_bars=len(frame),
+        missing = int(df[field].map(is_missing).sum()) if field in df.columns else total
+        group = 'Online enrichment field' if field in ONLINE_ENRICHMENT_FIELDS else 'Report field'
+        rows.append((BLIND_SPOT_LABELS.get(field, humanize_field_name(field)), missing / total, group))
+    rows.sort(key=lambda r: -r[1])
+    return rate_bar_figure(
+        [r[0] for r in rows], [r[1] for r in rows], groups=[r[2] for r in rows],
+        group_colours={'Report field': PRIMARY, 'Online enrichment field': SERIES[1]},
+        value_title='Unavailable after extraction (share of reports)', decimals=1,
     )
-    fig = _update_axis_labels(fig, x='missing_rate', y='field')
-    return _add_bar_value_labels(fig, numeric_axis='x', value_format='.0%')
-
 
 def create_accountability_by_taxonomy_figure(
     df: pd.DataFrame,
@@ -675,186 +674,103 @@ def create_accountability_by_taxonomy_figure(
 
 
 def create_completeness_figure(df: pd.DataFrame) -> go.Figure:
-    """Creates a histogram of report completeness scores.
+    """Creates a bar chart of report completeness scores, one bar per observed score."""
 
-    Args:
-        df: Source dataframe.
-
-    Returns:
-        A Plotly figure.
-    """
-
-    series = pd.to_numeric(df['report_completeness_score'], errors='coerce').dropna()
+    series = pd.to_numeric(df['report_completeness_score'], errors='coerce').dropna().round(4)
     if series.empty:
         return go.Figure()
-
-    if float(series.min()) == float(series.max()):
-        bin_edges = np.array([float(series.min()) - 0.5, float(series.max()) + 0.5])
-    else:
-        bin_edges = np.histogram_bin_edges(series.to_numpy(), bins=20)
-
-    counts, edges = np.histogram(series.to_numpy(), bins=bin_edges)
-    frame = pd.DataFrame({
-        'bin_left': edges[:-1],
-        'bin_right': edges[1:],
-        'count': counts,
-    })
-    frame['bin_center'] = (frame['bin_left'] + frame['bin_right']) / 2
-    frame['bin_width'] = frame['bin_right'] - frame['bin_left']
-
-    fig = px.bar(frame, x='bin_center', y='count', title='')
-    fig.update_traces(
-        width=frame['bin_width'],
-        hovertemplate=(
-            'Range=%{customdata[0]:.3f} to %{customdata[1]:.3f}<br>'
-            'Count=%{y:.0f}<extra></extra>'
-        ),
-        customdata=frame[['bin_left', 'bin_right']].to_numpy(),
-    )
-    fig = _update_axis_labels(fig, x='report_completeness_score', y='count')
-    return _add_bar_value_labels(fig, numeric_axis='y', value_format='.0f')
-
+    counts = series.value_counts().sort_index()
+    total = int(counts.sum())
+    fig = go.Figure(go.Bar(
+        x=[f'{value:.0%}' for value in counts.index], y=counts.tolist(), marker=dict(color=PRIMARY),
+        text=[f'{int(c):,}' for c in counts], textposition='outside', cliponaxis=False,
+        textfont=dict(color=TEXT_SECONDARY), width=0.7,
+        customdata=[100 * c / total for c in counts],
+        hovertemplate='Completeness %{x}<br>%{y:,} reports (%{customdata:.1f}%)<extra></extra>',
+    ))
+    apply_base_layout(fig, height=560)
+    fig.update_xaxes(title_text='Report completeness (share of core fields available)', type='category',
+                     showgrid=False)
+    fig.update_yaxes(title_text='Number of reports', showgrid=True, gridcolor=GRID,
+                     range=[0, counts.max() * 1.15], tickformat=',', tickfont=dict(color=TEXT_SECONDARY))
+    return fig
 
 def create_taxonomy_by_road_user_figure(
     df: pd.DataFrame,
     top_n: int = 8,
 ) -> go.Figure:
-    """Creates a heatmap of road user type by scenario class.
+    """Creates a heatmap of scenario class by road user group (counts, single-hue scale)."""
 
-    Args:
-        df: Source dataframe.
-        top_n: Maximum number of scenario classes to include.
-
-    Returns:
-        A Plotly figure. Returns an empty figure when no data is available.
-    """
-
-    top_taxonomy = df['scenario_class'].astype(str).value_counts().head(top_n).index.tolist()
+    working = df.copy()
+    working['road_user_group'] = working['road_user_type'].map(_road_user_group)
+    top_taxonomy = working['scenario_class'].astype(str).value_counts().head(top_n).index.tolist()
+    working = working.loc[working['scenario_class'].astype(str).isin(top_taxonomy)]
     pivot = (
-        df.loc[df['scenario_class'].astype(str).isin(top_taxonomy)]
-        .groupby(['road_user_type', 'scenario_class'])
-        .size()
-        .reset_index(name='count')
-        .pivot(index='road_user_type', columns='scenario_class', values='count')
-        .fillna(0)
+        working.groupby(['scenario_class', 'road_user_group']).size().unstack(fill_value=0)
+        .reindex(index=top_taxonomy, columns=[c for c in ROAD_USER_GROUP_ORDER if c in set(working['road_user_group'])],
+                 fill_value=0)
     )
-
     if pivot.empty:
         return go.Figure()
-
-    pivot.index = [humanize_text(value) for value in pivot.index]
-    pivot.columns = [humanize_text(value) for value in pivot.columns]
-
-    fig = px.imshow(pivot, aspect='auto', title='')
-    fig.update_traces(text=pivot.to_numpy(), texttemplate='%{text:.0f}')
-    return _update_axis_labels(fig, x='scenario_class', y='road_user_type')
-
+    rows = [_sentence_label(v) for v in pivot.index]
+    cols = [f'{c}<br>(n = {int(pivot[c].sum()):,})' for c in pivot.columns]
+    values = pivot.to_numpy()
+    vmax = float(values.max())
+    fig = go.Figure(go.Heatmap(
+        z=values, x=cols, y=rows, xgap=2, ygap=2,
+        colorscale=[[i / (len(SEQUENTIAL_BLUES) - 1), c] for i, c in enumerate(SEQUENTIAL_BLUES)],
+        zmin=0, zmax=vmax, colorbar=dict(title='Reports', outlinewidth=0),
+        hovertemplate='%{y}<br>%{x}<br>%{z:,} reports<extra></extra>',
+    ))
+    # Dark cells get light text, light cells dark text; empty cells stay blank.
+    annotations_colour = [['#ffffff' if v > vmax * 0.45 else TEXT for v in row] for row in values]
+    for i, row in enumerate(values):
+        for j, v in enumerate(row):
+            if v:
+                fig.add_annotation(x=cols[j], y=rows[i], text=f'{int(v):,}', showarrow=False,
+                                   font=dict(color=annotations_colour[i][j]))
+    apply_base_layout(fig, height=horizontal_bar_height(len(rows)) + 40)
+    fig.update_xaxes(title_text='Other road user', showgrid=False, side='top', tickfont=dict(color=TEXT))
+    fig.update_yaxes(title_text='', autorange='reversed')
+    return fig
 
 def create_provenance_availability_figure(df: pd.DataFrame) -> go.Figure:
-    """Creates a provenance availability rate bar chart.
-
-    Args:
-        df: Source dataframe.
-
-    Returns:
-        A Plotly figure.
-    """
+    """Creates a bar chart of mean field availability by provenance type."""
 
     rows = []
-    for field in [
-        'form_field_rate',
-        'checkbox_field_rate',
-        'narrative_field_rate',
-        'online_field_rate',
-    ]:
+    for field, label in PROVENANCE_LABELS.items():
         if field in df.columns:
-            rows.append({
-                'provenance': humanize_text(field.replace('_field_rate', '')),
-                'availability_rate': float(
-                    pd.to_numeric(df[field], errors='coerce').mean()
-                ),
-            })
-
-    summary = pd.DataFrame(rows).sort_values('availability_rate', ascending=True)
-    fig = px.bar(summary, x='availability_rate', y='provenance', orientation='h', title='')
-    fig = _update_axis_labels(fig, x='availability_rate', y='provenance')
-    return _add_bar_value_labels(fig, numeric_axis='x', value_format='.0%')
-
+            rows.append((label, float(pd.to_numeric(df[field], errors='coerce').mean())))
+    return rate_bar_figure([r[0] for r in rows], [r[1] for r in rows],
+                           value_title='Mean availability after extraction')
 
 def create_context_gap_figure(df: pd.DataFrame) -> go.Figure:
-    """Compares coarse, fine report, and external context availability.
+    """Compares mean coarse, fine report, and external context availability."""
 
-    Args:
-        df: Source dataframe.
-
-    Returns:
-        A Plotly figure.
-    """
-
-    frame = pd.DataFrame([
-        {
-            'context_type': humanize_field_name('coarse_context_score'),
-            'mean_score': float(
-                pd.to_numeric(df['coarse_context_score'], errors='coerce').mean()
-            ),
-        },
-        {
-            'context_type': humanize_field_name('fine_context_score'),
-            'mean_score': float(
-                pd.to_numeric(df['fine_context_score'], errors='coerce').mean()
-            ),
-        },
-        {
-            'context_type': humanize_field_name('external_context_score'),
-            'mean_score': float(
-                pd.to_numeric(
-                    df['external_context_score'],
-                    errors='coerce',
-                ).mean()
-            ),
-        },
-    ])
-
-    fig = px.bar(frame, x='context_type', y='mean_score', title='')
-    fig = _update_axis_labels(fig, x='context_type', y='mean_score')
-    return _add_bar_value_labels(fig, numeric_axis='y', value_format='.2f')
-
+    rows = []
+    for field, label in CONTEXT_SCORE_LABELS.items():
+        if field in df.columns:
+            rows.append((label, float(pd.to_numeric(df[field], errors='coerce').mean())))
+    return rate_bar_figure([r[0] for r in rows], [r[1] for r in rows],
+                           value_title='Mean context availability score')
 
 def create_consistency_figure(df: pd.DataFrame) -> go.Figure:
-    """Creates a count chart for cross field movement agreement.
+    """Creates a count chart for cross field movement agreement, from agreement to missing."""
 
-    Args:
-        df: Source dataframe.
-
-    Returns:
-        A Plotly figure.
-    """
-
-    field = (
-        'movement_field_agreement'
-        if 'movement_field_agreement' in df.columns
-        else 'movement_consistency_overall'
+    field = 'movement_field_agreement' if 'movement_field_agreement' in df.columns else 'movement_consistency_overall'
+    return _ordered_count_figure(
+        df, field,
+        order=['exact_agreement', 'compatible_agreement', 'contradictory', 'one_or_more_sources_missing',
+               'both_sources_missing'],
+        colours={'exact_agreement': PRIMARY, 'compatible_agreement': PRIMARY, 'contradictory': SERIES[1],
+                 'one_or_more_sources_missing': MISSING_COLOUR, 'both_sources_missing': MISSING_COLOUR},
     )
-    counts = df[field].astype(str).value_counts(dropna=False).reset_index()
-    counts.columns = [field, 'count']
-    counts[field] = _format_series(counts[field])
-
-    fig = px.bar(counts, x=field, y='count', title='')
-    fig = _update_axis_labels(fig, x=field, y='count')
-    return _add_bar_value_labels(fig, numeric_axis='y', value_format='.0f')
-
 
 def create_determinability_figure(df: pd.DataFrame) -> go.Figure:
-    """Creates a count chart for internal scenario rule support groups.
+    """Creates a count chart for internal scenario rule support groups (high to low).
 
-    Rule support measures how strongly the available extracted fields support
-    the deterministic assignment. It is not a validated accuracy estimate.
-
-    Args:
-        df: Source dataframe.
-
-    Returns:
-        A Plotly figure.
+    Rule support measures how strongly the available extracted fields support the deterministic assignment. It
+    is not a validated accuracy estimate.
     """
 
     field = (
@@ -862,96 +778,46 @@ def create_determinability_figure(df: pd.DataFrame) -> go.Figure:
         if 'scenario_rule_support_group' in df.columns
         else 'scenario_determinability_group'
     )
-    counts = df[field].astype(str).value_counts(dropna=False).reset_index()
-    counts.columns = [field, 'count']
-    counts[field] = _format_series(counts[field])
-
-    fig = px.bar(counts, x=field, y='count', title='')
-    fig = _update_axis_labels(fig, x=field, y='count')
-    return _add_bar_value_labels(fig, numeric_axis='y', value_format='.0f')
-
+    return _ordered_count_figure(df, field, order=['high', 'medium', 'low'])
 
 def create_environment_profile_figure(df: pd.DataFrame) -> go.Figure:
-    """Creates a count chart for environment friction profiles.
+    """Creates a count chart for environment friction profiles."""
 
-    Args:
-        df: Source dataframe.
-
-    Returns:
-        A Plotly figure.
-    """
-
-    counts = df['environment_friction_profile'].astype(str).value_counts(dropna=False).reset_index()
-    counts.columns = ['environment_friction_profile', 'count']
-    counts['environment_friction_profile'] = _format_series(
-        counts['environment_friction_profile']
-    )
-
-    fig = px.bar(counts, x='environment_friction_profile', y='count', title='')
-    fig = _update_axis_labels(fig, x='environment_friction_profile', y='count')
-    return _add_bar_value_labels(fig, numeric_axis='y', value_format='.0f')
-
+    return _ordered_count_figure(df, 'environment_friction_profile')
 
 def create_blame_alignment_figure(df: pd.DataFrame) -> go.Figure:
-    """Creates a count chart for blame confidence alignment.
+    """Creates a count chart for blame confidence alignment."""
 
-    Args:
-        df: Source dataframe.
-
-    Returns:
-        A Plotly figure.
-    """
-
-    counts = df['blame_confidence_alignment'].astype(str).value_counts(dropna=False).reset_index()
-    counts.columns = ['blame_confidence_alignment', 'count']
-    counts['blame_confidence_alignment'] = _format_series(
-        counts['blame_confidence_alignment']
+    return _ordered_count_figure(
+        df, 'blame_confidence_alignment',
+        colours={'high_confidence_low_evidence': SERIES[1]},
     )
-
-    fig = px.bar(counts, x='blame_confidence_alignment', y='count', title='')
-    fig = _update_axis_labels(fig, x='blame_confidence_alignment', y='count')
-    return _add_bar_value_labels(fig, numeric_axis='y', value_format='.0f')
-
 
 def create_stopped_av_subtype_figure(df: pd.DataFrame) -> go.Figure:
-    """Creates a count chart for non missing stopped AV subtypes.
+    """Creates a count chart for stopped AV subtypes (reports with a stopped AV only)."""
 
-    Args:
-        df: Source dataframe.
-
-    Returns:
-        A Plotly figure. Returns an empty figure when no rows are available.
-    """
-
-    working = df.loc[df['stopped_av_subtype'].astype(str) != 'NA'].copy()
-    if working.empty:
+    if df['stopped_av_subtype'].astype(str).ne('NA').sum() == 0:
         return go.Figure()
-
-    counts = working['stopped_av_subtype'].astype(str).value_counts(dropna=False).reset_index()
-    counts.columns = ['stopped_av_subtype', 'count']
-    counts['stopped_av_subtype'] = _format_series(counts['stopped_av_subtype'])
-
-    fig = px.bar(counts, x='stopped_av_subtype', y='count', title='')
-    fig = _update_axis_labels(fig, x='stopped_av_subtype', y='count')
-    return _add_bar_value_labels(fig, numeric_axis='y', value_format='.0f')
-
+    return _ordered_count_figure(df, 'stopped_av_subtype', drop={'NA', 'nan'})
 
 def create_intersection_detail_figure(df: pd.DataFrame) -> go.Figure:
-    """Creates a count chart for intersection detail quality.
+    """Creates a count chart for intersection detail quality."""
 
-    Args:
-        df: Source dataframe.
-
-    Returns:
-        A Plotly figure.
-    """
-
-    counts = df['intersection_detail_quality'].astype(str).value_counts(dropna=False).reset_index()
-    counts.columns = ['intersection_detail_quality', 'count']
-    counts['intersection_detail_quality'] = _format_series(
-        counts['intersection_detail_quality']
+    return _ordered_count_figure(
+        df, 'intersection_detail_quality',
+        order=['contextualised_intersection', 'intersection_flag_only', 'not_intersection_focused'],
     )
 
-    fig = px.bar(counts, x='intersection_detail_quality', y='count', title='')
-    fig = _update_axis_labels(fig, x='intersection_detail_quality', y='count')
-    return _add_bar_value_labels(fig, numeric_axis='y', value_format='.0f')
+def _ordered_count_figure(df: pd.DataFrame, field: str, order: list[str] | None = None,
+                          drop: set[str] | None = None, colours: dict[str, str] | None = None) -> go.Figure:
+    values = df[field].astype(str)
+    if drop:
+        values = values.loc[~values.isin(drop)]
+    counts = values.value_counts()
+    labels = [_sentence_label(v) for v in counts.index]
+    order_labels = [_sentence_label(v) for v in order] if order else None
+    colour_labels = {_sentence_label(k): v for k, v in (colours or {}).items()}
+    return count_bar_figure(labels, counts.tolist(), total=int(counts.sum()), order=order_labels,
+                            colours=colour_labels)
+
+

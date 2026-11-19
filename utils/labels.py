@@ -147,7 +147,8 @@ def _sentence_case_preserve_abbreviations(text: str) -> str:
             formatted_words.append(_TOKEN_OVERRIDES[lower])
             continue
 
-        if word.isupper():
+        # Keep abbreviations such as AV or V1, but not a single capitalised letter such as the article "A".
+        if word.isupper() and (len(word) > 1 or index == 0):
             formatted_words.append(word)
             continue
 
