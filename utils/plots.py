@@ -803,7 +803,7 @@ def _write_html(fig: go.Figure, path: Path, auto_open_html: bool) -> None:
     """
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig.write_html(str(path), auto_open=False, include_plotlyjs="cdn", full_html=True)
+    fig.write_html(str(path), auto_open=False, include_plotlyjs=True, full_html=True)
     maybe_open_html(path, auto_open_html)
 
 
