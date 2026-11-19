@@ -581,20 +581,24 @@ _validation/
 
 Both reviewers completed all 100 reports. Exact agreement is reported together with Cohen's kappa because kappa is affected by category prevalence.
 
+**Correction (November 2026).** An earlier version of this table used an export under `reviewer2` that was not the second reviewer's independent coding. The correct coding is the `reviewer3` set in `validation_exports_reviewer3.zip`, which covers the same 100 reports (validation set ID `6d23c2baa7387f94`) in the same presentation order. The table below uses Reviewer 1 and that `reviewer3` set as Human 2. To reproduce it with `analysis.py`, which expects the IDs `reviewer1` and `reviewer2`, relabel the `reviewer3` rows as `reviewer2` in a copy under `validation_results/complete/`. Do not edit the original exports. The Human 1 coding and the LLM vs Human 1 values did not change.
+
 | Variable | Human 1 vs Human 2 | LLM vs Human 1 | LLM vs Human 2 |
 | --- | ---: | ---: | ---: |
-| Road user type | 79.0% (κ = 0.58) | 78.0% (κ = 0.56) | 99.0% (κ = 0.97) |
-| AV operating mode | 100.0% (κ = 1.00) | 100.0% (κ = 1.00) | 100.0% (κ = 1.00) |
-| AV narrative movement | 56.0% (κ = 0.42) | 56.0% (κ = 0.43) | 96.0% (κ = 0.94) |
-| Other party narrative movement | 54.0% (κ = 0.43) | 51.0% (κ = 0.39) | 92.0% (κ = 0.89) |
-| AV checkbox movement | 94.0% (κ = 0.92) | 98.0% (κ = 0.97) | 96.0% (κ = 0.95) |
-| Other party checkbox movement | 94.0% (κ = 0.93) | 97.0% (κ = 0.96) | 97.0% (κ = 0.96) |
-| AV intersection status | 74.0% (κ = 0.57) | 77.0% (κ = 0.62) | 97.0% (κ = 0.95) |
-| Other party intersection status | 71.0% (κ = 0.56) | 74.0% (κ = 0.61) | 97.0% (κ = 0.95) |
-| AV collision type | 87.0% (κ = 0.83) | 92.0% (κ = 0.90) | 95.0% (κ = 0.93) |
-| Other party collision type | 86.0% (κ = 0.82) | 92.0% (κ = 0.89) | 94.0% (κ = 0.92) |
-| AV responsibility attribution | 94.0% (κ = 0.85) | 94.0% (κ = 0.85) | 100.0% (κ = 1.00) |
-| Derived scenario class | 75.0% (κ = 0.71) | 76.0% (κ = 0.72) | 88.0% (κ = 0.86) |
+| Road user type | 82.0% (κ = 0.71) | 78.0% (κ = 0.56) | 62.0% (κ = 0.30) |
+| AV operating mode | 98.0% (κ = 0.96) | 100.0% (κ = 1.00) | 98.0% (κ = 0.96) |
+| AV narrative movement | 75.0% (κ = 0.67) | 56.0% (κ = 0.43) | 53.0% (κ = 0.39) |
+| Other party narrative movement | 75.0% (κ = 0.71) | 51.0% (κ = 0.39) | 42.0% (κ = 0.30) |
+| AV checkbox movement | 99.0% (κ = 0.99) | 98.0% (κ = 0.97) | 99.0% (κ = 0.99) |
+| Other party checkbox movement | 96.0% (κ = 0.95) | 97.0% (κ = 0.96) | 97.0% (κ = 0.96) |
+| AV intersection status | 70.0% (κ = 0.50) | 77.0% (κ = 0.62) | 68.0% (κ = 0.51) |
+| Other party intersection status | 67.0% (κ = 0.51) | 74.0% (κ = 0.61) | 68.0% (κ = 0.54) |
+| AV collision type | 90.0% (κ = 0.87) | 92.0% (κ = 0.90) | 96.0% (κ = 0.95) |
+| Other party collision type | 90.0% (κ = 0.87) | 92.0% (κ = 0.89) | 96.0% (κ = 0.95) |
+| AV responsibility attribution | 85.0% (κ = 0.68) | 94.0% (κ = 0.85) | 86.0% (κ = 0.70) |
+| Derived scenario class | 84.0% (κ = 0.81) | 76.0% (κ = 0.72) | 76.0% (κ = 0.72) |
+
+"Not stated" and "present but ambiguous" are response options, not missing values, so two matching codes in these categories count as agreement. All fields were required, so every comparison uses all 100 reports. LLM `NA` values are mapped to `not_stated` before comparison. The values are unweighted and describe the stratified validation sample, not the full corpus. The derived validation outputs (`interrater_agreement.csv`, `llm_vs_each_reviewer.csv`, `human_derived_scenario_agreement.csv`) also report estimates weighted by inverse sampling probability. With weighting, scenario agreement is 89.2% between the reviewers and 80.4% and 83.2% between the LLM and Human 1 and Human 2.
 
 The two human coding sets are retained separately. Neither reviewer is treated as the sole gold standard for disputed fields, and reviewer specific LLM agreement values should not be averaged into a single extraction accuracy estimate. A future adjudicated reference, if created, should be stored separately from the original independent annotations.
 
@@ -642,6 +646,8 @@ To match the manuscript, reported values use the following precision:
 * counts: integers.
 
 ### Overview figures
+
+All figures are clickable: each image opens its interactive HTML version (Plotly is embedded in the HTML so it renders on htmlpreview).
 
 #### Accident overview Sankey diagram
 

@@ -117,3 +117,6 @@ output
 \reports
 LLM_query.json
 # figures
+
+# Manuscript drafts and reviewer correspondence
+paper/
