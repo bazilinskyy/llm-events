@@ -44,24 +44,18 @@ llm-events/
 │       └── ...
 ├── _output/
 ├── _validation/
-├── validation_results/
-│   └── complete/
-│       ├── human_annotations.csv
-│       ├── human_field_evidence.csv
-│       ├── human_disagreements.csv
-│       ├── interrater_agreement.csv
-│       ├── llm_vs_humans.csv
-│       ├── reviewer_orders.csv
-│       ├── validation_sample_manifest.csv
-│       ├── validation_set_id.txt
-│       ├── validation_100.csv
-│       └── validation.sqlite3
+├── validation_results/          # from the supplementary material, not in this repository
+│   ├── complete/
+│   │   ├── human_annotations.csv
+│   │   ├── reviewer_orders.csv
+│   │   └── validation_sample_manifest.csv
+│   └── analysis/                # created by analysis.py
 └── figures/
 ```
 
 `data/Output.csv` contains the LLM responses used by the analysis pipeline. `data/Reports/` contains the original California DMV PDF reports. `data/validation_100.csv` is the shared list of PDF filenames used for the two human reviewers.
 
-The `_output/` and `_validation/` directories are generated automatically. For the completed study, the frozen human validation artefacts should also be preserved under `validation_results/complete/` so that the exact validation sample, independent annotations, agreement outputs, and recorded reviewer order remain auditable.
+The `_output/`, `_validation/` and `validation_results/analysis/` directories are generated automatically. The human validation results are not stored in this repository: they are part of the paper's supplementary material, which also contains the report PDFs and the LLM responses. To reproduce the validation analysis, copy its `validation_results/complete/` folder into the project. That folder holds only what cannot be recomputed: the two reviewers' coding (`human_annotations.csv`), the order in which they saw the reports (`reviewer_orders.csv`) and the frozen validation sample with its strata and sampling weights (`validation_sample_manifest.csv`). `analysis.py` writes everything else to `validation_results/analysis/`, including the agreement tables, the coding in long format (`human_field_evidence.csv`) and supplementary tables S1 and S2. It also recreates the shared report list (`validation_100.csv`) and the validation set ID (`validation_set_id.txt`) in `validation_results/complete/` when they are missing.
 
 ## Getting started
 
@@ -581,7 +575,7 @@ _validation/
 
 Both reviewers completed all 100 reports. Exact agreement is reported together with Cohen's kappa because kappa is affected by category prevalence.
 
-**Correction (November 2026).** An earlier version of this table used Reviewer 2 coding that was not the second reviewer's independent coding. That coding has been removed. `validation_results/complete/` now holds the second reviewer's actual coding as `reviewer2`, for the same 100 reports (validation set ID `6d23c2baa7387f94`) in the same presentation order. `analysis.py` reproduces the table below from that folder. The Human 1 coding and the LLM vs Human 1 values did not change.
+**Correction (November 2026).** An earlier version of this table used Reviewer 2 coding that was not the second reviewer's independent coding. That coding has been removed. The `validation_results/complete/` folder in the supplementary material holds the second reviewer's actual coding as `reviewer2`, for the same 100 reports (validation set ID `6d23c2baa7387f94`) in the same presentation order. `analysis.py` reproduces the table below from that folder. The Human 1 coding and the LLM vs Human 1 values did not change.
 
 | Variable | Human 1 vs Human 2 | LLM vs Human 1 | LLM vs Human 2 |
 | --- | ---: | ---: | ---: |
@@ -598,7 +592,7 @@ Both reviewers completed all 100 reports. Exact agreement is reported together w
 | AV responsibility attribution | 85.0% (κ = 0.68) | 94.0% (κ = 0.85) | 86.0% (κ = 0.70) |
 | Derived scenario class | 84.0% (κ = 0.81) | 76.0% (κ = 0.72) | 76.0% (κ = 0.72) |
 
-"Not stated" and "present but ambiguous" are response options, not missing values, so two matching codes in these categories count as agreement. All fields were required, so every comparison uses all 100 reports. LLM `NA` values are mapped to `not_stated` before comparison. The values are unweighted and describe the stratified validation sample, not the full corpus. The derived validation outputs (`interrater_agreement.csv`, `llm_vs_each_reviewer.csv`, `human_derived_scenario_agreement.csv`) also report estimates weighted by inverse sampling probability. With weighting, scenario agreement is 89.2% between the reviewers and 80.4% and 83.2% between the LLM and Human 1 and Human 2.
+"Not stated" and "present but ambiguous" are response options, not missing values, so two matching codes in these categories count as agreement. All fields were required, so every comparison uses all 100 reports. LLM `NA` values are mapped to `not_stated` before comparison. The values are unweighted and describe the stratified validation sample, not the full corpus. The derived validation outputs that `analysis.py` writes to `validation_results/analysis/` (`interrater_agreement.csv`, `llm_vs_each_reviewer.csv`, `human_derived_scenario_agreement.csv`) also report estimates weighted by inverse sampling probability. With weighting, scenario agreement is 89.2% between the reviewers and 80.4% and 83.2% between the LLM and Human 1 and Human 2.
 
 The two human coding sets are retained separately. Neither reviewer is treated as the sole gold standard for disputed fields, and reviewer specific LLM agreement values should not be averaged into a single extraction accuracy estimate. A future adjudicated reference, if created, should be stored separately from the original independent annotations.
 

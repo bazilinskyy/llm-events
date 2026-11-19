@@ -120,3 +120,6 @@ LLM_query.json
 
 # Manuscript drafts and reviewer correspondence
 paper/
+
+# Validation results: shared as supplementary material, not in the repository
+validation_results/

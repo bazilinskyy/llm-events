@@ -42,6 +42,7 @@ This module orchestrates the full workflow:
 * logging key descriptive and interpretive results
 """
 
+import hashlib
 import json
 import re
 from dataclasses import dataclass
@@ -2048,6 +2049,21 @@ VALIDATION_FIELD_LABELS = {
     'direction_presence': 'Direction source presence',
 }
 
+# Fields of one reviewer record, in the order used by the validation interface (human_validation.ANNOTATION_FIELDS).
+VALIDATION_ANNOTATION_FIELDS = [
+    'road_user_type_human', 'av_mode_human', 'v1_move_narrative_human', 'v2_move_narrative_human',
+    'move_v1_checkbox_human', 'move_v2_checkbox_human', 'v1_intersection_human', 'v2_intersection_human',
+    'collision_v1_human', 'collision_v2_human', 'parked_or_curbside_cue_human',
+    'obstruction_yield_blocked_cue_human', 'v1_injury_human', 'v2_injury_human', 'av_responsibility_human',
+    'responsibility_explanation', 'v1_lane_presence', 'v1_lane_value', 'v2_lane_presence', 'v2_lane_value',
+    'v1_speed_presence', 'v1_speed_value', 'v2_speed_presence', 'v2_speed_value', 'direction_presence',
+    'direction_value', 'general_notes',
+]
+
+# Codes that say the source gives no usable answer. Pairs in which both coders chose one of them are excluded in
+# supplementary table S2.
+VALIDATION_NON_SUBSTANTIVE_CODES = {'not_stated', 'ambiguous', 'unclear'}
+
 VALIDATION_SCENARIO_INPUT_FIELDS = [
     'road_user_type_human',
     'v1_move_narrative_human',
@@ -2556,6 +2572,119 @@ def _resolve_validation_analysis_dir(project_root: Path) -> Path:
     return path.resolve()
 
 
+def _validation_set_fingerprint(report_names: list[str]) -> str:
+    """Returns the 16 character ID of a validation set, as computed by human_validation.py.
+
+    The ID ignores row order and filename case, so it identifies the set of reports only.
+    """
+
+    names = sorted({Path(str(name).strip()).name for name in report_names if str(name).strip()}, key=str.lower)
+    canonical = '\n'.join(name.lower() for name in names)
+    return hashlib.sha256(canonical.encode('utf-8')).hexdigest()[:16]
+
+
+def _validation_restore_derived_inputs(results_dir: Path, manifest: pd.DataFrame) -> None:
+    """Writes the shared report list and the validation set ID next to the frozen manifest if they are missing.
+
+    Both follow from the manifest: the list is its report names (sorted as human_validation.py writes it) and the ID
+    is the fingerprint of that list. Existing files are never replaced.
+    """
+
+    names = sorted(
+        {Path(str(name).strip()).name for name in manifest['source_report'] if str(name).strip()},
+        key=str.lower,
+    )
+    list_path = results_dir / 'validation_100.csv'
+    if not list_path.exists():
+        pd.DataFrame({'pdf_name': names}).to_csv(list_path, index=False)
+        logger.info('Wrote the validation report list to {}.', list_path)
+    set_id_path = results_dir / 'validation_set_id.txt'
+    if not set_id_path.exists():
+        set_id_path.write_text(_validation_set_fingerprint(names) + '\n', encoding='utf-8')
+        logger.info('Wrote the validation set ID to {}.', set_id_path)
+
+
+def _validation_field_evidence_table(results_dir: Path) -> pd.DataFrame:
+    """Returns the reviewer coding in long format: one row per reviewer, report and field."""
+
+    annotations = pd.read_csv(results_dir / 'human_annotations.csv', dtype=str, keep_default_na=False)
+    rows = [
+        {
+            'reviewer_id': row['reviewer_id'],
+            'validation_id': row['validation_id'],
+            'field': field,
+            'human_value': row.get(field, ''),
+            'submitted_at': row.get('submitted_at', ''),
+        }
+        for _, row in annotations.iterrows()
+        for field in VALIDATION_ANNOTATION_FIELDS
+    ]
+    return pd.DataFrame(rows)
+
+
+def _validation_supplementary_tables(
+    interrater: pd.DataFrame,
+    llm_vs_reviewer: pd.DataFrame,
+    scenario_summary: pd.DataFrame,
+    annotations: pd.DataFrame,
+    manifest: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Builds supplementary tables S1 and S2 of the paper.
+
+    S1 lists unweighted and sampling weighted agreement for Human 1 vs Human 2 and for the LLM vs each human,
+    including the derived scenario class. S2 repeats the unweighted agreement after excluding pairs in which both
+    coders chose a non substantive code (not stated, ambiguous or unclear).
+    """
+
+    labels = {'reviewer1': 'Human 1', 'reviewer2': 'Human 2'}
+    human = interrater.copy()
+    human.insert(0, 'comparison', 'Human 1 vs Human 2')
+    llm = llm_vs_reviewer.copy()
+    llm.insert(0, 'comparison', 'LLM vs ' + llm.pop('reviewer_id').map(labels))
+    llm = llm.rename(columns={'n': 'n_both_coded'}).drop(columns=['llm_field'])
+    scenario = scenario_summary.loc[scenario_summary['comparison'].ne('llm_vs_human_reference')].copy()
+    scenario['comparison'] = scenario['comparison'].map({
+        'reviewer1_vs_reviewer2': 'Human 1 vs Human 2',
+        'llm_vs_reviewer1': 'LLM vs Human 1',
+        'llm_vs_reviewer2': 'LLM vs Human 2',
+    })
+    scenario = scenario.rename(columns={'n': 'n_both_coded'})
+    scenario['field'] = 'derived_scenario_class'
+    scenario['field_label'] = 'Derived scenario class'
+    s1 = pd.concat([human, llm, scenario], ignore_index=True)
+    for column in ['exact_agreement', 'cohen_kappa', 'weighted_exact_agreement', 'weighted_cohen_kappa']:
+        s1[column] = s1[column].round(4)
+
+    indexed_manifest = manifest.set_index('validation_id')
+    first = annotations.loc[annotations['reviewer_id'].eq('reviewer1')].set_index('validation_id')
+    second = annotations.loc[annotations['reviewer_id'].eq('reviewer2')].set_index('validation_id').loc[first.index]
+    rows = []
+    for human_field, llm_field in VALIDATION_LLM_FIELD_MAP.items():
+        if human_field not in first:
+            continue
+        llm_values = indexed_manifest.loc[first.index, llm_field]
+        for name, left, right in [
+            ('Human 1 vs Human 2', first[human_field], second[human_field]),
+            ('LLM vs Human 1', llm_values, first[human_field]),
+            ('LLM vs Human 2', llm_values, second[human_field]),
+        ]:
+            left = left.astype(str)
+            right = right.astype(str)
+            joint = left.isin(VALIDATION_NON_SUBSTANTIVE_CODES) & right.isin(VALIDATION_NON_SUBSTANTIVE_CODES)
+            metrics = _validation_agreement_metrics(left[~joint], right[~joint])
+            rows.append({
+                'comparison': name,
+                'field': human_field,
+                'field_label': VALIDATION_FIELD_LABELS.get(human_field, human_field),
+                'n_total': len(left),
+                'n_joint_not_stated_or_ambiguous': int(joint.sum()),
+                'n_both_coded': metrics['n'],
+                'exact_agreement': round(metrics['exact_agreement'], 4),
+                'cohen_kappa': round(metrics['cohen_kappa'], 4),
+            })
+    return s1, pd.DataFrame(rows)
+
+
 # ==========================================================================
 # Developer documentation for `_validation_load_completed_data`
 # ==========================================================================
@@ -2612,6 +2741,7 @@ def _validation_load_completed_data(
 
     annotations = pd.read_csv(annotations_path)
     manifest = pd.read_csv(manifest_path)
+    _validation_restore_derived_inputs(results_dir, manifest)
 
     required_annotation_columns = {
         'reviewer_id',
@@ -4323,6 +4453,25 @@ def analyse_human_validation_results(
     )
     ambiguous_detail.to_csv(
         analysis_dir / 'other_or_ambiguous_breakdown.csv',
+        index=False,
+    )
+    _validation_field_evidence_table(_resolve_validation_results_dir(project_root)).to_csv(
+        analysis_dir / 'human_field_evidence.csv',
+        index=False,
+    )
+    supplementary_s1, supplementary_s2 = _validation_supplementary_tables(
+        interrater,
+        llm_vs_reviewer,
+        scenario_summary,
+        annotations,
+        manifest,
+    )
+    supplementary_s1.to_csv(
+        analysis_dir / 'S1_agreement_unweighted_and_sampling_weighted.csv',
+        index=False,
+    )
+    supplementary_s2.to_csv(
+        analysis_dir / 'S2_agreement_excluding_joint_not_stated.csv',
         index=False,
     )
 

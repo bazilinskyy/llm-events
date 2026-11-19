@@ -1376,6 +1376,26 @@ def _validation_set_id(report_names: list[str]) -> str:
 #   If this helper changes study behaviour, update the README and preserve the previous frozen study artefacts.
 # ==========================================================================
 
+def _restore_validation_list_from_frozen_manifest() -> None:
+    """Recreate a missing shared list from the frozen manifest of the completed study.
+
+    The completed study keeps its sample in ``validation_results/complete/validation_sample_manifest.csv``. When
+    the shared list is missing but that manifest exists, the list is rebuilt from it, so the interface reopens the
+    same 100 reports instead of drawing a new sample.
+    """
+
+    try:
+        results_dir = common.get_configs("validation_results_dir")
+    except KeyError:
+        results_dir = "validation_results/complete"
+    manifest_path = _resolve_repo_path(results_dir) / "validation_sample_manifest.csv"
+    if not manifest_path.exists():
+        return
+    names = pd.read_csv(manifest_path)["source_report"].dropna().astype(str).tolist()
+    _write_validation_pdf_list(names)
+    print(f"Recreated the validation list {VALIDATION_LIST_PATH} from {manifest_path}.")
+
+
 def _read_validation_pdf_list() -> list[str]:
     """Read the authoritative set of 100 PDF filenames from CSV or plain text.
 
@@ -1384,6 +1404,8 @@ def _read_validation_pdf_list() -> list[str]:
     as a filter and can be shared instead of copying a separate 100-PDF folder.
     """
 
+    if not VALIDATION_LIST_PATH.exists():
+        _restore_validation_list_from_frozen_manifest()
     if not VALIDATION_LIST_PATH.exists():
         return []
 
