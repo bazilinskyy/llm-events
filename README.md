@@ -581,7 +581,7 @@ _validation/
 
 Both reviewers completed all 100 reports. Exact agreement is reported together with Cohen's kappa because kappa is affected by category prevalence.
 
-**Correction (November 2026).** An earlier version of this table used an export under `reviewer2` that was not the second reviewer's independent coding. The correct coding is the `reviewer3` set in `validation_exports_reviewer3.zip`, which covers the same 100 reports (validation set ID `6d23c2baa7387f94`) in the same presentation order. The table below uses Reviewer 1 and that `reviewer3` set as Human 2. To reproduce it with `analysis.py`, which expects the IDs `reviewer1` and `reviewer2`, relabel the `reviewer3` rows as `reviewer2` in a copy under `validation_results/complete/`. Do not edit the original exports. The Human 1 coding and the LLM vs Human 1 values did not change.
+**Correction (November 2026).** An earlier version of this table used Reviewer 2 coding that was not the second reviewer's independent coding. That coding has been removed. `validation_results/complete/` now holds the second reviewer's actual coding as `reviewer2`, for the same 100 reports (validation set ID `6d23c2baa7387f94`) in the same presentation order. `analysis.py` reproduces the table below from that folder. The Human 1 coding and the LLM vs Human 1 values did not change.
 
 | Variable | Human 1 vs Human 2 | LLM vs Human 1 | LLM vs Human 2 |
 | --- | ---: | ---: | ---: |

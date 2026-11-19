@@ -1,0 +1,14 @@
+field,field_label,llm_field,n_reference_available,n_human_consensus,n_adjudicated,exact_agreement,cohen_kappa,weighted_exact_agreement,weighted_cohen_kappa
+road_user_type_human,Road user type,road_user_type_llm,82,82,0,0.7560975609756098,0.3357634669906845,0.8085289886699294,0.1823699217190621
+av_mode_human,AV operating mode,av_mode_llm,98,98,0,1.0,1.0,1.0,1.0
+v1_move_narrative_human,AV narrative movement,v1_move_narrative_llm,75,75,0,0.6266666666666667,0.4902912621359224,0.6121775817649835,0.4397033130523419
+v2_move_narrative_human,Other party narrative movement,v2_move_narrative_llm,75,75,0,0.5333333333333333,0.4153674832962138,0.580924605372473,0.4141240384058079
+move_v1_checkbox_human,AV checkbox movement,move_v1_checkbox_llm,99,99,0,0.98989898989899,0.9872422680412372,0.9989680082559338,0.9986234740554022
+move_v2_checkbox_human,Other party checkbox movement,move_v2_checkbox_llm,96,96,0,0.9895833333333334,0.9870637380406954,0.9989249431115729,0.9986281724794395
+v1_intersection_human,AV intersection status,v1_intersection_llm,70,70,0,0.9,0.8133333333333334,0.9539998145489507,0.9042269197634829
+v2_intersection_human,Other party intersection status,v2_intersection_llm,67,67,0,0.8656716417910447,0.7854855923159018,0.9279215158161456,0.8638707532483151
+collision_v1_human,AV collision type,collision_v1_llm,90,90,0,0.9888888888888889,0.9854955680902499,0.9935938415195379,0.9911106514205277
+collision_v2_human,Other party collision type,collision_v2_llm,90,90,0,0.9888888888888889,0.9852893102321021,0.9935938415195379,0.9917971716460021
+v1_injury_human,AV occupant injury,v1_injury_llm,91,91,0,0.9560439560439561,0.7301704966641961,0.9766170139060721,0.8784927183208787
+v2_injury_human,Other party injury,v2_injury_llm,83,83,0,0.9759036144578314,0.49079754601227005,0.9955309905491736,0.5528638756552091
+av_responsibility_human,AV responsibility attribution,blame_group_llm,85,85,0,0.9764705882352941,0.939329050678087,0.9937347359700374,0.9784451575208226

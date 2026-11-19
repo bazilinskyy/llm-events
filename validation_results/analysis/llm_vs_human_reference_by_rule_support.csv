@@ -1,0 +1,40 @@
+sampling_support_group,field,field_label,n_reference_available,exact_agreement,cohen_kappa,weighted_exact_agreement,weighted_cohen_kappa
+high,road_user_type_human,Road user type,50,0.8,0.3961352657004833,0.8025444923977856,0.18302711773141514
+high,av_mode_human,AV operating mode,53,1.0,1.0,1.0,1.0
+high,v1_move_narrative_human,AV narrative movement,46,0.6521739130434783,0.4903047091412742,0.615097287969884,0.4175110282753235
+high,v2_move_narrative_human,Other party narrative movement,38,0.4473684210526316,0.29876977152899825,0.5213242846309646,0.31992141413752406
+high,move_v1_checkbox_human,AV checkbox movement,55,1.0,1.0,1.0,1.0
+high,move_v2_checkbox_human,Other party checkbox movement,52,1.0,1.0,1.0,1.0
+high,v1_intersection_human,AV intersection status,43,0.9767441860465116,0.9518477043673012,0.9739605349926448,0.94412917087391
+high,v2_intersection_human,Other party intersection status,41,0.975609756097561,0.9511904761904761,0.9732846443084582,0.9443945434474467
+high,collision_v1_human,AV collision type,53,1.0,1.0,1.0,1.0
+high,collision_v2_human,Other party collision type,53,1.0,1.0,1.0,1.0
+high,v1_injury_human,AV occupant injury,49,1.0,1.0,1.0,1.0
+high,v2_injury_human,Other party injury,47,1.0,1.0,1.0,1.0
+high,av_responsibility_human,AV responsibility attribution,50,1.0,1.0,1.0,1.0
+medium,road_user_type_human,Road user type,25,0.76,0.33920704845815,0.8570857964531075,0.19024917588361812
+medium,av_mode_human,AV operating mode,30,1.0,1.0,1.0,1.0
+medium,v1_move_narrative_human,AV narrative movement,19,0.631578947368421,0.49621212121212116,0.6057154908784141,0.4685491275471321
+medium,v2_move_narrative_human,Other party narrative movement,25,0.56,0.44779116465863467,0.7182305865798961,0.5957897120220709
+medium,move_v1_checkbox_human,AV checkbox movement,30,1.0,1.0,1.0,1.0
+medium,move_v2_checkbox_human,Other party checkbox movement,30,1.0,1.0,1.0,1.0
+medium,v1_intersection_human,AV intersection status,19,0.8421052631578947,0.715,0.9139832678845826,0.8280204020180729
+medium,v2_intersection_human,Other party intersection status,17,0.7647058823529411,0.6421052631578946,0.8047779298102882,0.6653434901893355
+medium,collision_v1_human,AV collision type,24,0.9583333333333334,0.9494736842105264,0.9721883173496075,0.9638977167127933
+medium,collision_v2_human,Other party collision type,24,0.9583333333333334,0.9308357348703171,0.9721883173496075,0.9584228017954277
+medium,v1_injury_human,AV occupant injury,30,0.9,0.6218487394957983,0.9247900693683826,0.7557089101992094
+medium,v2_injury_human,Other party injury,25,0.96,0.0,0.9949986359916341,0.0
+medium,av_responsibility_human,AV responsibility attribution,24,1.0,1.0,1.0,1.0
+low,road_user_type_human,Road user type,7,0.42857142857142855,0.09677419354838711,0.42857142857142855,0.09677419354838711
+low,av_mode_human,AV operating mode,15,1.0,1.0,1.0,1.0
+low,v1_move_narrative_human,AV narrative movement,10,0.5,0.4117647058823529,0.5853658536585366,0.4836080755695499
+low,v2_move_narrative_human,Other party narrative movement,12,0.75,0.2,0.6333333333333333,0.1743119266055045
+low,move_v1_checkbox_human,AV checkbox movement,14,0.9285714285714286,0.9113924050632912,0.9642857142857143,0.9537285684775872
+low,move_v2_checkbox_human,Other party checkbox movement,14,0.9285714285714286,0.8541666666666667,0.9642857142857143,0.9358350042967631
+low,v1_intersection_human,AV intersection status,8,0.625,0.3142857142857143,0.6415094339622641,0.4152148664343785
+low,v2_intersection_human,Other party intersection status,9,0.5555555555555556,0.18181818181818193,0.5964912280701754,0.27848101265822794
+low,collision_v1_human,AV collision type,13,1.0,1.0,1.0,1.0
+low,collision_v2_human,Other party collision type,13,1.0,1.0,1.0,1.0
+low,v1_injury_human,AV occupant injury,12,0.9166666666666666,0.0,0.8777777777777778,0.0
+low,v2_injury_human,Other party injury,11,0.9090909090909091,0.0,0.872093023255814,0.0
+low,av_responsibility_human,AV responsibility attribution,11,0.8181818181818182,0.6944444444444445,0.7634408602150538,0.5921052631578947

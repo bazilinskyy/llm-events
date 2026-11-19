@@ -1,0 +1,40 @@
+comparison,field,field_label,n_total,n_joint_not_stated_or_ambiguous,n_both_coded,exact_agreement,cohen_kappa
+Human 1 vs Human 2,road_user_type_human,Road user type,100,0,100,0.82,0.7128
+LLM vs Human 1,road_user_type_human,Road user type,100,12,88,0.75,0.3296
+LLM vs Human 2,road_user_type_human,Road user type,100,0,100,0.62,0.304
+Human 1 vs Human 2,av_mode_human,AV operating mode,100,1,99,0.9798,0.9593
+LLM vs Human 1,av_mode_human,AV operating mode,100,1,99,1.0,1.0
+LLM vs Human 2,av_mode_human,AV operating mode,100,1,99,0.9798,0.9593
+Human 1 vs Human 2,v1_move_narrative_human,AV narrative movement,100,1,99,0.7475,0.6693
+LLM vs Human 1,v1_move_narrative_human,AV narrative movement,100,2,98,0.551,0.4131
+LLM vs Human 2,v1_move_narrative_human,AV narrative movement,100,7,93,0.5161,0.3549
+Human 1 vs Human 2,v2_move_narrative_human,Other party narrative movement,100,17,83,0.6988,0.6449
+LLM vs Human 1,v2_move_narrative_human,Other party narrative movement,100,22,78,0.3718,0.2397
+LLM vs Human 2,v2_move_narrative_human,Other party narrative movement,100,21,79,0.2911,0.1774
+Human 1 vs Human 2,move_v1_checkbox_human,AV checkbox movement,100,13,87,0.9885,0.9847
+LLM vs Human 1,move_v1_checkbox_human,AV checkbox movement,100,13,87,0.977,0.9695
+LLM vs Human 2,move_v1_checkbox_human,AV checkbox movement,100,13,87,0.9885,0.9847
+Human 1 vs Human 2,move_v2_checkbox_human,Other party checkbox movement,100,32,68,0.9412,0.9279
+LLM vs Human 1,move_v2_checkbox_human,Other party checkbox movement,100,31,69,0.9565,0.9473
+LLM vs Human 2,move_v2_checkbox_human,Other party checkbox movement,100,33,67,0.9552,0.9451
+Human 1 vs Human 2,v1_intersection_human,AV intersection status,100,1,99,0.7071,0.5048
+LLM vs Human 1,v1_intersection_human,AV intersection status,100,5,95,0.7579,0.5783
+LLM vs Human 2,v1_intersection_human,AV intersection status,100,6,94,0.7128,0.5315
+Human 1 vs Human 2,v2_intersection_human,Other party intersection status,100,9,91,0.6484,0.4376
+LLM vs Human 1,v2_intersection_human,Other party intersection status,100,14,86,0.6977,0.5
+LLM vs Human 2,v2_intersection_human,Other party intersection status,100,18,82,0.6585,0.4549
+Human 1 vs Human 2,collision_v1_human,AV collision type,100,34,66,0.8485,0.8106
+LLM vs Human 1,collision_v1_human,AV collision type,100,35,65,0.8769,0.845
+LLM vs Human 2,collision_v1_human,AV collision type,100,41,59,0.9322,0.9132
+Human 1 vs Human 2,collision_v2_human,Other party collision type,100,36,64,0.8438,0.7997
+LLM vs Human 1,collision_v2_human,Other party collision type,100,37,63,0.873,0.8381
+LLM vs Human 2,collision_v2_human,Other party collision type,100,42,58,0.931,0.9095
+Human 1 vs Human 2,v1_injury_human,AV occupant injury,100,1,99,0.9091,0.5706
+LLM vs Human 1,v1_injury_human,AV occupant injury,100,1,99,0.9293,0.6511
+LLM vs Human 2,v1_injury_human,AV occupant injury,100,1,99,0.8889,0.4792
+Human 1 vs Human 2,v2_injury_human,Other party injury,100,1,99,0.8283,0.0492
+LLM vs Human 1,v2_injury_human,Other party injury,100,3,97,0.9278,0.508
+LLM vs Human 2,v2_injury_human,Other party injury,100,2,98,0.8367,0.1483
+Human 1 vs Human 2,av_responsibility_human,AV responsibility attribution,100,2,98,0.8469,0.6621
+LLM vs Human 1,av_responsibility_human,AV responsibility attribution,100,0,100,0.94,0.848
+LLM vs Human 2,av_responsibility_human,AV responsibility attribution,100,0,100,0.86,0.6983

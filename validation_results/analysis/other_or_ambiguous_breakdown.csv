@@ -1,0 +1,12 @@
+dimension,category,count,share_within_other_or_ambiguous
+scenario_rule_support_group,medium,184,0.8932038834951457
+scenario_rule_support_group,low,22,0.10679611650485436
+movement_field_agreement,contradictory,81,0.3932038834951456
+movement_field_agreement,one_or_more_sources_missing,79,0.38349514563106796
+movement_field_agreement,exact_agreement,31,0.15048543689320387
+movement_field_agreement,compatible_agreement,13,0.06310679611650485
+movement_field_agreement,both_sources_missing,2,0.009708737864077669
+scenario_candidate_count,0,206,1.0
+report_completeness_band,high,113,0.5485436893203883
+report_completeness_band,medium,90,0.4368932038834951
+report_completeness_band,low,3,0.014563106796116505
