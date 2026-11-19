@@ -209,7 +209,7 @@ A typical local configuration can include:
   "logger_level": "INFO",
   "auto_open_html": true,
   "save_final": true,
-  "filter_rows_with_na": true,
+  "filter_rows_with_na": false,
   "na_filter_fields": [
     "road_user_type",
     "av_mode_group",
@@ -256,7 +256,7 @@ A typical local configuration can include:
   "validation_seed": 42,
   "validation_include_text": true,
   "paper_plot_top_n": 8,
-  "font_family": "Open Sans, verdana, arial, sans-serif",
+  "font_family": "verdana",
   "font_size": 18,
   "plotly_template": "plotly_white",
   "reviewer": "Reviewer 1",
