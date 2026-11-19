@@ -46,7 +46,6 @@ from utils.figure_design import (
     PRIMARY,
     SERIES,
     TEXT,
-    TEXT_SECONDARY,
     apply_base_layout,
     count_bar_figure,
     is_missing_label,
@@ -330,15 +329,8 @@ def create_accident_location_map_figure(
         showcoastlines=True, coastlinecolor='#a8a7a1', coastlinewidth=0.8, showcountries=False,
         bgcolor='#e4eef9', showframe=False,
     )
-    fig.update_layout(
-        title='', margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor='#ffffff', showlegend=False,
-        annotations=[dict(
-            text=(f'{len(location_df):,} geocoded reports at {len(grouped):,} locations<br>'
-                  f'Marker area is proportional to reports (largest: {max_reports:,})'),
-            x=0.98, y=0.98, xref='paper', yref='paper', xanchor='right', yanchor='top', align='right',
-            showarrow=False, bgcolor='rgba(255,255,255,0.85)', font=dict(color=TEXT),
-        )],
-    )
+    # No title or note inside the figure: the README description explains the marker sizes.
+    fig.update_layout(title='', margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor='#ffffff', showlegend=False)
     return fig, location_df
 
 
@@ -638,12 +630,8 @@ def create_sunburst_figure(df: pd.DataFrame, plot_fields: list[str]) -> go.Figur
         insidetextorientation='radial', sort=False,
         hovertemplate='%{id}<br>%{value:,} reports (%{percentRoot:.1%})<extra></extra>',
     ))
-    rings = ' → '.join(humanize_field_name(f) for f in path_fields)
-    fig.update_layout(
-        title='', margin=dict(l=0, r=0, t=40, b=0), uniformtext=dict(minsize=11, mode='hide'),
-        annotations=[dict(text=f'Rings from centre: {rings}', x=0.5, y=1.0, xref='paper', yref='paper',
-                          showarrow=False, yanchor='bottom', font=dict(color=TEXT_SECONDARY))],
-    )
+    # No title or ring legend inside the figure: the README description explains the rings.
+    fig.update_layout(title='', margin=dict(l=0, r=0, t=0, b=0), uniformtext=dict(minsize=11, mode='hide'))
     return fig
 
 

@@ -665,7 +665,7 @@ Accident 5W1H Sankey diagram showing the flow across Who, Where, What, When, and
 
 [![Accident overview sunburst diagram](figures/accident_overview_sunburst.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accident_overview_sunburst.html)
 
-Accident overview sunburst diagram with three rings read from the centre: scenario class, then blame group, then collision group. Colours follow the scenario class.
+Accident overview sunburst diagram with three rings. The inner ring is the scenario class, the middle ring splits each scenario by blame group (who the report attributes the collision to), and the outer ring splits that by collision group (rear end, side swipe, and so on). Each segment's angle is proportional to its number of reports. Colours follow the scenario class, with lighter shades in the outer rings, and grey marks the residual "Other or ambiguous" scenario. Hover over a segment to see its full path and report count.
 
 #### Accident transition graph
 
@@ -677,7 +677,7 @@ Accident transition graph with one column per stage. Node size shows the number 
 
 [![Accident location map](figures/accident_location_map.png)](https://htmlpreview.github.io/?https://github.com/bazilinskyy/llm-events/blob/main/figures/accident_location_map.html)
 
-Accident location map showing geocoded report locations derived from questionnaire address fields. Each marker is one location, with its area proportional to the number of reports there.
+Accident location map showing geocoded report locations derived from questionnaire address fields. 966 of the 971 reports were geocoded, to 310 distinct locations. Each marker is one location, with its area proportional to the number of reports there. The largest marker (370 reports) is a single central San Francisco point, where addresses could only be resolved to city and ZIP code level. Reports cluster in the San Francisco Bay Area and Los Angeles. Hover over a marker for the place name and report count.
 
 ### Histogram figures
 
